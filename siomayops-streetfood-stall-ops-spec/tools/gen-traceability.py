@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""
+tools/gen-traceability.py — regenerates docs/TRACEABILITY.md from PRD.md, TASKS.md and TESTING.md.
+Phase 0: run manually (python3 tools/gen-traceability.py). Later: a CI job may run it in --check mode.
+"""
+import re, pathlib, collections
+
+prd = pathlib.Path("PRD.md").read_text()
+rows = re.findall(r"^\| ((?:FR|NFR)-[A-Z]+-\d{3}) \| (.*)$", prd, re.M)
+ids = [i for i, _ in rows]
+prio = {i: ("P0" if re.search(r"\|\s*P0\s*\|", r) else "P1" if re.search(r"\|\s*P1\s*\|", r) else "P2") for i, r in rows}
+
+tasks_md = pathlib.Path("TASKS.md").read_text()
+blocks = re.split(r"\n## ", tasks_md)[1:]
+task_reqs, task_meta = {}, {}
+for b in blocks:
+    tid = b.split(" ")[0]
+    if not re.fullmatch(r"T-[A-Z]+-\d{3}", tid):
+        continue
+    m = re.search(r"\*\*Requirements:\*\* ([^\n]+)", b)
+    if m:
+        _ids = set()
+        for _m in re.finditer(r"((?:FR|NFR)-[A-Z]+-)(\d{3})\.\.(\d{3})", m.group(1)):
+            _ids |= {f"{_m.group(1)}{_n:03d}" for _n in range(int(_m.group(2)), int(_m.group(3)) + 1)}
+        _ids |= set(re.findall(r"(?:FR|NFR)-[A-Z]+-\d{3}", re.sub(r"((?:FR|NFR)-[A-Z]+-)\d{3}\.\.\d{3}", " ", m.group(1))))
+        task_reqs[tid] = sorted(_ids)
+    else:
+        task_reqs[tid] = []
+    tests = re.search(r"\*\*Tests:\*\* ([^\n]+)", b)
+    task_meta[tid] = (b.split("\n")[0], (tests.group(1) if tests else ""))
+
+inv = collections.defaultdict(set)
+for tid, reqs in task_reqs.items():
+    for r in reqs:
+        inv[r].add(tid)
+
+families = collections.OrderedDict()
+for i in ids:
+    families.setdefault(i.split("-")[1], []).append(i)
+
+DOCMAP = {"OPERATOR":"OPERATORS.md, docs/security/PERMISSIONS.md","STALL":"STALLS.md","LOCATION":"LOCATIONS.md",
+"SHIFT":"docs/product/SHIFTS.md, SETTLEMENT.md","HANDOVER":"docs/product/SHIFTS.md §7","MENU":"MENU.md","PRICE":"PRICING.md",
+"SALE":"SALES.md","PAYMENT":"PAYMENTS.md, docs/payments/QRIS.md","CASH":"SETTLEMENT.md, SALES.md","SETTLE":"SETTLEMENT.md",
+"EXPENSE":"EXPENSES.md, docs/finance/EXPENSE-REVIEW.md","STOCK":"INVENTORY.md, docs/finance/STOCK-VARIANCE.md",
+"LOYALTY":"LOYALTY.md","HQ":"HQ.md, docs/product/HQ-DASHBOARD.md","PERF":"PERFORMANCE.md, docs/product/OPERATOR-RECOGNITION.md",
+"RECOG":"docs/product/OPERATOR-RECOGNITION.md","COMM":"COMMUNICATION.md","INC":"INCIDENTS.md","NOTIF":"NOTIFICATIONS.md",
+"AUDIT":"SECURITY.md, ADR-0026","CUST":"PAYMENTS.md, LOYALTY.md","SEC":"SECURITY.md, THREAT_MODEL.md",
+"PRIVACY":"PRIVACY.md, RETENTION.md","OFFLINE":"OFFLINE.md","OBS":"OBSERVABILITY.md",
+"ACCESS":"ACCESSIBILITY.md, docs/design/DESIGN-SYSTEM.md","UX":"DESIGN.md","REL":"ARCHITECTURE.md §10, DEPLOYMENT.md",
+"OPS":"OPERATIONS.md, RUNBOOK.md","COMP":"PRIVACY.md, SECURITY.md"}
+TESTMAP = {"OPERATOR":"integration/authorization","STALL":"integration/authorization","LOCATION":"integration/authorization",
+"SHIFT":"unit/shift-expected-cash, e2e/cash-sale","HANDOVER":"e2e/offline-day","MENU":"browser/tap-budget",
+"PRICE":"unit/pricing-resolution, unit/override-policy","SALE":"unit/sale-totals, integration/sales-replay, e2e/cash-sale",
+"PAYMENT":"unit/payment-states, integration/payments-honesty","CASH":"unit/shift-expected-cash, integration/closing-immutability",
+"SETTLE":"integration/closing-immutability","EXPENSE":"unit/expense-review","STOCK":"unit/stock-variance, integration/stock-derivation",
+"LOYALTY":"unit/loyalty-redemption, integration/loyalty-concurrency","HQ":"e2e/hq-coverage","PERF":"unit/normalisation (with T-PERF-002)",
+"RECOG":"integration/recognition-gates (with T-REC-001)","COMM":"integration/threads (with T-COMM-001)",
+"INC":"integration/incident-lifecycle (with T-INC-001)","NOTIF":"integration/alerts (with T-ALERT-001)",
+"AUDIT":"integration/audit-append-only","CUST":"integration/payments-honesty","SEC":"integration/authorization",
+"PRIVACY":"integration/dsar (with T-OPS-001)","OFFLINE":"integration/sales-replay, browser/offline-states, e2e/offline-day",
+"OBS":"integration/telemetry (with T-OBS-001)","ACCESS":"browser/tap-budget","UX":"browser/tap-budget, browser/offline-states",
+"REL":"e2e/failover rehearsal (with T-OPS-003)","OPS":"e2e/release rehearsal (with T-OPS-002)","COMP":"integration/audit-append-only"}
+QAMAP = {"OPERATOR":"QA-A","STALL":"QA-A","LOCATION":"QA-O","SHIFT":"QA-S","HANDOVER":"QA-S","MENU":"QA-K","PRICE":"QA-P",
+"SALE":"QA-S","PAYMENT":"QA-C","CASH":"QA-C","SETTLE":"QA-E","EXPENSE":"QA-E","STOCK":"QA-K","LOYALTY":"QA-L","HQ":"QA-H",
+"PERF":"QA-H","RECOG":"QA-H","COMM":"QA-H","INC":"QA-H","NOTIF":"QA-X","AUDIT":"QA-A","CUST":"QA-C","SEC":"QA-T",
+"PRIVACY":"QA-A","OFFLINE":"QA-O","OBS":"QA-T","ACCESS":"QA-K","UX":"QA-K","REL":"QA-T","OPS":"QA-T","COMP":"QA-A"}
+
+fr = [i for i in ids if i.startswith("FR-")]
+nfr = [i for i in ids if i.startswith("NFR-")]
+p0 = [i for i in ids if prio[i] == "P0"]; p1 = [i for i in ids if prio[i] == "P1"]; p2 = [i for i in ids if prio[i] == "P2"]
+cov = [i for i in p0 if inv.get(i)]
+
+out = ["# Traceability\n",
+"**Document ID:** DOC-TRACEABILITY  ",
+"**Status:** Phase 0 — regenerated by `tools/gen-traceability.py`; consistency is enforced in CI by `tools/census.mjs`, `tools/check-docs.mjs` and `tools/check-stubs.mjs`  ",
+"**Generated from:** `PRD.md` (requirement ids and priorities), `TASKS.md` (task requirement lists), `TESTING.md` §4 (suites)\n",
+"## 1. How to read this document\n",
+"Each requirement family lists: stable-id count, the product documents that define the behaviour, the tasks that",
+"will implement it (`TASKS.md`), the test suites that must pass before the task can be called done",
+"(`TESTING.md` §4, `tests/**`), and the QA scenario family (`QA.md`).\n",
+"Enforced by tooling:\n",
+"1. every requirement id cited anywhere in the repository exists in `PRD.md` (`tools/census.mjs`);",
+"2. every **P0** requirement is cited in the `Requirements:` line of at least one task in `TASKS.md`;",
+"3. every ADR file is listed in `ADR.md` and `docs/adr/INDEX.md` (`tools/check-docs.mjs`);",
+"4. every `Not implemented: T-XXX-XXX` stub names a real task id (`tools/check-stubs.mjs`).\n",
+"## 2. Census\n", "| Measure | Value |", "| --- | --- |",
+f"| Functional requirements (`FR-*`) | {len(fr)} |",
+f"| Non-functional requirements (`NFR-*`) | {len(nfr)} |",
+f"| Total stable requirement ids | {len(ids)} |",
+f"| P0 (pilot-blocking) | {len(p0)} |",
+f"| P1 (before scale-out) | {len(p1)} |",
+f"| P2 (later, designed now) | {len(p2)} |",
+f"| P0 requirements with task coverage | {len(cov)} / {len(p0)} |",
+f"| Tasks in `TASKS.md` | {len(task_reqs)} |",
+"| ADR records | 38 |",
+"| Vertical slices (`ROADMAP.md`) | VS-0 … VS-19 |",
+"| NotImplemented stubs under `src/` | see `tools/census.mjs` output |", "",
+"## 3. Requirement families → documents → tasks → tests\n",
+"| Family | Ids | Primary documents | Implementing tasks | Test suites | QA family |",
+"| --- | --- | --- | --- | --- | --- |"]
+for fam, members in families.items():
+    tids = sorted({t for i in members for t in inv.get(i, [])})
+    out.append(f"| `{fam}` | {len(members)} | {DOCMAP.get(fam,'—')} | {', '.join(tids) if tids else '—'} | {TESTMAP.get(fam,'—')} | {QAMAP.get(fam,'—')} |")
+out += ["", "## 4. Task detail for the pilot slices (VS-0 … VS-9)\n",
+"Only the slices needed for pilot readiness are expanded; later slices are expanded when their tasks start, so this",
+"file never claims more certainty than the plan has.\n",
+"| Task | Requirements | Tests prescribed |", "| --- | --- | --- |"]
+ORDER = ["T-FOUND-001","T-FOUND-002","T-FOUND-003","T-FOUND-004","T-FOUND-005","T-FOUND-006","T-OP-001","T-OP-002",
+"T-STALL-001","T-STALL-002","T-AUTHZ-001","T-LOC-001","T-LOC-002","T-LOC-003","T-SHIFT-001","T-SHIFT-002","T-LOC-004",
+"T-LOC-005","T-OFF-001","T-HQ-001","T-MENU-001","T-MENU-002","T-PRICE-001","T-PRICE-002","T-PRICE-003","T-PRICE-004",
+"T-SALE-001","T-SALE-002","T-SALE-003","T-SALE-004","T-PAY-001","T-PAY-002","T-PAY-003","T-PAY-004","T-EXP-001",
+"T-EXP-002","T-EXP-003","T-EXP-004"]
+for t in ORDER:
+    if t not in task_meta: continue
+    _, tests = task_meta[t]
+    out.append(f"| {t} | {', '.join(sorted(set(task_reqs[t]))) or '—'} | {tests or '—'} |")
+out += ["", "## 5. Coverage gaps and deviations\n", "| # | Observation | Action |", "| --- | --- | --- |",
+"| G-1 | P0 requirements are fully task-covered after the Phase 0 alignment pass; every later slice re-checks this before starting. | Maintained by tooling |",
+"| G-2 | P1/P2 requirements are not yet expanded to task level; VS-11…VS-19 add those rows when they start. | Expanded per slice |",
+"| G-3 | `T-SHIFT-031` is the product brief's mandated example stub id and is an alias of `T-CLOSE-001`; it is an allowed alias in `tools/check-stubs.mjs`. | Documented; no action |",
+"| G-4 | QA scenario families are referenced by name; the catalogue lives in `QA.md`. | Maintained in `QA.md` |", "",
+"## 6. Change control\n",
+"1. Adding a requirement: append to `PRD.md` with the next free id in its family, add a task in `TASKS.md`, regenerate this file.",
+"2. Removing or narrowing a requirement: record the reason in the `PRD.md` amendment note and regenerate.",
+"3. Starting a slice: confirm every row's tests exist as TODO suites before writing implementation.",
+"4. Finishing a task: the Definition of Done in `AGENTS.md` §5 requires this file to be regenerated in the same change.", ""]
+pathlib.Path("docs/TRACEABILITY.md").write_text("\n".join(out))
+print("docs/TRACEABILITY.md regenerated; P0 coverage:", len(cov), "/", len(p0))

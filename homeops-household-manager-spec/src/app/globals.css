@@ -1,0 +1,56 @@
+/* HomeOps - design tokens (specification phase).
+ * Owning tasks: T-PLAT-002 (tokens wired), T-PLAT-015 (contrast gate).
+ *
+ * Tailwind v4 CSS-first configuration (ADR-003, docs/research/STACK-2026.md section 6).
+ * These tokens are the single source of truth for colour, spacing, radius, and type:
+ * no component may hard-code a hex value outside this block.
+ *
+ * Contrast targets (ACCESSIBILITY.md): text >= 4.5:1, large text >= 3:1, focus ring >= 3:1,
+ * status shapes >= 3:1. The dark theme remaps these names rather than defining a second palette.
+ * A test asserts token contrast in both themes (T-A11Y-004).
+ */
+
+@theme {
+  /* colour - semantic, not decorative (docs/design/DESIGN-SYSTEM.md section 2) */
+  --color-bg: oklch(0.99 0.005 250);
+  --color-surface: oklch(1 0 0);
+  --color-border: oklch(0.9 0.01 250);
+  --color-text: oklch(0.22 0.02 250);
+  --color-text-muted: oklch(0.5 0.02 250);
+  --color-primary: oklch(0.55 0.14 250);
+  --color-primary-fg: oklch(0.99 0 0);
+  --color-neutral: oklch(0.6 0.02 250);
+  --color-success: oklch(0.6 0.14 150);
+  --color-attention: oklch(0.72 0.15 85);
+  --color-warning: oklch(0.66 0.17 55);
+  --color-critical: oklch(0.55 0.2 25);
+  --color-focus: oklch(0.5 0.16 250);
+
+  /* spacing, radius, type, elevation */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-2: 0 2px 8px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-bg: oklch(0.19 0.01 250);
+    --color-surface: oklch(0.24 0.01 250);
+    --color-border: oklch(0.32 0.01 250);
+    --color-text: oklch(0.95 0.01 250);
+    --color-text-muted: oklch(0.72 0.01 250);
+  }
+}
+
+/* Motion only communicates a change the member caused; reduced motion removes the rest. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

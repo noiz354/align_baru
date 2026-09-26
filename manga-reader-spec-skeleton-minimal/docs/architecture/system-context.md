@@ -1,0 +1,3 @@
+# System context
+
+Actors: guest/member reader, catalog editor, ingestion operator, on-call/security operator. External systems: identity provider (decision open), PostgreSQL, private S3-compatible object store, CDN/reverse proxy, OpenTelemetry collector/backend, CI registry/deploy platform. Trust zones: public browser; application server; data plane; quarantine processor; operator/admin plane; telemetry. Browser never receives DB/storage credentials. Content assets are authorized inputs, not unrestricted public files. Rights authorization is a business/legal input and must be recorded/verified outside assumed technical processing.

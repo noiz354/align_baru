@@ -1,0 +1,27 @@
+# PHASE 0: local development services only. Nothing here is deployed.
+# PostgreSQL 18 (ADR-0003). MinIO section is for VS-7 evidence work; keep it commented until then.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: siomayops
+      POSTGRES_PASSWORD: siomayops
+      POSTGRES_DB: siomayops
+    ports:
+      - "5432:5432"
+    volumes:
+      - siomayops-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siomayops"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # storage:                      # enable from VS-7 (T-EXP-004)
+  #   image: minio/minio:latest   # AGPL: acceptable for local development only
+  #   command: server /data --console-address ":9001"
+  #   environment: { MINIO_ROOT_USER: siomayops, MINIO_ROOT_PASSWORD: siomayops }
+  #   ports: ["9000:9000", "9001:9001"]
+
+volumes:
+  siomayops-db:

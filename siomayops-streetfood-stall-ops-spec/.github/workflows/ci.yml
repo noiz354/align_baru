@@ -1,0 +1,28 @@
+# PHASE 0 CI. No dependency installation and no build are attempted: there is no application yet.
+# Installation, typecheck, lint, Vitest and Playwright activate with T-FOUND-001 (VS-0).
+name: phase-0-docs-and-stubs
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Stub / boundary checks (ADR-0036)
+        run: node tools/check-stubs.mjs
+      - name: Documentation link and ADR index checks
+        run: node tools/check-docs.mjs
+      - name: Requirement and task census (traceability)
+        run: node tools/census.mjs
+      # Activated at VS-0 (T-FOUND-001):
+      # - run: pnpm install --frozen-lockfile
+      # - run: pnpm lint
+      # - run: pnpm typecheck
+      # - run: pnpm test
+      # - run: pnpm exec playwright install --with-deps && pnpm test:e2e

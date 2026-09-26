@@ -1,0 +1,147 @@
+# CONTRIBUTING
+
+**Document ID:** DOC-CONTRIBUTING
+**Status:** Phase 0
+**Related:** `AGENTS.md`, `README.md`, `TASKS.md`, `.github/workflows` (planned)
+
+---
+
+## 1. Current phase rule (read this first)
+
+This repository is in **Phase 0: specification, architecture, documentation, and skeleton code**.
+
+- **Do not implement business logic.**
+- Every function requiring business logic must throw:
+  `new Error("Not implemented: T-XXX-XXX")`.
+- Never return fabricated data, never simulate a payment, never fake a calculation.
+- If you believe an implementation is needed, first check `ROADMAP.md` for the slice and
+  `TASKS.md` for the task; if it is not there, it is a **documentation change**, not code.
+
+---
+
+## 2. How to contribute
+
+| Change type | Required artefacts |
+| --- | --- |
+| New requirement | `PRD.md` (new stable ID) + `docs/TRACEABILITY.md` row |
+| New behaviour decision affecting money, identity, payments, offline, retention, or scoring | New **ADR** (`docs/adr/`), index entry in `ADR.md` |
+| Domain vocabulary change | `DOMAIN.md` + `GLOSSARY.md` |
+| API contract change | `API.md` (+ skeleton route shell) and `docs/operations/API-READ.md` if read-side |
+| UX change | `DESIGN.md` and/or `docs/design/*` |
+| Security/privacy change | `SECURITY.md` / `THREAT_MODEL.md` / `PRIVACY.md` updates |
+| New task | `TASKS.md` with the full field set + `ROADMAP.md` slice reference |
+| Test addition | `tests/**` (TODO-only in Phase 0) |
+
+---
+
+## 3. Skeleton rules
+
+Allowed in Phase 0:
+
+```text
+interfaces · types · enums · DTOs · repository ports · service ports ·
+provider adapters (interfaces only) · state types · event types ·
+NotImplemented functions · route shells · component shells · TODO tests
+```
+
+Forbidden:
+
+```text
+business calculations · database queries against real data · auth implementations ·
+payment gateway calls · GPS/geolocation collection · loyalty point maths ·
+settlement/accounting logic · stock deduction · notification delivery ·
+production dashboards · WhatsApp integrations · deployment scripts that deploy
+```
+
+Every stub:
+
+```ts
+/**
+ * T-XXX-XXX
+ * <one-line intent>
+ * Requirements: FR-…/NFR-…
+ * TODO: not implemented in Phase 0.
+ */
+export async function doThing(_input: Input): Promise<Output> {
+  throw new Error("Not implemented: T-XXX-XXX");
+}
+```
+
+Comments must reference the **task ID** and the **requirement IDs** — this is how
+`docs/TRACEABILITY.md` stays honest.
+
+---
+
+## 4. Branch, commit, and PR conventions
+
+| Item | Convention |
+| --- | --- |
+| Branch | `task/T-XXX-XXX-short-name` (or `doc/…` for documentation-only work) |
+| Commit | Imperative subject; body explains *why*; references requirement IDs |
+| PR title | `[T-XXX-XXX] Short description` |
+| PR body | Requirements satisfied · ADR reference · Files touched · Tests · QA scenarios · Risks · Screenshots (UI) |
+| Size | Prefer < 400 changed lines; split large work by slice |
+| Reviewers | At least one reviewer; a second for money/security/privacy-relevant changes |
+
+---
+
+## 5. Definition of done (mirrors `AGENTS.md` §5)
+
+1. Requirements mapped, ADRs referenced.
+2. Domain invariants encoded (constraints) and tested.
+3. Offline behaviour defined (or explicitly out of scope with a decision).
+4. Idempotency defined for every mutating path.
+5. Authorization tested from an out-of-scope actor.
+6. Audit events emitted with reasons where required.
+7. QA scenarios recorded; field scenarios executed for user-facing changes.
+8. Docs updated (product, API, glossary, traceability).
+9. No secrets, no production data, no debug endpoints.
+10. No new dependency without ADR justification and a maintenance/licence check.
+
+---
+
+## 6. Local development (planned baseline)
+
+```text
+pnpm install
+docker compose up -d          # PostgreSQL (and MinIO if storage work is in scope)
+pnpm lint && pnpm typecheck
+pnpm test                     # unit + browser
+pnpm test:integration         # against the compose database
+pnpm dev                      # Next.js dev server
+```
+
+Environment variables are documented in `.env.example` (committed) and validated at boot.
+Never commit real credentials; use fake values locally.
+
+---
+
+## 7. Code style essentials
+
+- TypeScript strict; no `any` at boundaries; explicit return types on exported functions.
+- Money: `Money` only. A `number` in a money path will be rejected in review.
+- Time: `occurredAt` + server-derived `businessDay`; never `new Date()` inside domain code
+  (inject a clock).
+- Statuses: string unions with exhaustive switches (`never` default).
+- Errors: typed domain errors; user-facing messages in plain Indonesian (operator surfaces).
+- No `console.log` in library code; use the structured logger with correlation IDs.
+- Comments explain *why*, not *what*; keep them short and honest.
+
+---
+
+## 8. Data and privacy rules for contributors
+
+1. **Never** commit real operator or customer data, screenshots, or exports.
+2. Test data is synthetic and generated by factories.
+3. Any feature touching personal data requires a `PRIVACY.md` review line in the PR.
+4. Do not add analytics/telemetry beyond the documented catalogue in `OBSERVABILITY.md`.
+5. Do not add third-party scripts to the operator surface (performance + privacy).
+
+---
+
+## 9. Questions and escalation
+
+- Product behaviour unclear → update `PRD.md` via the Product Architect; do not guess.
+- Money semantics unclear → Fintech Architect + new ADR.
+- Privacy/legal unclear → Privacy owner/DPO.
+- Field reality unclear → talk to an operator/supervisor **before** designing further.

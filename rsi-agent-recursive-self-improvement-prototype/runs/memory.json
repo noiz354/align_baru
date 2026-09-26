@@ -1,0 +1,263 @@
+{
+  "frozen": true,
+  "lessons": [
+    {
+      "id": "lesson-727d87d4",
+      "content": "[procedure] 'Fix failing test in payment retry logic': applying debugging, logging, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "debugging",
+        "logging",
+        "edge-cases"
+      ],
+      "source_task_id": "task-b0-0",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.116692,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-d1afe462",
+      "content": "[boundary] 'Add pagination to /users endpoint': hidden constraint around 'api-design' defeated a first-pass fix. Before finalizing work in this area, probe api-design boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "api-design",
+        "http"
+      ],
+      "source_task_id": "task-b0-1",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.11704,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-072862c7",
+      "content": "[boundary] 'Raise coverage for invoice proration': hidden constraint around 'fixtures' defeated a first-pass fix. Before finalizing work in this area, probe fixtures boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "fixtures",
+        "pytest"
+      ],
+      "source_task_id": "task-b0-2",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1173933,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-7a2bc90d",
+      "content": "[boundary] 'Extract currency conversion into a service': hidden constraint around 'refactor' defeated a first-pass fix. Before finalizing work in this area, probe refactor boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "refactor",
+        "typing"
+      ],
+      "source_task_id": "task-b0-3",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1177387,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-2f8830f4",
+      "content": "[boundary] 'Add --dry-run flag to migration CLI': hidden constraint around 'argparse' defeated a first-pass fix. Before finalizing work in this area, probe argparse boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "argparse",
+        "cli"
+      ],
+      "source_task_id": "task-b0-4",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1180286,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-5dad1ab4",
+      "content": "[boundary] 'Normalize address table and write migration': hidden constraint around 'migrations' defeated a first-pass fix. Before finalizing work in this area, probe migrations boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "migrations",
+        "sql"
+      ],
+      "source_task_id": "task-b0-5",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1183443,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-973fb3b0",
+      "content": "[procedure] 'Race condition in async worker queue': applying async, logging, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "async",
+        "logging",
+        "edge-cases"
+      ],
+      "source_task_id": "task-b1-6",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1187227,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-a7023097",
+      "content": "[procedure] 'Rate limiter for the public API': applying http, async, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "http",
+        "async",
+        "edge-cases"
+      ],
+      "source_task_id": "task-b1-7",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1190343,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-94dcdc4b",
+      "content": "[procedure] 'Golden tests for report renderer': applying pytest, fixtures, golden with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "pytest",
+        "fixtures",
+        "golden"
+      ],
+      "source_task_id": "task-b1-8",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.119533,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-17f2874d",
+      "content": "[procedure] 'Review auth middleware for token leaks': applying security, review, logging with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "security",
+        "review",
+        "logging"
+      ],
+      "source_task_id": "task-b1-9",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.119931,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-ab1b440f",
+      "content": "[boundary] 'Document the retry backoff policy': hidden constraint around 'clarity' defeated a first-pass fix. Before finalizing work in this area, probe clarity boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "clarity",
+        "docs"
+      ],
+      "source_task_id": "task-b1-11",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1203594,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-688c6bb0",
+      "content": "[boundary] 'Add --dry-run flag to migration CLI': hidden constraint around 'safety' defeated a first-pass fix. Before finalizing work in this area, probe safety boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "safety",
+        "cli"
+      ],
+      "source_task_id": "task-d0-0",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.1208434,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-0a5d415d",
+      "content": "[procedure] 'Extract currency conversion into a service': applying refactor, typing, safety with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "refactor",
+        "typing",
+        "safety"
+      ],
+      "source_task_id": "task-d0-1",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1212022,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-e7761e1a",
+      "content": "[procedure] 'Normalize address table and write migration': applying sql, schema, migrations with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "sql",
+        "schema",
+        "migrations"
+      ],
+      "source_task_id": "task-d0-2",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1215878,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-b67098c6",
+      "content": "[procedure] 'Document the retry backoff policy': applying docs, clarity, logging with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "docs",
+        "clarity",
+        "logging"
+      ],
+      "source_task_id": "task-d0-3",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.121949,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-618a79ae",
+      "content": "[procedure] 'Add --dry-run flag to migration CLI': applying cli, argparse, safety with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "cli",
+        "argparse",
+        "safety"
+      ],
+      "source_task_id": "task-d1-0",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1224205,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-3e004237",
+      "content": "[procedure] 'Extract currency conversion into a service': applying refactor, typing, safety with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "refactor",
+        "typing",
+        "safety"
+      ],
+      "source_task_id": "task-d1-1",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1228359,
+      "kind": "procedure"
+    },
+    {
+      "id": "lesson-cd5198e5",
+      "content": "[boundary] 'Document the retry backoff policy': hidden constraint around 'clarity' defeated a first-pass fix. Before finalizing work in this area, probe clarity boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "clarity",
+        "docs"
+      ],
+      "source_task_id": "task-d1-2",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790441959.12323,
+      "kind": "boundary"
+    },
+    {
+      "id": "lesson-21951dcf",
+      "content": "[procedure] 'Raise coverage for invoice proration': applying pytest, fixtures, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "pytest",
+        "fixtures",
+        "edge-cases"
+      ],
+      "source_task_id": "task-d1-3",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790441959.1236382,
+      "kind": "procedure"
+    }
+  ]
+}

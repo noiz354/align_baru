@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# builds
+.next/
+out/
+dist/
+drizzle/meta/_snapshot*
+
+# env & secrets — NEVER commit (NFR-OPS-006)
+.env
+.env.*
+!.env.prod.example
+
+# logs & local state
+*.log
+coverage/
+test-results/
+playwright-report/
+
+# OS
+.DS_Store

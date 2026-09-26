@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build / framework output
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env/
+*.egg-info/
+
+# Test / tooling caches
+.vitest/
+.playwright/
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+
+# Secrets & local config — never commit
+.env
+.env.*
+!.env.example
+*.tfvars
+*.pem
+*.key
+
+# Generated run artifacts
+runs/memory.json
+runs/memory.prev.json
+runs/attempts.jsonl

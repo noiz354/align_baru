@@ -1,0 +1,12 @@
+# Media worker image (ffmpeg sandbox) - PHASE 0 SKELETON.
+#
+# Contract for the real image (T-OPS-002, T-SEC-005):
+#   - pinned ffmpeg build (recorded on every produced asset for reproducibility)
+#   - non-root user, read-only root filesystem except a bounded tmpfs for scratch files
+#   - hard CPU/memory/time limits per job
+#   - NO application database credentials and no direct database access
+#   - no network by default; egress allow-listed to the configured provider host only when
+#     TRANSCRIPTION_EGRESS_ENABLED=true (T-TRANSCRIPT-005)
+FROM node:24-slim AS base
+# TODO(T-OPS-002): install pinned ffmpeg/ffprobe, create the media user, set resource limits.
+CMD ["node", "-e", "console.error('Not implemented: T-OPS-002 - media image is a Phase 0 skeleton'); process.exit(1)"]

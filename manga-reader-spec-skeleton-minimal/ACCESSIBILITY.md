@@ -1,0 +1,7 @@
+# Accessibility specification
+
+Target WCAG 2.2 AA for all app workflows (NFR-A11Y-001). Reader visual content cannot be made equivalent by controls alone; metadata/editorial alt descriptions are planned fields and responsibility, with no false promise that art is automatically described.
+
+Requirements: semantic landmarks/headings; all catalog/admin/reader controls named and keyboard reachable; visible focus not obscured; no keyboard traps; logical focus after route, modal, fullscreen, and error transitions; screen reader announcements for page/chapter changes without announcing every scroll frame; accessible loading/failure/retry status; contrast and non-color status indicators; reflow at 320 CSS px for controls and no avoidable horizontal scrolling; text resize/zoom without clipping controls; 24 CSS px minimum WCAG 2.2 AA target where applicable (prefer 44px touch targets); reduced motion respected; avoid flashing; mode and direction labels announced.
+
+Gestures (swipe/pinch/tap zones) always have single-pointer alternatives and visible buttons; keyboard mapping configurable/non-conflicting, native browser shortcuts respected. Double-page mode must expose meaningful page order and a single-page fallback. Fullscreen has announced state and escape exit. Test automated axe plus manual keyboard, VoiceOver/Safari, NVDA/Firefox or equivalent, mobile touch and zoom. Acceptance tracked in T-ACCESS tasks.

@@ -1,0 +1,16 @@
+[project]
+name = "rsi-agent"
+version = "0.1.0"
+description = "Recursive Self-Improvement pipeline for coding agents with Jev orchestration"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+rsi-demo = "demo:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["rsi"]

@@ -1,0 +1,7 @@
+# Deployment architecture (target)
+
+Internet → managed CDN/WAF/reverse proxy → stateless Next.js Node LTS application → managed PostgreSQL and private S3-compatible object storage. OTLP traces/metrics/log shipping → collector/backend. Image ingestion worker is a separately bounded process/deployment from same codebase when execution limits demand; no queue vendor selected yet. CDN does not expose quarantine/private bucket.
+
+Environments: local, CI ephemeral, staging, production isolated accounts/projects. Configuration is validated at boot; `.env.example` documents names only, no secret values: `DATABASE_URL`, `AUTH_*`, `OBJECT_STORE_*`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `APP_ORIGIN`, `COOKIE_*`, `UPLOAD_*`. Actual names/types and secret manager provider are implementation task. Never expose server secrets via `NEXT_PUBLIC_*`.
+
+Deploy immutable artifact from reviewed commit; CI tests, dependency scan/SBOM, image scan, provenance; staged rollout and smoke checks. DB changes later use reviewed expand/contract migrations and backup; no migrations exist now. Rollback app artifact; DB rollback via forward-fix/restore plan, not assumed reverse migration. Readiness verifies required dependencies without disclosing internals; liveness local process only. Backups encrypted, access-separated, PITR target chosen with product RPO/RTO, restore drill at least quarterly. Validate TLS, headers, cookie scope, CORS, CDN cache keys, signed URL expiry, private origin and health before traffic.

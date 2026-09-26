@@ -1,0 +1,39 @@
+# MajelisHub - local/compose topology (DEPLOYMENT.md §1) - PHASE 0 SKELETON.
+#
+# Roles: proxy (TLS, body limits) · app (HTTP only, no ffmpeg) · worker (jobs) · media (ffmpeg sandbox,
+# no internet by default) · db (Postgres 18) · storage (MinIO).
+#
+# Why this file exists in Phase 0: it is the specification of the topology, and T-OPS-002 turns it into a
+# smoke-tested stack. Nothing here is run yet: no images are built and no dependencies are installed.
+#
+# Non-negotiables encoded below (uncomment when implementing T-OPS-002):
+#   - app and worker run as non-root with a read-only root filesystem
+#   - only the media worker mounts ffmpeg, and it has no application database credentials
+#   - the media worker has no default route to the internet (needed for TRANSCRIPTION_EGRESS_ENABLED=false)
+#   - migrations are a one-shot job, never an app entrypoint (ADR-0020)
+#   - no service publishes a port it does not need (db and storage stay internal)
+version: "3.9"
+services:
+  app:
+    build: { context: .., dockerfile: ops/docker/Dockerfile.app }
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://majelishub_app:change-me@db:5432/majelishub}
+      - JOBS_ENABLED=false
+      - MEDIA_WORKER_ENABLED=false
+    # ports: ["3000:3000"]        # only via the proxy in production
+  worker:
+    build: { context: .., dockerfile: ops/docker/Dockerfile.app }   # same image, different entrypoint
+    environment: [ "JOBS_ENABLED=true" ]
+  media:
+    build: { context: .., dockerfile: ops/docker/Dockerfile.media }
+    environment: [ "MEDIA_WORKER_ENABLED=true", "TRANSCRIPTION_EGRESS_ENABLED=false" ]
+  db:
+    image: postgres:18
+    environment: [ "POSTGRES_DB=majelishub" ]
+    # volumes: [ "db-data:/var/lib/postgresql/data" ]
+  storage:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+  # migrate:                     # one-shot, run by the deploy step (ADR-0020)
+  #   build: { context: .., dockerfile: ops/docker/Dockerfile.app }
+  #   command: ["npm", "run", "db:migrate"]

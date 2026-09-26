@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+coverage/
+dist/
+build/
+.turbo/
+.vercel/
+*.tsbuildinfo
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# evidence and exports must never be committed
+evidence/
+exports/
+*.pem

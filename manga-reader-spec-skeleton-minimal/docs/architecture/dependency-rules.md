@@ -1,0 +1,3 @@
+# Dependency rules
+
+Dependency direction: app route → feature application contract → domain/shared types; infrastructure adapters implement ports. Feature domain code is framework-agnostic. Only server/db may import DB driver/ORM; only server/storage may import S3 SDK; only server/auth may integrate selected identity library; only server/media may call Sharp. Client components cannot import server-only modules. Cross-feature operations use application contracts and identifiers, not direct repository reach-through. Shared code must be dependency-light and not host business policy. Test-only fakes/fixtures stay under tests. CI should enforce boundaries by lint/import rules once tooling task is authorized.

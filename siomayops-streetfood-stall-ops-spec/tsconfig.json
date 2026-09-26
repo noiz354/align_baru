@@ -1,0 +1,23 @@
+{
+  "//": "PHASE 0: strictness is a design commitment (ADR-0035). No build has been run.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src", "tests", "tools", "*.ts", "*.mjs"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,3 @@
+# Contributing
+
+This phase accepts specification/skeleton changes only. Read AGENTS.md, requirements and relevant ADR before edits. Keep IDs stable; update traceability when adding requirements/tasks/contracts. No feature implementation, real handler, schema migration, credential or fake product data. ADR changes require explicit alternative analysis. Keep dependencies uninstalled unless skeleton tooling requires them. Run Markdown/link and structure checks as available; document unverifiable claims. PRs state scope, requirement IDs, security/performance/accessibility implications, verification and open decisions. Future implementation must follow task DoD and tests described in AGENTS.md.

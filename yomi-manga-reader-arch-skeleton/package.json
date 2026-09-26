@@ -1,0 +1,25 @@
+{
+  "name": "yomi",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Yomi — self-hosted manga & comic reader. ARCHITECTURE PHASE: documentation + non-functional skeletons only. No feature is implemented. See README.md, TASKS.md, AGENTS.md.",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"PLANNED: eslint (incl. boundary rules) — wired at T-FOUND-001/T-FOUND-011\" && exit 0",
+    "test:unit": "echo \"PLANNED: vitest run tests/unit — wired at T-FOUND-001\" && exit 0",
+    "test:integration": "echo \"PLANNED: vitest run tests/integration (compose PG/MinIO) — T-FOUND-001/T-FOUND-010\" && exit 0",
+    "test:e2e": "echo \"PLANNED: playwright test tests/e2e — T-FOUND-001\" && exit 0",
+    "build": "echo \"PLANNED: next build (Turbopack) — T-FOUND-001\" && exit 0",
+    "perf:bundle": "echo \"PLANNED: bundle budget check — T-PERF-003\" && exit 0"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "@types/react": "19.x",
+    "@types/react-dom": "19.x",
+    "typescript": "6.0.x",
+    "vitest": "4.1.x"
+  }
+}

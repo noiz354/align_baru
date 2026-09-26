@@ -1,0 +1,16 @@
+# Test stack for integration/browser/E2E layers (T-TEST-001, T-OPS-002) - PHASE 0 SKELETON.
+#
+# Differences from docker-compose.yml, and why:
+#   - Postgres and MinIO only (the app is started by the test runner)
+#   - throwaway credentials, no volumes, ephemeral ports
+#   - schemas are created per suite and dropped on teardown (tests/testing/CONCURRENCY-TESTS.md isolation)
+#   - no outbound internet: a test that needs the network is a bug (TESTING.md §1)
+version: "3.9"
+services:
+  db:
+    image: postgres:18
+    environment: [ "POSTGRES_PASSWORD=test-only", "POSTGRES_DB=majelishub_test" ]
+  storage:
+    image: minio/minio
+    command: server /data
+    environment: [ "MINIO_ROOT_USER=test", "MINIO_ROOT_PASSWORD=test-only" ]

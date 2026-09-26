@@ -1,0 +1,53 @@
+/*
+ * Design tokens - PHASE 0 SKELETON of the design system's foundation.
+ *
+ * Where this belongs: src/app/styles/tokens.css is the single source of visual truth; components read
+ * variables, never literals (docs/design/DESIGN-SYSTEM.md).
+ * Principles being encoded (DESIGN.md): SIMPLE · RESPECTFUL · CALM · MOBILE FIRST · FAST AT THE MOSQUE
+ * ENTRANCE · ACCESSIBLE · LOW FRICTION · INFORMATION FIRST.
+ *
+ * Values below are the documented starting point, not final art direction. Rules that are NOT
+ * negotiable:
+ *   1. Contrast: text pairs must meet WCAG 2.2 AA (4.5:1 body, 3:1 large) - ACCESSIBILITY.md.
+ *   2. Sizes: primary touch targets >= 56 px; short-code targets >= 32 px, enlarged in large-text mode.
+ *   3. Colour is never the only signal: every state (success/already/failure) also has text and an icon
+ *      or sound cue, because entrance lighting and phone screens vary wildly (ACCESSIBILITY.md §4).
+ *   4. No "urgency" styling: no red countdown pressure, no badge shouting - the product is calm.
+ *   5. Tokens are semantic (surface, text, accent, danger) so a deployment can theme without touching
+ *      component code.
+ */
+
+:root {
+  /* Type scale (rem-based, base 16px; large-text mode moves the base, not the components) */
+  --font-size-body: 1rem;
+  --font-size-large-text-body: 1.25rem;      /* 20px base in large-text mode */
+  --font-size-title: 1.5rem;
+  --font-size-display-code: 2rem;            /* short code display */
+  --hit-target-min: 3.5rem;                  /* 56px */
+  --hit-target-code: 2rem;                   /* 32px minimum on the code page */
+
+  /* Spacing (4px rhythm) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Colour - placeholder values pending the accessibility contrast audit (T-ARCH-001) */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f5f7;
+  --color-text: #14181f;
+  --color-text-muted: #4a5262;
+  --color-accent: #0f6b4f;                  /* calm green; not decorative */
+  --color-success: #0f6b4f;
+  --color-notice: #8a5a00;
+  --color-danger: #a1211b;
+
+  /* Arabic-safe typography: must not clip diacritics at any size (docs/transcription/CODE-SWITCHING.md §5) */
+  --font-family-arabic: "Noto Naskh Arabic", "Amiri", serif;
+  --line-height-arabic: 2;
+}
+
+/* TODO(T-ARCH-001): finalise the palette after the contrast audit, add dark-of-night variants for the */
+/* entrance console (used before Subuh), and export the same tokens for the design documentation. */

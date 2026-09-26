@@ -1,0 +1,3 @@
+# Data flows
+
+Catalog read: browser route → catalog query contract → manga/chapter read ports → published-only DB projection → safe DTO. Reader open: route → reader application service → chapter manifest (ordered page metadata) → media policy returns time-limited reference → browser requests CDN; progress writes separately via authenticated application boundary. Upload: admin authorization → upload intent → private quarantine → isolated validation/transform → staging assets → editor review → explicit publish transaction/visibility version → CDN delivery. Audit records critical state transitions. Telemetry propagates trace IDs but redacts request content, user identifiers, signed URLs and asset keys. Failure at any upload stage leaves assets non-public.

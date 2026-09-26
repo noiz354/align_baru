@@ -1,0 +1,122 @@
+/**
+ * Error taxonomy - the single vocabulary of failure across the whole system.
+ *
+ * Where this belongs: `shared/contracts` because domain, application and HTTP layers all need it, and
+ * because API.md's error shapes and the UI's messages are derived from these codes.
+ * Why it is written as real types in Phase 0: the taxonomy *is* the specification (API.md §errors).
+ * Invariants: every failure a user can see has exactly one code here; codes are stable strings that may
+ *   never be renamed (clients and audit records depend on them); a code never carries personal data.
+ * Security: error responses must not disclose existence of another tenant's objects (ADR-0017 maps
+ *   cross-org access to NOT_FOUND).
+ * Privacy: a code is never accompanied by the offending value (no echoed tokens, contacts or text).
+ */
+export const ErrorCode = {
+  // Generic
+  VALIDATION_FAILED: "VALIDATION_FAILED",
+  NOT_FOUND: "NOT_FOUND",
+  FORBIDDEN: "FORBIDDEN",
+  UNAUTHENTICATED: "UNAUTHENTICATED",
+  CONFLICT: "CONFLICT",
+  RATE_LIMITED: "RATE_LIMITED",
+  SERVER_BUSY: "SERVER_BUSY",
+  UNAVAILABLE: "UNAVAILABLE",
+  INTERNAL: "INTERNAL",
+  // Registration
+  REGISTRATION_CLOSED: "REGISTRATION_CLOSED",
+  REGISTRATION_FULL: "REGISTRATION_FULL",
+  ALREADY_REGISTERED: "ALREADY_REGISTERED",
+  INVITATION_REQUIRED: "INVITATION_REQUIRED",
+  CAPACITY_CONTENTION: "CAPACITY_CONTENTION",
+  // Check-in
+  INVALID_FORMAT: "INVALID_FORMAT",
+  INVALID_TOKEN: "INVALID_TOKEN",
+  WRONG_EVENT: "WRONG_EVENT",
+  TOKEN_EXPIRED: "TOKEN_EXPIRED",
+  TOKEN_REVOKED: "TOKEN_REVOKED",
+  REGISTRATION_CANCELLED: "REGISTRATION_CANCELLED",
+  WINDOW_NOT_OPEN: "WINDOW_NOT_OPEN",
+  WINDOW_CLOSED: "WINDOW_CLOSED",
+  ALREADY_CHECKED_IN: "ALREADY_CHECKED_IN",
+  // Media
+  CHUNK_TOO_LARGE: "CHUNK_TOO_LARGE",
+  CHUNK_VALIDATION_FAILED: "CHUNK_VALIDATION_FAILED",
+  CHUNK_SEQUENCE_CONFLICT: "CHUNK_SEQUENCE_CONFLICT",
+  SESSION_LIMIT_EXCEEDED: "SESSION_LIMIT_EXCEEDED",
+  SESSION_ALREADY_ASSEMBLED: "SESSION_ALREADY_ASSEMBLED",
+  // Transcription
+  PROVIDER_UNAVAILABLE: "PROVIDER_UNAVAILABLE",
+  PROVIDER_AUTH: "PROVIDER_AUTH",
+  PROVIDER_QUOTA: "PROVIDER_QUOTA",
+  PROVIDER_REJECTED_INPUT: "PROVIDER_REJECTED_INPUT",
+  PROVIDER_MALFORMED_OUTPUT: "PROVIDER_MALFORMED_OUTPUT",
+  PROVIDER_TIMEOUT: "PROVIDER_TIMEOUT",
+  EGRESS_DISABLED: "EGRESS_DISABLED",
+  EMPTY_OUTPUT: "EMPTY_OUTPUT",
+  // Publication / content
+  REVIEW_REQUIRED: "REVIEW_REQUIRED",
+  BLOCKING_FLAGS_UNRESOLVED: "BLOCKING_FLAGS_UNRESOLVED",
+  POLICY_FORBIDS_PUBLICATION: "POLICY_FORBIDS_PUBLICATION",
+  REVISION_CONFLICT: "REVISION_CONFLICT",
+  // Feedback
+  FEEDBACK_WINDOW_CLOSED: "FEEDBACK_WINDOW_CLOSED",
+  FEEDBACK_ALREADY_SUBMITTED: "FEEDBACK_ALREADY_SUBMITTED",
+} as const;
+
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+/** HTTP mapping used by the API layer (API.md). Keep in sync with the routes, not with the UI. */
+export const HTTP_STATUS_BY_ERROR: Readonly<Record<ErrorCode, number>> = {
+  VALIDATION_FAILED: 400,
+  NOT_FOUND: 404,
+  FORBIDDEN: 403,
+  UNAUTHENTICATED: 401,
+  CONFLICT: 409,
+  RATE_LIMITED: 429,
+  SERVER_BUSY: 503,
+  UNAVAILABLE: 503,
+  INTERNAL: 500,
+  REGISTRATION_CLOSED: 409,
+  REGISTRATION_FULL: 409,
+  ALREADY_REGISTERED: 200, // success-shaped: the participant has a valid registration already
+  INVITATION_REQUIRED: 403,
+  CAPACITY_CONTENTION: 409,
+  INVALID_FORMAT: 400,
+  INVALID_TOKEN: 404,
+  WRONG_EVENT: 409,
+  TOKEN_EXPIRED: 410,
+  TOKEN_REVOKED: 410,
+  REGISTRATION_CANCELLED: 409,
+  WINDOW_NOT_OPEN: 409,
+  WINDOW_CLOSED: 409,
+  ALREADY_CHECKED_IN: 200, // success-shaped by design (CHECKIN.md §5)
+  CHUNK_TOO_LARGE: 413,
+  CHUNK_VALIDATION_FAILED: 422,
+  CHUNK_SEQUENCE_CONFLICT: 409,
+  SESSION_LIMIT_EXCEEDED: 413,
+  SESSION_ALREADY_ASSEMBLED: 409,
+  PROVIDER_UNAVAILABLE: 503,
+  PROVIDER_AUTH: 500,
+  PROVIDER_QUOTA: 429,
+  PROVIDER_REJECTED_INPUT: 422,
+  PROVIDER_MALFORMED_OUTPUT: 502,
+  PROVIDER_TIMEOUT: 504,
+  EGRESS_DISABLED: 500, // configuration error, surfaced loudly, never a silent fallback
+  EMPTY_OUTPUT: 502,
+  REVIEW_REQUIRED: 409,
+  BLOCKING_FLAGS_UNRESOLVED: 409,
+  POLICY_FORBIDS_PUBLICATION: 403,
+  REVISION_CONFLICT: 409,
+  FEEDBACK_WINDOW_CLOSED: 409,
+  FEEDBACK_ALREADY_SUBMITTED: 200,
+};
+
+/** Typed application error. Implementations are not needed in Phase 0 beyond construction. */
+export interface AppErrorShape {
+  readonly code: ErrorCode;
+  /** Indonesian, user-facing, no internal detail (DESIGN.md: calm, plain language). */
+  readonly message: string;
+  /** Opaque correlation id for support; never contains request content. */
+  readonly requestId?: string;
+  /** Field-level detail for forms only; never echoes a token, contact or transcript text. */
+  readonly fields?: Readonly<Record<string, string>>;
+}

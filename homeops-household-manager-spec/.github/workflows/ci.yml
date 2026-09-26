@@ -1,0 +1,56 @@
+# HomeOps - CI skeleton (specification phase).
+#
+# Every step below is a placeholder for a task in VS-0; the pipeline is intentionally not runnable yet
+# because package.json and the toolchain are created in T-PLAT-001/T-PLAT-009. Job names and ordering
+# are the contract: docs/TESTING.md section 6 defines the tiers, docs/architecture/MODULE-MAP.md the gates.
+#
+# Tier 1 (every push, fast):   verify:docs, typecheck, lint, unit
+# Tier 2 (PR to main):         integration, build
+# Tier 3 (main only):          e2e (chromium), a11y sweep, perf smoke
+#
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fast:
+    name: tier 1 - docs, types, lint, unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Node 24 is the pinned runtime (docs/research/STACK-2026.md section 1, ADR-016).
+      - name: Node 24 + lockfile install
+        run: echo "TODO T-PLAT-001: actions/setup-node@v4 with node-version-file .nvmrc, npm ci"
+      - name: Docs and traceability gate
+        run: node scripts/verify-docs.mjs
+      - name: Typecheck
+        run: echo "TODO T-PLAT-009: tsc --noEmit (TypeScript 6.0, strict)"
+      - name: Lint (import boundaries included)
+        run: echo "TODO T-PLAT-009: eslint with the MODULE-MAP import rules (T-PLAT-006)"
+      - name: Unit tests
+        run: echo "TODO T-PLAT-016: vitest run tests/unit"
+
+  integration:
+    name: tier 2 - integration against Postgres 18
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Migrate and run integration tests
+        run: echo "TODO T-PLAT-009: npm run db:migrate && vitest run tests/integration"
+
+  build:
+    name: tier 2 - production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        run: echo "TODO T-PLAT-020: next build (standalone output) and docker image build"
