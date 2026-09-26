@@ -6,6 +6,7 @@ Conventions:
 - Fields per task: Requirements / Goal / Depends on / Expected modules / Inputs / Expected behavior / Edge cases / Security / Testing / Manual QA / Definition of Done (→ AGENTS.md).
 - A task may only be closed when its DoD holds (AGENTS.md §3), including tests named in TEST_STRATEGY.md.
 - Requirement IDs → PRD.md; task ↔ requirement coverage audited in docs/architecture/final-review.md §Traceability.
+- **Skills per task family:** see SKILLS.md §3. Load the family's skills before implementing; a task with no matching family uses the always-on pair.
 
 ---
 

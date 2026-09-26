@@ -112,3 +112,11 @@ Verification: dedicated attack-fixture suite (T-UPLOAD-015) — Zip Slip, symlin
 - Upload attack-fixture suite green (T-UPLOAD-015).
 - OWASP ZAP baseline scan on the dev environment (T-SEC-007), no high findings.
 - Threat-model verification pass: every row in THREAT_MODEL.md has a verification result (T-SEC-007 gate for GA).
+
+## 13. Skills
+
+These skills are advisory execution aids. A skill never lowers a control, a boundary, or a parameter value in this document; on any conflict this document is authoritative and the difference is recorded as a `spec-question` (AGENTS.md §6, §8). Routing per task family is in SKILLS.md §3; the skills deliberately excluded are listed in SKILLS.md §6.
+
+- **`security-and-hardening`** — load it whenever a task creates a new trust boundary (§2, B1–B8) or a new input surface (upload intake, auth, admin); the §6 upload contract is the reference shape, not a starting suggestion.
+- **`backend-contract-testing`** — conformance of the implemented surface to `API_CONTRACT.md`, including the uniform-error and status-code rules the §12 authorization matrix asserts.
+- **`backend-structured-logging`** — the audit trail (§3 role changes, §4 A09, NFR-SEC-012) and the redaction rules in §8: PII never appears in logs or traces, and redaction is verified, not assumed.

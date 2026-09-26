@@ -100,3 +100,12 @@ The 500-page case is the **defining acceptance case** (AC-READER): it must not b
 | 500-page matrix | §3 table, 3 viewports | VS-4 exit (T-READER-027, T-PERF-005/007) |
 | Slow-network pass | 3G-equivalent throttling, reader usable | VS-4 exit (T-PERF-006) |
 | Load smoke | 100 concurrent readers + 10 searches + 1 upload | VS-11 (T-PROD-006) |
+
+## 11. Skills
+
+These skills are advisory execution aids. A skill never relaxes a budget, a matrix cell, or a gate in this document; on any conflict this document is authoritative and the difference is recorded as a `spec-question` (AGENTS.md §6, §8). Routing per task family is in SKILLS.md §3.
+
+- **`core-web-vitals`** — the LCP / INP / CLS budgets in §2 and the CWV rows of the §10 verification plan; a budget is a gate, not a target.
+- **`performance-optimization`** — windowing and residency (§3) and the 500-page acceptance case; the ≤ 12 residency cap and the hard window ceiling of 12 are inviolable.
+- **`web-quality-audit`** — the bundle-budget and lab-harness rows of §10; audit findings are addressed or filed as a task, never left implicit.
+- **`supabase-postgres-best-practices`, `postgresql-optimization`** — the p95 budgets in §5 and the DB rule under them: every hot query needs a named index in DATA_MODEL.md and an EXPLAIN check in CI (NFR-PERF-014).

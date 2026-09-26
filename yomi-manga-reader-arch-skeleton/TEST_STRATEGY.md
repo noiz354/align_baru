@@ -105,3 +105,12 @@ Rules:
 - **E2E/integration:** seed harness (T-FOUND-012) creates deterministic collections (e.g., a 30-page test manga, a 500-page test manga with generated grayscale pages, 10k-title fixture for search load). Generated images are synthetic (gradient pages) — this is test data, not product content (allowed: tests may use fixtures; the *app* never does).
 - **Unit:** inline literals only.
 - **Cleanup:** integration tests run on throwaway compose services per CI job; E2E seeds into a dedicated test DB/bucket.
+
+## 7. Skills
+
+These skills are advisory execution aids. Where a skill's guidance differs from the planned IDs or gates above, this document wins and the difference is recorded as a `spec-question` (AGENTS.md §6, §8). Routing detail per task family is in SKILLS.md §3.
+
+- **`test-driven-development`** — RED-GREEN-REFACTOR per the planned test ID in §2–§4; a test that is not in this document is added to it first.
+- **`backend-contract-testing`** — conformance of the tested surface to `API_CONTRACT.md` (§6 error taxonomy, §5 route map) whenever an integration or E2E spec asserts a response.
+- **`verification-before-completion`** — evidence (command output) precedes any claim that a level is green; the zero-flake rule in §1 is not negotiable.
+- **`accessibility`** — the axe-core gate inside E2E (§5) and the manual passes in §7 of ACCESSIBILITY.md; a violation is a failing test, not a finding.

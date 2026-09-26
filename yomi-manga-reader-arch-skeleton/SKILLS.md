@@ -1,113 +1,141 @@
 # SKILLS.md — Agent Skills & Capabilities
 
-Date: 2026-09-26 · Scope: which capabilities coding agents actually have in this environment, mapped to the work in TASKS.md. **No skill names are fabricated here** — only capabilities that were verified present are listed.
+Date: 2026-09-27 · Scope: which agent skills apply to the work in TASKS.md, and which installed skills deliberately do not. **Every skill name below was verified present on disk before being written here.**
 
-## 1. What Was Inspected
+---
 
-Checked before writing this file (2026-09-26):
+## 1. Correction to the Previous Revision
 
-- `/home/user` workspace root (empty at phase start — no project-level skill definitions)
-- `/home/user/.claude`, `/home/user/.skills`, `/home/user/.arena` — not present
-- `/opt` and environment variables — no skill registry exposed to the sandbox
-- Agent tool manifest (the tool list actually available to the agent in this environment)
+The 2026-09-26 revision of this file stated:
 
-**Finding:** there is **no external "Agent Skills" registry** in this environment (no skill packages, no marketplace, no CLAUDE-skills-style directory). The only real capabilities are the **built-in tools** of the agent runtime, listed below. Anything in the "desired capability areas" that has no built-in tool is covered by (a) the model's general competence and (b) this repository's documentation (which is the de-facto skill: PRD/ADRs/docs encode the domain expertise), plus (c) live research via web search for version-sensitive facts.
+> "there is **no external 'Agent Skills' registry' in this environment (no skill packages, no marketplace, no CLAUDE-skills-style directory)"
 
-## 2. Available Capabilities (built-in tools, verified present)
+**That statement is now false and is superseded.** It was accurate for the sandbox the specification was authored in (`/home/user`, no package registry reachable). This repository is now developed in an environment with **340 installed agent skills** across two roots:
 
-### Skill: bash
-- **Source:** agent runtime tool (sandboxed shell at /home/user; Node 20 toolchain present; npm available)
-- **Purpose:** run builds, tests, typecheck, lint, Docker/compose, git, file ops, scripts
-- **Applicable tasks:** all CI-style verification tasks (T-FOUND-001/011, T-PERF-*, T-PROD-*, TEST_STRATEGY execution)
-- **When to load:** for any command execution; prefer targeted single commands over exploratory loops
-- **Expected output:** command stdout/stderr, exit codes; files modified in the workspace
-- **Limitations:** no terminal/PTY; long-running watchers must use the process tools; commands time out (max ~30 min); only /home/user persists
+| Root | Count | Installed via | How to load |
+|---|---|---|---|
+| `~/.agents/skills/` | 80 | `skills` registry (GitHub-sourced) | `use_skill <name>` / auto-trigger on `description` match |
+| `~/.config/opencode/skills/` | 260 | opencode native | same |
 
-### Skill: read_file / write_file / edit_file
-- **Source:** agent runtime tools
-- **Purpose:** inspect and modify repository files (code, docs, config)
-- **Applicable tasks:** every task; edit_file for surgical changes (fuzzy match), write_file for new files
-- **When to load:** after discovery (AGENTS.md §2) narrows the target files
-- **Expected output:** file contents / modified files
-- **Limitations:** edit_file is first-match fuzzy — verify with a read after editing; no multi-file transactions (sequence edits carefully)
+Everything below reflects the **current** environment. If you port this repository back to a bare sandbox, treat §5 as unavailable and fall back to the model + this documentation suite, exactly as the previous revision did.
 
-### Skill: web_search / fetch_page
-- **Source:** agent runtime tools (web access)
-- **Purpose:** current-version research, vendor docs, changelogs, release-status checks
-- **Applicable tasks:** any task touching a version-sensitive dependency (research registry maintenance, ADR "Revisit When" checks, e.g., Drizzle 1.0 GA, Prisma 8 GA, Node 26 LTS, TypeScript 7.1)
-- **When to load:** when a task's correctness depends on *current* ecosystem state, not on what the repo docs pinned
-- **Expected output:** cited, dated findings (record in the research doc when they change a decision)
-- **Limitations:** search results are third-party; corroborate version claims against official sources (npm/registry/vendor) before pinning; no guaranteed freshness within the session
+**Load rule:** a skill is *available* if its directory exists. Do not name a skill you have not verified. §6 lists skills that are installed but **must not** be used here.
 
-### Skill: image_search / generate_image
-- **Source:** agent runtime tools
-- **Purpose:** fetch/generate bitmap images
-- **Applicable tasks:** none in this product (manga content is user-uploaded; test pages are synthetic — TEST_STRATEGY.md §6). Available for diagrams/mockups only.
-- **When to load:** never for product content (NO-2: content is pre-authorized by the owner)
-- **Expected output:** image files in the workspace
-- **Limitations:** AI imagery is inappropriate as manga content or realistic test fixtures for decode-pipeline work (use synthetic programmatic images)
+---
 
-### Skill: generate_speech / add_voice
-- **Source:** agent runtime tools
-- **Purpose:** TTS
-- **Applicable tasks:** none (no audio in this product)
-- **When to load:** never
-- **Expected output:** audio files
-- **Limitations:** n/a for this project
+## 2. How These Skills Interact With This Repository
 
-### Skill: present_file
-- **Source:** agent runtime tool
-- **Purpose:** surface a workspace file to the user (viewer)
-- **Applicable tasks:** reporting deliverables (slice evidence, reports) to the human operator
-- **When to load:** when a human should see a produced artifact
-- **Expected output:** file opened in the user's viewer
-- **Limitations:** preview renders sandboxed (no network) — self-contained artifacts only
+The specification suite is authoritative (AGENTS.md §0). Skills are **advisory execution aids**, never a source of requirements:
 
-### Skill: start_process / get_process_output / stop_process
-- **Source:** agent runtime tools
-- **Purpose:** run long-lived processes (dev servers, compose up, test servers) and read their output
-- **Applicable tasks:** dev servers for browser verification (AGENTS.md §3.6), E2E environments, load smoke (T-PROD-007)
-- **When to load:** when a process must outlive a single command
-- **Expected output:** process logs, listening ports, liveness
-- **Limitations:** processes don't survive sandbox restarts; manage lifecycle explicitly (stop_process)
+- A skill never overrides a requirement (`FR-*`), an Accepted ADR, or a task's DoD.
+- If a skill's advice contradicts this documentation, **the documentation wins** — record the contradiction as a `spec-question` (AGENTS.md §6), do not silently pick.
+- Skills are loaded **per task family**, not wholesale. Loading all 24 named skills at once costs more context than it returns.
 
-### Skill: ask_user
-- **Source:** agent runtime tool
-- **Purpose:** clarify blocking ambiguity with the human operator
-- **Applicable tasks:** genuine spec questions (AGENTS.md §6: prefer `spec-question` in the PR; use this tool only when work is blocked)
-- **When to load:** when ambiguity materially changes the implementation and docs don't resolve it
-- **Expected output:** a decision from the operator (record it — update the task/doc)
-- **Limitations:** overuse stalls the pipeline; the docs are the first resort
+---
 
-## 3. Desired Capability Areas → Coverage Map
+## 3. Routing by Task Family
 
-| Desired area | Covered by | Notes / gaps |
+Load the listed skills when you pick up a task whose ID matches the family. Counts are the number of task entries (`## T-*` headings) in TASKS.md — 134 total.
+
+| Task family | # | Primary skills | Why these |
+|---|---|---|---|
+| `T-FOUND-*` | 12 | `test-driven-development`, `docker-expert`, `verification-before-completion` | toolchain, boundary lint, CI gates, compose; TDD from the first commit |
+| `T-CATALOG-*` | 10 | `typescript-advanced-types`, `backend-caching`, `supabase-postgres-best-practices`, `accessibility`, `frontend-ui-engineering` | cursor/pagination DTOs, cover caching headers, indexed queries, axe-clean catalog |
+| `T-READER-*` | 33 | `typescript-advanced-types`, `test-driven-development`, `accessibility`, `performance-optimization`, `userflow` | reader state reducer + window math are pure functions (unit-testable), the input matrix is the a11y surface |
+| `T-UPLOAD-*` | 15 | `backend-idempotency`, `backend-resilience-patterns`, `security-and-hardening`, `supabase-postgres-best-practices`, `typescript-advanced-types` | job state machine, retry/failure polish, upload trust boundary, single-transaction commit |
+| `T-AUTH-*` | 13 | `security-and-hardening`, `backend-idempotency`, `api-and-interface-design`, `test-driven-development` | Argon2id, session revocation, uniform `AUTH_INVALID` (no existence leak) |
+| `T-SEC-*` | 7 | `security-and-hardening`, `backend-contract-testing`, `backend-structured-logging` | hardening pass, contract conformance, audit trail without secrets |
+| `T-LIB-*` | 9 | `typescript-advanced-types`, `supabase-postgres-best-practices`, `accessibility`, `frontend-ui-engineering` | progress merge logic, read-status queries, form + list a11y |
+| `T-ADMIN-*` | 8 | `frontend-ui-engineering`, `accessibility`, `security-and-hardening`, `userflow` | admin is the least-tested surface; authorization on every route |
+| `T-PERF-*` | 7 | `core-web-vitals`, `performance-optimization`, `web-quality-audit`, `supabase-postgres-best-practices`, `postgresql-optimization` | PERFORMANCE.md §3 matrix is a measured gate, not a guideline |
+| `T-OBS-*` | 7 | `observability-and-instrumentation`, `backend-structured-logging`, `performance-optimization` | OTel + pino, trace↔log correlation, beacon instrumentation |
+| `T-SEARCH-*` | 6 | `supabase-postgres-best-practices`, `backend-caching`, `typescript-advanced-types` | FTS/trigram + GIN indexes, result caching, query DTOs |
+| `T-PROD-*` | 7 | `docker-expert`, `backend-resilience-patterns`, `observability-and-instrumentation`, `security-and-hardening` | worker container split, health/readiness, alerting, hardening |
+
+**Always-on, any family:** `test-driven-development` (RED-GREEN-REFACTOR per the task's planned test IDs) and `verification-before-completion` (evidence before the DoD claim).
+
+---
+
+## 4. Routing by Vertical Slice
+
+For slice-level work, the same skills condensed to the ones that carry the slice's exit criteria.
+
+| Slice | Deliverable | Skills that carry its exit criteria |
 |---|---|---|
-| Architecture | model competence + ARCHITECTURE.md + docs/architecture/ | No dedicated skill; the docs are the authoritative architecture record — treat them as read-only input unless an ADR process changes them |
-| ADRs | model competence + ADR.md template + 9 exemplars in docs/adr/ | Follow the exemplar structure exactly (Context → Options → Decision → Consequences → Risks → Mitigations → Revisit When → References) |
-| Product requirements | model competence + PRD.md (ID registry) + docs/product/ | New requirements get IDs by extension of the existing prefixes (FR-<MODULE>-NNN, NFR-<AREA>-NNN) |
-| Next.js | model competence + ADR-001 + web_search (version-sensitive) | 16.x specifics (Turbopack, RSC boundaries) — verify against official docs when a task hits a framework edge case |
-| React | model competence + ADR-001 | 19.x patterns per docs; reader is the hard part — reader-behavior.md is the spec |
-| TypeScript | model competence + tsconfig (strict + hardening flags) | TS 6.0 pinned (ADR/research); 7.x only per "Revisit When" |
-| PostgreSQL | model competence + DATA_MODEL.md + web_search (18.x specifics) | 18.x features (uuid v7, partial indexes) are stable knowledge; verify exotic GUCs before use |
-| Database design | model competence + DATA_MODEL.md (authoritative) | Deviations require a doc update in the same PR |
-| API design | model competence + API_CONTRACT.md (authoritative) | New operations require the contract table + error taxonomy update |
-| Security / OWASP | model competence + SECURITY.md + THREAT_MODEL.md (18-row register) | Verification is task-defined (T-SEC-*, T-UPLOAD-015); no scanner skill — ZAP runs as a CI tool (T-SEC-007), not an agent skill |
-| Accessibility | model competence + ACCESSIBILITY.md (contract) + axe in E2E | axe-core is a *test dependency*, not an agent skill; manual SR passes are human tasks |
-| Performance | model competence + PERFORMANCE.md (budgets) + test harnesses (T-PERF-*) | Budgets are measurable — agents verify with harnesses, not intuition |
-| Image optimization | model competence + ADR-005 (sharp pipeline contract) | sharp is a *planned dependency* (installed at T-UPLOAD-004), not an agent capability |
-| Object storage | model competence + ADR-004 (S3 protocol port) | S3 SDK is a planned dependency; MinIO for dev via compose |
-| Testing | model competence + TEST_STRATEGY.md (planned test IDs) + Vitest/Playwright (planned deps) | Tests are written to the planned IDs; no pre-existing test skill |
-| Playwright | model competence + web_search (1.62.x specifics) | Trace viewer / MCP features exist upstream; use standard test API in v1 |
-| Docker | model competence + DEPLOYMENT.md + compose files (created in VS-0/11) | Compose is a config format, not a skill |
-| CI/CD | model competence + CONTRIBUTING.md §4 + .github/workflows (VS-0) | GitHub Actions YAML per conventions |
-| OpenTelemetry | model competence + OBSERVABILITY.md + web_search (2.x API specifics) | Stable packages only (ADR-008) — never import experimental `sdk-node` |
-| Code review | model competence + CONTRIBUTING.md §7 checklist + boundary lint | The review checklist is the codified "skill" |
-| Visual QA | model competence + browser inspection (AGENTS.md §3.6) + screenshots | No visual-regression tooling in v1 (documented; screenshots are the artifact) |
+| VS-0 Foundation | bootable dev env, boundary lint, CI | `test-driven-development`, `docker-expert`, `verification-before-completion` |
+| VS-1 Catalog | browsable/filterable catalog | `typescript-advanced-types`, `backend-caching`, `supabase-postgres-best-practices`, `accessibility` |
+| VS-2 Minimal Reader | vertical + single mode, RTL/LTR, progress | `typescript-advanced-types`, `test-driven-development`, `accessibility` |
+| VS-3 Reader Navigation | full input matrix, zero CLS | `accessibility`, `userflow`, `core-web-vitals` |
+| VS-4 Reader Performance | 500-page case, bounded memory, 3G | `performance-optimization`, `core-web-vitals`, `web-quality-audit` |
+| VS-5 Auth + Library | auth, library, progress merge | `security-and-hardening`, `backend-idempotency`, `backend-transactional-outbox`, `accessibility` |
+| VS-6 Admin | admin panel | `frontend-ui-engineering`, `security-and-hardening`, `accessibility` |
+| VS-7 Upload Pipeline | secure ingest → ready chapter | `backend-idempotency`, `backend-resilience-patterns`, `security-and-hardening` |
+| VS-8 Search | FTS/trigram search | `supabase-postgres-best-practices`, `backend-caching` |
+| VS-9 Security Hardening | threat-model closure, live SMTP | `security-and-hardening`, `backend-contract-testing`, `backend-structured-logging` |
+| VS-10 Observability | OTel traces, dashboards, alerts | `observability-and-instrumentation`, `backend-structured-logging` |
+| VS-11 Production Deployment | deploy topology, worker split | `docker-expert`, `backend-resilience-patterns`, `observability-and-instrumentation` |
 
-## 4. Skill Discipline
+---
 
-1. **Load by task, not by habit:** a reader task doesn't load upload-security docs; the task's Inputs line names the documents (that line is the skill-loading list).
-2. **Version-sensitive facts are re-verified:** when a task depends on "current" (new dependency, ADR revisit), use web_search against official sources and record the evidence (research doc or the PR).
-3. **No fabricated capabilities:** if a capability is not listed in §2, it does not exist — plan the work using what exists (docs, tools, web research) or raise a spec/infra task.
-4. **Documentation is the domain skill:** when in doubt about *what to build*, the answer is in PRD/ADRs/docs — reading them is faster and more correct than inventing from memory.
+## 5. Cross-Cutting Gates
+
+| Gate | Skill | Applies to |
+|---|---|---|
+| RED-GREEN-REFACTOR on the planned test ID | `test-driven-development` | every task with a test row in TEST_STRATEGY.md |
+| Evidence before claiming done | `verification-before-completion` | AGENTS.md §5 DoD |
+| Any new query needs an index (NFR-PERF-014) | `supabase-postgres-best-practices` | `T-CATALOG`, `T-SEARCH`, `T-LIB` |
+| Index/explain/connection-pool review | `postgresql-optimization` | schema changes, `T-PROD` tuning |
+| API surface change | `backend-contract-testing` | `API_CONTRACT.md` §6, `T-SEC` |
+| New trust boundary or input surface | `security-and-hardening` | `T-UPLOAD`, `T-AUTH`, `T-ADMIN` |
+| User-visible change (axe + browser check) | `accessibility` | every `page.tsx` / `AppShell.tsx` edit |
+| LCP/INP/CLS or residency claim | `core-web-vitals`, `performance-optimization` | `T-PERF`, VS-4 |
+| New work not yet in TASKS.md (AGENTS.md §4.5) | `specdd` | task authoring only, never to bypass TASKS.md |
+| Independent lanes across modules | `dispatching-parallel-agents` | only where `docs/architecture/dependency-rules.md` proves disjoint write scopes |
+| Password-reset / notification side effects | `backend-transactional-outbox` | VS-5 mail capture, VS-9 live SMTP |
+
+**Reader journey documentation** (`J-1`…`J-6` in `docs/product/`): `userflow` produces an HTML flow report when a journey's states need visual review. It documents a journey; it never becomes the spec.
+
+---
+
+## 6. Installed Skills That Do NOT Apply Here
+
+Listed so an agent does not load them by keyword match. Each is installed and healthy — it is simply wrong for this stack.
+
+| Skill group | Why not |
+|---|---|
+| `golang-testing`, `golang-security`, `golang-database`, `golang-observability` | **No Go in this repository.** Stack is TypeScript/Next.js 16 (ADR-001). Go work belongs to a different project. |
+| `python-code-style`, `python-anti-patterns`, `python-testing-patterns`, `python-type-safety`, `python-error-handling`, `python-resilience` | **No Python in this repository.** |
+| `agentic-eval`, `rag-evaluation-matrix`, `mcp-agent-evaluation` | **No LLM and no agent loop in the product.** These evaluate model behaviour; Yomi evaluates itself with Vitest/Playwright and the PERFORMANCE.md matrix. |
+| `eval-driven-dev` | Same reason. Its *generic* quality-gate framing is already covered by `verification-before-completion`; its RAG/agent sections do not apply. |
+| `prompt-engineering-patterns`, `claude-api` | **No model provider is called anywhere in this product.** |
+| `mcp-builder` | No MCP server is part of this architecture (7 services are all in-repo). |
+| `backend-event-driven` | **There is no event bus.** Upload async work is a **Postgres job row** (job state machine, ARCHITECTURE.md data flow); telemetry is OTel. Do not introduce a broker to "fix" this. |
+| `backend-message-queue` | Partially relevant **only** for the DB job queue's claim/consume pattern in the worker container (VS-4/VS-11). Its Kafka/RabbitMQ guidance does not apply — there is no broker. |
+| `redis-patterns` | No Redis. Caching is HTTP/CDN + Postgres-backed (ADR-004). Use `backend-caching` instead. |
+| `design-research-ux-artifacts` | Research-phase artifact generation. This repository is past discovery; the PRD and journeys are accepted. |
+| `ui-design` | For net-new visual surfaces. Reader UI here is constrained by `ACCESSIBILITY.md` + existing `AppShell.tsx`; use `accessibility` + `frontend-ui-engineering`. |
+
+**Guard:** if a task seems to need one of these, the task is mis-specified. Re-read the ADR for that subsystem before reaching for a skill outside §3–§5.
+
+---
+
+## 7. Verification Commands
+
+```bash
+# a skill is available iff its directory exists
+test -f ~/.agents/skills/<name>/SKILL.md || test -f ~/.config/opencode/skills/<name>/SKILL.md
+
+# names referenced by this file all resolve (run after any install/remove)
+for s in typescript-advanced-types test-driven-development verification-before-completion \
+         supabase-postgres-best-practices postgresql-optimization backend-caching \
+         backend-idempotency backend-transactional-outbox backend-resilience-patterns \
+         backend-structured-logging backend-contract-testing accessibility \
+         core-web-vitals performance-optimization web-quality-audit \
+         frontend-ui-engineering observability-and-instrumentation security-and-hardening \
+         docker-expert specdd userflow dispatching-parallel-agents; do
+  test -f ~/.agents/skills/$s/SKILL.md -o -f ~/.config/opencode/skills/$s/SKILL.md \
+    || echo "MISSING: $s"
+done
+```
+
+The expected output of the second command is **nothing**.

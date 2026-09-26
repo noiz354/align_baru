@@ -19,6 +19,7 @@ For every task, in this order:
 7. **Identify security implications** (THREAT_MODEL.md rows the task touches; SECURITY.md controls). If the task creates a new trust boundary or input surface, stop and note it in the PR.
 8. **Identify performance implications** (PERFORMANCE.md budgets; NFR-PERF-014 for any new query — an index must exist or be proposed in the same PR).
 9. **Implement the smallest coherent change** that satisfies the task. No drive-by refactors, no unrequested features, no "while I'm here".
+10. **Load the skills** for your task family (SKILLS.md §3). A skill may guide how you implement; it never changes what the task requires.
 
 ## 2. Repository Discovery
 
@@ -72,3 +73,12 @@ See CONTRIBUTING.md §3 (10 points). Summary: matches task spec + requirements s
 ## 7. What "Done" Means for a Slice
 
 The slice's exit criteria (ROADMAP.md) are met: tasks green, manual verification performed and recorded, artifacts (reports, drill timings, verification evidence) archived where the slice names them, and no open `spec-question` without an owner.
+
+## 8. Skill Routing
+
+Agent skills are advisory execution aids, never a source of requirements. The specification suite wins over any skill; a contradiction is a `spec-question` (§6), not a silent choice.
+
+- **Before coding:** load the skills listed for your task family in [SKILLS.md §3](SKILLS.md). Do not load all of them.
+- **Always:** `test-driven-development` (write to the planned test ID) and `verification-before-completion` (evidence before the §5 DoD claim).
+- **Do not use here:** Go, Python, LLM/eval, prompt-engineering, MCP, Redis, or event-bus skills — this product has none of those. See [SKILLS.md §6](SKILLS.md) for the per-skill reason.
+- Verify a skill exists before naming it: `test -f ~/.agents/skills/<name>/SKILL.md -o -f ~/.config/opencode/skills/<name>/SKILL.md`.

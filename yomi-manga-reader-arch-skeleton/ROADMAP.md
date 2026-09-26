@@ -9,6 +9,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-0 — Foundation
 - **Requirements:** NFR-OPS-001/002, NFR-SEC-013, NFR-OBS-001/004 (foundation), NFR-DATA-001/006, NFR-A11Y-004 (shells)
 - **Tasks:** T-FOUND-001…012
+- **Skills:** `test-driven-development`, `docker-expert`, `verification-before-completion`
 - **Architectural dependencies:** none (first slice); research doc version registry is the input.
 - **User-visible result:** nothing product-visible; a dev environment that boots (`/healthz`), a styled-but-empty shell, and a working seed harness (dev only).
 - **Automated verification:** typecheck, lint (boundary rules), unit green, build green, CI pipeline running with all gates (audit, gitleaks, bundle budget stub), compose up smoke.
@@ -18,6 +19,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-1 — Catalog
 - **Requirements:** FR-CATALOG-001…008, FR-CHAPTER-001/004, FR-MEDIA-001/003, NFR-PERF-001/004/007/008/013, NFR-A11Y-004/005
 - **Tasks:** T-CATALOG-001…010
+- **Skills:** `typescript-advanced-types`, `backend-caching`, `supabase-postgres-best-practices`, `accessibility`
 - **Architectural dependencies:** VS-0 (schema, env, CI). Media delivery depends on storage port (MinIO in dev) — pages for seeded manga use synthetic assets (T-FOUND-012), so the reader isn't needed yet.
 - **User-visible result:** browseable, filterable, sortable catalog; manga detail pages; chapter lists; covers served with correct caching. (Content is seeded — real ingestion arrives in VS-7.)
 - **Automated verification:** INT-CAT-001, INT-CHAP-001, INT-MEDIA-001, E2E-CATALOG-001/002, a11y axe on catalog routes, bundle budget, lab harness baseline (LCP/CLS/requests).
@@ -27,6 +29,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-2 — Minimal Reader
 - **Requirements:** FR-READER-001/002/004/005/006/011/012/014/016/017/019/022/023/024 (minimal set), FR-CHAPTER-002/003, NFR-PERF-002/003/006/011, NFR-A11Y-002/003/005/006
 - **Tasks:** T-READER-001…016, T-READER-019…023, T-READER-029…033 (core state, vertical + single modes, RTL/LTR, keyboard, windowing, progress save/restore, completion, final page, error states)
+- **Skills:** `typescript-advanced-types`, `test-driven-development`, `accessibility`
 - **Architectural dependencies:** VS-1 (chapter/page APIs, media delivery); seed manga (30-page + 500-page synthetic) from VS-0.
 - **User-visible result:** a readable reader: vertical + single-page modes, RTL/LTR, keyboard, position indicator, progress saved/restored (anonymous local; server sync arrives with VS-5), chapter completion + next-chapter.
 - **Automated verification:** UNIT-READER-001…010, 004/005 (window), 002/003 (index/final), E2E-READER-001/002/005/006/008, INT-PROG-001/002 (anon path local-only), a11y axe on reader.
@@ -36,6 +39,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-3 — Reader Navigation (full input matrix)
 - **Requirements:** FR-READER-003/007/008/009/010/013/015/018/020/021 (modes × inputs complete)
 - **Tasks:** T-READER-006 (double-page completion if not done in VS-2 — sequencing note: pairing unit tests land in VS-2, UI in VS-3), T-READER-009, T-READER-010, T-READER-011, T-READER-012, T-READER-013, T-READER-020, T-READER-030
+- **Skills:** `accessibility`, `userflow`, `core-web-vitals`
 - **Architectural dependencies:** VS-2 state core.
 - **User-visible result:** double-page mode, tap zones, swipe (with cancel), zoom (pinch/wheel/double-tap/keys), fullscreen, responsive polish, mode/direction switching with position preservation.
 - **Automated verification:** UNIT-READER-006/007/008/009, E2E-READER-003/004, E2E-READER-017 (a11y pass part 1), CLS assertions on mode switches.
@@ -45,6 +49,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-4 — Reader Performance
 - **Requirements:** NFR-PERF-009/010/011/012/015, FR-READER-018 (failure polish), M-6
 - **Tasks:** T-READER-026, T-READER-027 (a11y completion), T-PERF-005/006/007, T-PERF-003 (gate tightening), T-UPLOAD-004/005/006/012 (media pipeline pieces needed for *delivery tuning* — note: upload UI/intake remain VS-7; this slice pulls the normalization+storage+job-repo core forward because the performance matrix needs real multi-format assets; documented exception, slice-scoped)
+- **Skills:** `performance-optimization`, `core-web-vitals`, `web-quality-audit`
 - **Architectural dependencies:** VS-2/VS-3 reader; ADR-005 pipeline.
 - **User-visible result:** the 500-page case that defines the product: smooth on phones, bounded memory, progressive on 3G, format ladder live (AVIF primary).
 - **Automated verification:** E2E-READER-007 (500-page matrix × 3 viewports + CDP residency/heap), T-PERF-005 lab harness full run, T-PERF-006 slow-net report, T-PERF-007 memory reports, INT-UP-001 (delivery legs for variants), bundle gate.
@@ -54,6 +59,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-5 — Authentication + Library
 - **Requirements:** FR-AUTH-001…010, FR-LIBRARY-001…010, FR-READER-013 (server sync + merge), NFR-SEC-001…005, NFR-A11Y (forms)
 - **Tasks:** T-AUTH-001…013, T-LIB-001…009, T-READER-023 (API side), T-READER-024, T-READER-025
+- **Skills:** `security-and-hardening`, `backend-idempotency`, `backend-transactional-outbox`, `accessibility`
 - **Architectural dependencies:** VS-2 (progress domain exists locally; server sync added), VS-1 (catalog for the UI context).
 - **User-visible result:** register/sign-in/sign-out; library with continue-reading on home; history; bookmarks; read-status; server-side progress + merge on sign-in; password reset (mail capture in dev; live SMTP at VS-9).
 - **Automated verification:** INT-AUTH-001…004, INT-LIB-001, INT-PROG-001/002 (server legs), E2E-AUTH-001/004, E2E-LIB-001, E2E-READER-019 (IDOR), a11y on forms.
@@ -63,6 +69,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-6 — Admin
 - **Requirements:** FR-ADMIN-001…008, FR-AUTH-008/009 (enforcement), NFR-SEC-012
 - **Tasks:** T-ADMIN-001…008
+- **Skills:** `frontend-ui-engineering`, `security-and-hardening`, `accessibility`
 - **Architectural dependencies:** VS-5 (auth/roles), VS-1 (catalog repos), VS-4 (media pipeline for covers).
 - **User-visible result:** admin panel: manga CRUD, chapter CRUD, publish control, user management, audit log, stats; first-admin onboarding.
 - **Automated verification:** INT-ADMIN-001/002, E2E-ADMIN-001 (curator loop legs), E2E-ADMIN-002 (access), a11y on admin.
@@ -72,6 +79,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-7 — Secure Upload Pipeline
 - **Requirements:** FR-UPLOAD-001…011, NFR-SEC-006/007/008, FR-MEDIA-002 (ladder complete)
 - **Tasks:** T-UPLOAD-001/002/003/007/008/009/010/011/013/014/015 (remaining intake/UI/reingest/security — normalization/storage/job core already landed in VS-4 per the exception)
+- **Skills:** `backend-idempotency`, `backend-resilience-patterns`, `security-and-hardening`
 - **Architectural dependencies:** VS-6 (admin surface), VS-4 (pipeline core).
 - **User-visible result:** the full curator loop closes: ZIP or image-set upload → validated → normalized → published → readable; failure reasons visible; re-ingest; multipart for big files.
 - **Automated verification:** INT-UP-001/002 (complete), T-UPLOAD-015 attack-fixture suite (green = T-08/09/10 verified), E2E-ADMIN-001 (full J-4 with real upload), a11y.
@@ -81,6 +89,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-8 — Search
 - **Requirements:** FR-SEARCH-001…005, NFR-PERF-005, NFR-SEC-006
 - **Tasks:** T-SEARCH-001…006
+- **Skills:** `supabase-postgres-best-practices`, `backend-caching`
 - **Architectural dependencies:** VS-1 (catalog data), trigram indexes (initial migration).
 - **User-visible result:** debounced search over titles/aliases/creators/tags with ranked, paginated results and honest empty states.
 - **Automated verification:** INT-SEARCH-001 (behavior + 10k load), injection fuzz, rate-limit tests, E2E-SEARCH-001, a11y.
@@ -90,6 +99,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-9 — Security Hardening
 - **Requirements:** NFR-SEC-004/011/013/014/016, THREAT_MODEL (all rows verified), M-4
 - **Tasks:** T-SEC-001…007, T-AUTH-009 (live SMTP mail provider wiring), T-OBS-003 (redaction hardening — if not complete), T-READER-027 (SR manual pass if pending)
+- **Skills:** `security-and-hardening`, `backend-contract-testing`, `backend-structured-logging`
 - **Architectural dependencies:** all prior slices (verification surface).
 - **User-visible result:** none direct (headers, audits, gates); users feel fewer weird failures (uniform errors, CSP stability).
 - **Automated verification:** threat verification report 100% rows closed/accepted; ZAP baseline (no high); header matrix; DB-role restriction tests; bundle/secret scans; gitleaks clean.
@@ -99,6 +109,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-10 — Observability
 - **Requirements:** NFR-OBS-001…007, FR-ADMIN-008 (live data), OBSERVABILITY.md (full conventions)
 - **Tasks:** T-OBS-001…007
+- **Skills:** `observability-and-instrumentation`, `backend-structured-logging`
 - **Architectural dependencies:** all (instrumentation surface).
 - **User-visible result:** admin stats dashboard goes live-data; operators get dashboards + alerts.
 - **Automated verification:** INT-OBS (trace/metric shapes), chaos tests (PG/storage down), beacon tests, dashboard provisioning test, alert rule load.
@@ -108,6 +119,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 ## VS-11 — Production Deployment
 - **Requirements:** NFR-OPS-001…006, NFR-DATA-004/005, DEPLOYMENT.md + RUNBOOK.md (full)
 - **Tasks:** T-PROD-001…007
+- **Skills:** `docker-expert`, `backend-resilience-patterns`, `observability-and-instrumentation`
 - **Architectural dependencies:** all slices complete (feature-frozen window recommended).
 - **User-visible result:** a live production instance (self-hosted) with backups, rollback, monitoring, and a finished runbook.
 - **Automated verification:** image build CI; compose config validation; pre-prod smoke suite (R2/PG equivalence); load smoke (100 readers + 10 searches + 1 upload).

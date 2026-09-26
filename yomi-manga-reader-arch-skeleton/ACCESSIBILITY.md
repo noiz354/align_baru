@@ -77,3 +77,11 @@ The reader must be usable with **keyboard alone** (NFR-A11Y-002) and with a scre
 | Reduced motion | E2E with `emulateMedia({ reducedMotion: 'reduce' })` asserts no animated transitions | VS-4 |
 
 **Residual (documented):** manga page images have no text content to read (they *are* the content); screen-reader users of image-only comics get page position + structure, not page content — inherent to the medium; no v1 mitigation (OCR is out of scope, NO-7).
+
+## 8. Skills
+
+These skills are advisory execution aids. A skill never substitutes for a contract in §2–§6 or weakens the WCAG 2.1 AA commitment in the header; on any conflict this document is authoritative and the difference is recorded as a `spec-question` (AGENTS.md §6, §8). Routing per task family is in SKILLS.md §3.
+
+- **`accessibility`** — audits and remediations of the contracts above; every finding maps to a row in §2–§6 or a NFR-A11Y-* ID, and a violation is a failing gate, not a backlog item.
+- **`frontend-ui-engineering`** — component semantics behind these contracts: landmarks, heading order, real lists, labeled fields, focus behavior (§2, §3.1, §5). The contracts define the required semantics; this skill guides how the markup realizes them.
+- **`userflow`** — the journey states behind the reader input matrix (J-1…J-6 in `docs/product/`); the flow report documents a journey for review and never becomes the specification, which lives in §3 and `docs/product/reader-behavior.md`.

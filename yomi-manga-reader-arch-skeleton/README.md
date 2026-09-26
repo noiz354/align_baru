@@ -29,7 +29,7 @@ Curators (admins) upload chapters as archives or image sets; the pipeline valida
 | [`ROADMAP.md`](ROADMAP.md) | Vertical slices VS-0 … VS-11 |
 | [`TASKS.md`](TASKS.md) | All implementation tasks (source of work) |
 | [`AGENTS.md`](AGENTS.md) | How coding agents must work in this repo |
-| [`SKILLS.md`](SKILLS.md) | Available agent capabilities mapped to work |
+| [`SKILLS.md`](SKILLS.md) | Which agent skills apply to which task family, and which installed skills deliberately do not |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Human/agent contribution conventions |
 | [`docs/architecture/`](docs/architecture/) | System context, module boundaries, dependency rules, data flow, final review + traceability |
 | [`docs/product/`](docs/product/) | Reader behavior spec, admin workflow, user journeys, edge cases |
