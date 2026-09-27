@@ -33,6 +33,7 @@ Rule applied throughout: prefer the most recent **stable** line with a demonstra
 | Observability | SELECTED | **OpenTelemetry JS**: `@opentelemetry/api` 1.9.1 (stable API) + SDK modules 2.11.0 (stable) | `@opentelemetry/sdk-node` 0.222.0 is still marked experimental — we use discrete SDK modules instead | [20][21] |
 | Unit/integration tests | SELECTED | **Vitest 4.1.x** | 4.1.11 (Aug 2026) stable; 5.0 in beta — not selected | [22] |
 | E2E tests | SELECTED | **Playwright 1.62.x** | 1.62.1 (Jul 2026) stable; ~6-week release cadence | [23] |
+| a11y automation | SELECTED | **`@axe-core/playwright` 4.13.x** (wraps axe-core 4.13.0) | 4.13.0 is the current stable line (2026-09-02), MPL-2.0, Deque-maintained; it is the package ACCESSIBILITY.md §7 names for the CI gate | [24][25] |
 | Containers | SELECTED | **Docker** (image + compose) | Stable tooling; no version churn concern | — |
 | CI/CD | SELECTED | **GitHub Actions** | Stable; standard workflows | — |
 
@@ -157,6 +158,21 @@ Evidence:
 
 REJECTED: Jest (Vitest is faster, ESM-native, same API), Cypress (Playwright's cross-browser + trace viewer + open-source model is stronger).
 
+### Automated accessibility — SELECTED `@axe-core/playwright` 4.13.x
+
+Evidence:
+- `@axe-core/playwright` 4.13.0 is the current `latest` (published 2026-09-02), MPL-2.0, built and maintained by Deque Systems from the `axe-core-npm` monorepo that also ships `axe-core` itself [24][25]. It is the package ACCESSIBILITY.md §7 names for the CI gate ("axe-core via Playwright `@axe-core/playwright` on every E2E route") and TEST_STRATEGY.md §5 mandates ("axe-core on every E2E route — zero violations, any severity"), so the contract and the dependency agree before a line of code is written.
+- Peer dependency is `playwright-core >= 1.0.0` [24], which `@playwright/test` 1.62.1 already brings in — no second browser stack, and the axe gate runs in the same browser as the E2E suite it accompanies. Verified by install: `yomi@0.0.0 └─┬ @axe-core/playwright@4.13.0 └── axe-core@4.13.0`.
+- Proved in the failing direction, not assumed (T-FOUND-011's own rule: a gate never observed to fail is not a gate). Against the route map as built on 2026-09-27 the gate reported **0 violations across 19 routes**; pointed at a deliberately broken fixture it reported **5 violations and exited non-zero** — `color-contrast` (serious), `html-has-lang` (serious), `image-alt` (critical), `label` (critical), `link-name` (serious). A `serious` violation alone turns the job red, which is the "any severity" half of the contract.
+- One API constraint worth recording because it is not guessable: `AxeBuilder` requires a `BrowserContext` (`browser.newContext()` → `context.newPage()`), not `browser.newPage()`, and `analyze()` resolves to the `AxeResults` object itself rather than to a `{ results }` wrapper. Both were found by running the gate, not by reading the docs.
+
+Alternatives:
+- **`axe-core` directly** — the rules engine without the Playwright wrapper. Injection, frame handling and result plumbing would be hand-rolled in the E2E job, for the same rule set the wrapper already exposes. REJECTED: more code for identical rules.
+- **`@axe-core/cli` (axe-cli)** — a separate driver with its own browser download and a page-URL interface, no per-route control inside an existing Playwright run, and no access to the E2E job's browser cache. REJECTED: a second browser stack for one check.
+- **Lighthouse CI (`@lhci/cli`)** — a different measurement (an a11y *score*, 0–100). GA is gated on "Lighthouse a11y ≥ 95" (ACCESSIBILITY.md header, M-5), which is a coarser contract than "zero violations" and would let a page with one critical and one passing rule pass. REJECTED as the gate; it remains the milestone-level gate it already is.
+
+Decision: depend on `@axe-core/playwright` (dev-only) at `^4.13.0`, pinned to the stable 4.13 line, and run it inside the E2E CI job as a zero-violation-at-any-severity gate over the route map. WCAG tags `wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa` express the target in the ACCESSIBILITY.md header (WCAG 2.1 AA) without editing the rule set. Re-evaluate only if axe-core's rule set is ever found to produce false positives that cannot be fixed upstream — a finding is then a spec-question, never a silent allowlist.
+
 ### Containers / CI — SELECTED Docker + GitHub Actions
 
 Both are stable, industry-standard, and required by the deployment model (single VM, compose-based). No version research needed beyond "current stable."
@@ -185,6 +201,7 @@ Statuses: **SELECTED** = pinned at implementation start (VS-0). **PLANNED** = do
 | pino | PLANNED | 9.x | structured logs (stable, ubiquitous) — T-FOUND-008 |
 | vitest | SELECTED | 4.1.x | 5.x REJECTED (beta) |
 | @playwright/test | SELECTED | 1.62.x | E2E |
+| @axe-core/playwright | SELECTED | 4.13.x | the axe-core a11y gate inside E2E (ACCESSIBILITY.md §7, TEST_STRATEGY §5, NFR-A11Y-001); dev-only; added by T-FOUND-011 |
 | eslint + typescript-eslint | SELECTED | 9.x / 8.x | |
 | @node-rs/argon2 | OPTIONAL | — | fallback if argon2 native build fails |
 | Prisma 7 | REJECTED | — | see ADR-003 |
@@ -225,3 +242,5 @@ Statuses: **SELECTED** = pinned at implementation start (VS-0). **PLANNED** = do
 - [21] npm — @opentelemetry/api 1.9.1 / sdk-metrics 2.11.0: https://www.npmjs.com/package/@opentelemetry/api
 - [22] Releasebot — Vitest releases (4.1.11 stable; 5.0 beta): https://releasebot.io/updates/vitest
 - [23] Playwright blog via aims-ai — v1.62 (July 2026): https://playwright.aims-ai.com/blog/playwright-whats-new-2026
+- [24] npm — @axe-core/playwright 4.13.0 (peer dep, license, publish date): https://www.npmjs.com/package/@axe-core/playwright
+- [25] Deque — axe-core-npm (source of both @axe-core/playwright and axe-core): https://github.com/dequelabs/axe-core-npm

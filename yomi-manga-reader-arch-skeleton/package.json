@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "build": "next build",
     "dev": "next dev",
+    "start": "next start",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -47,6 +48,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "~1.62.1",
     "@types/node": "^24.9.0",
     "@types/react": "^19.3.0",
