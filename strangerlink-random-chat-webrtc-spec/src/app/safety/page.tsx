@@ -12,7 +12,8 @@
 import React from 'react';
 import { Button } from '../../shared/ui/Button';
 
-export const SAFETY_LIMITATIONS = [
+// Next.js page files may export only recognized route fields; keep this page-local.
+const SAFETY_LIMITATIONS = [
   {
     title: 'Conversations are not screened in real time',
     body: 'A human cannot read a message before you see it.',
