@@ -796,6 +796,34 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 
 ---
 
+## A.4 Identity and organizations (VS-1)
+
+### T-ORG-001 — Identity integration (Better Auth) with durable rate limiting
+
+- **Requirement IDs:** NFR-SEC-001, NFR-SEC-002, NFR-SEC-010, NFR-SEC-011, NFR-PRIV-006, FR-ORG-002, FR-ORG-005
+- **Goal:** An organizer, volunteer, reviewer or platform operator can be authenticated as a durable principal whose session survives a restart and can be revoked immediately — and the endpoints that authenticate them cannot be brute-forced, because the counter that limits them lives in Postgres rather than in the process.
+- **ADR:** ADR-0005 (Better Auth; its default limiter is in-memory and unacceptable in production), ADR-0017 (scope is derived from the principal, never from client input), ADR-0018 (time is injected), ADR-0020 (migrations are an explicit deploy step)
+- **Product documents:** `SECURITY.md` §2/§13, `API.md` §1 (actors, rate limits), `docs/security/AUTHZ-MATRIX.md`, `DATA_MODEL.md` §1, `docs/research/STACK-2026.md` §2/§5/§6/§16, `RETENTION.md`
+- **Expected modules:** `src/server/db/schema/identity.ts`, `src/server/db/client.ts`, `src/server/bootstrap/env.ts`, `src/server/db/repositories/auth-rate-limit-counters.ts`, `src/server/db/repositories/sessions.ts`, `src/server/crypto/subject-hash.ts`, `src/server/auth/**`, `src/app/api/auth/[...all]/route.ts`, `drizzle/` (migration)
+- **Dependencies:** VS-0 exit verification (the skeleton must typecheck before behaviour is added to it)
+- **Expected behavior:** Better Auth is configured against our Postgres through the Drizzle adapter; sessions, accounts and verifications are rows in our database; the identity library's rate limiter is replaced by a durable counter store; `getSession()` resolves the caller from request cookies and `revokeSession()` removes a session row immediately; a missing `APP_URL`, `BETTER_AUTH_SECRET` or `DATABASE_URL` fails the boot rather than a request.
+- **Invariants:** the in-memory limiter is never enabled, in any environment; a limiter that cannot decide refuses rather than allows; a bucket key never contains a raw email, device id or IP; revocation deletes the row (a revoked session must not keep authenticating); the cookie cache is off, so revocation is immediate; sign-up on the public surface stays off until invitations exist.
+- **Security:** `HttpOnly`/`Secure`/`SameSite=Lax` cookies; 8-hour idle timeout for organizer/admin surfaces (SECURITY.md §2); the secret is read only from the environment through one module; rate-limit counters are keyed with a deployment secret so the table cannot be turned back into a list of emails. `revokeSession` deliberately performs **no** authorization of its own — T-SEC-002 invariant 1 forbids scattered role checks, and no route or Server Action calls it yet.
+- **Privacy:** the counter table holds a keyed digest, never a subject; `sessions.ip_address` and `user_agent` are personal data covered by the session's 30-day retention and are never emitted to telemetry (OBSERVABILITY.md §7); no participant row is created here — participants have no account (ADR-0005).
+- **Concurrency:** the counter is a single `INSERT … ON CONFLICT DO UPDATE … RETURNING`, so N concurrent requests consume N distinct counts instead of all reading the same stale value; the counter saturates at `limit + 1` so a flood cannot grow the row without bound. No C-case in `docs/testing/CONCURRENCY-TESTS.md` is named for this path — the entrance cases begin at registration.
+- **Failure cases:** database unavailable (a privileged surface fails closed; the limiter refuses, it does not wave traffic through) · malformed configuration (boot fails, naming only the variable) · expired session (treated as anonymous on public surfaces, refused on privileged ones) · revoking an already-revoked session (reports `false`, not an error) · rotating `BETTER_AUTH_SECRET` (bucket keys change with it, which is acceptable: the worst case is one fresh window).
+- **Tests:** `tests/integration/auth/rate-limit-durable.test.ts` (limit boundary, retry delay, remaining, window reset, saturation, durability across a new storage instance, refusal when the store is unreachable, N-concurrent, no raw subject stored, retention sweep), `tests/integration/auth/session-repository.test.ts` (lookup, per-user listing, revocation, cascade from `users`, and the two `CHECK` constraints), `tests/unit/auth/uuid-v7.test.ts`, `tests/unit/auth/subject-hash.test.ts`.
+- **Manual QA:** **not executed** — no deployment, no PostgreSQL instance and no browser in the environment this was delivered from, and the sign-in surface it would be exercised through does not exist yet. The scenarios to run when it can be executed: sign in on a cold browser and confirm the cookie is `HttpOnly; Secure; SameSite=Lax`; restart the app process and confirm the session survives; revoke the session from a second device and confirm the first is signed out on its next request; fire 20 sign-in attempts in a minute against one account and confirm a `429` with `Retry-After`; `psql` the counter table after the burst and confirm no email appears in `bucket_key`.
+- **Definition of Done:** the identity schema, its reviewed migration, the pooled client, the durable limiter, the session service and the `/api/auth/*` route exist and typecheck; the four test files are implemented and pass; `npm run verify:vs0` stays green; every dependency is classified in `docs/research/STACK-2026.md`.
+  Explicit, justified deferrals recorded against this task:
+  1. **Sign-in and session-management UI (`/masuk`, `/sesi-saya`) — `T-ORG-004`.** Magic link needs the email channel (VS-12) and passkeys are T-SEC-009; shipping an untested auth form against a database that cannot be started here would be the exact "looks finished, is not" failure this repository forbids.
+  2. **Organization membership and roles — `T-ORG-002`.** `SessionSummary.roles` is therefore always empty today; that is the truth, not a placeholder permission.
+  3. **The revocation reason is validated but not yet persisted** — the audit trail is T-SEC-007, and inventing a second audit path here would conflict with it. The parameter is already in the signature so call sites do not change.
+  4. **The retention sweep has no scheduled caller** — `deleteExpiredCounters` / `deleteExpiredSessions` are tested and ready for T-PRIV-003.
+- **Delivered:** 2026-09-27 — VS-1 slice start, after the VS-0 exit verification (`T-DOCS-003`) passed 7/7.
+
+---
+
 # PART B — PLANNED TASK INVENTORY (compact)
 
 These tasks complete the roadmap. They use the same sixteen fields when they are picked up (expand them
@@ -824,7 +852,7 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 
 | ID | Task | Requirements | Slice |
 |---|---|---|---|
-| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | Planned / VS-1 |
+| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | **In progress / VS-1** — full block in §A.4 |
 | T-ORG-002 | Organization + membership model and role assignment | FR-ORG-001, FR-ORG-002 | Planned / VS-1 |
 | T-ORG-003 | Role switching, invitation and offboarding flows | FR-ORG-004, FR-ORG-005 | Planned / VS-1 |
 | T-MOSQUE-001 | Mosque create/edit with address, coordinates, timezone | FR-MOSQUE-001 | Planned / VS-1 |
@@ -836,6 +864,7 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 | T-SPEAKER-002 | Speaker verification and profile claim | FR-SPEAKER-003 | Planned / VS-1 |
 | T-SPEAKER-003 | Public speaker page (no ranking, no scores anywhere) | FR-SPEAKER-005, ADR-0014 | Planned / VS-1 |
 | T-SPEAKER-004 | Anti-ranking regression suite (assert no ordering by popularity exists) | NFR-ETH-001, ADR-0024 | Planned / VS-1 |
+| T-ORG-004 | Organizer sign-in and session-management UI (`/masuk`, `/sesi-saya`) | NFR-SEC-001, NFR-A11Y-002 | Planned / VS-1 (deferred from T-ORG-001) |
 
 ## B.3 Programs and events (VS-2)
 
@@ -988,16 +1017,16 @@ Phase 0 freeze is lifted (`ROADMAP.md` VS-0 exit criteria).
 
 | Section | Part A — full sixteen-field blocks | Part B — planned inventory rows |
 |---|---|---|
-| A.1 / B.1 Foundation, architecture, testing | 4 | 7 |
+| A.1 / B.1 Foundation, architecture, testing | 5 | 7 |
 | A.1 / B.1 Security, observability, operations | 12 | 6 |
 | A.2 / B.4 Registration | 2 | 10 |
 | A.2 / B.5 Check-in and attendance | 8 | 18 |
 | A.2 / B.6 Audio | 3 | 13 |
 | A.3 / B.7 Transcription and content | 4 | 19 |
 | A.3 / B.8 Feedback and notifications | 3 | 14 |
-| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 0 | 26 |
+| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 1 | 26 |
 | B.9 Dashboards, moderation, audit, hardening | 0 | 19 |
-| **Total** | **35** | **132** |
+| **Total** | **36** | **132** |
 
 Part A tasks are the ones other documents already point at by ID (see the "Task ownership" lines in the
 skeleton files, `THREAT_MODEL.md` mitigations, and the ADRs). Part B rows are the remaining inventory;
@@ -1015,7 +1044,7 @@ Counts by module, for cross-checking against other documents:
 | PROGRAM | 5 | NOTIF | 9 |
 | MOSQUE | 5 | ANALYTICS | 4 |
 | SPEAKER | 4 | MOD | 4 |
-| ORG | 3 | AUDIT | 2 |
+| ORG | 4 | AUDIT | 2 |
 | SEC | 11 | PRIV | 3 |
 | OBS | 3 | PERF | 3 |
 | OPS | 6 | ARCH | 6 |
@@ -1035,8 +1064,14 @@ Counts by module, for cross-checking against other documents:
 
 ## 5. First implementation task
 
-When the Phase 0 freeze is lifted, the first task to execute is **VS-1 · T-ORG-001** (identity
-integration with a durable rate limiter) followed immediately by **T-SEC-001** (tenant isolation) — see
+The Phase 0 freeze was lifted on 2026-09-27 for VS-1 after `ROADMAP.md` §Phase 0 state recorded the
+VS-0 exit verification as passing. The first task to execute is **VS-1 · T-ORG-001** (identity
+integration with a durable rate limiter), followed immediately by **T-SEC-001** (tenant isolation) — see
 `docs/architecture/FINAL-REVIEW.md` and the VS-0 exit criteria in `ROADMAP.md`. Everything else depends
 on those two being correct, because every later slice adds rows that must never be visible across
 organizations.
+
+**T-ORG-001 status: delivered (platform only).** Its full block is in §A.4, including the four
+explicit deferrals — the sign-in UI (`T-ORG-004`), membership and roles (`T-ORG-002`), the audit record
+for a revocation (`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`). `T-ORG-002` must land
+before `T-SEC-001` can derive a `TenantScope`, because a scope is built from membership.

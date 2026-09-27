@@ -99,6 +99,22 @@ No other slice is started: `T-SEC-001` and the rest of VS-1 remain unstarted.
 Public pages, registries, facilities/accessibility data, speaker profiles and verification, search by
 name/area. **Must ship:** real form validation, tenancy scoping, RLS-ready schema, accessibility pass.
 
+### VS-1 status (2026-09-27)
+
+**Started.** `T-ORG-001` is delivered as the identity *platform*: the identity schema and its reviewed
+migration, the pooled database client, a durable (Postgres) auth rate limiter, the session service and
+the `/api/auth/*` route. Four deferrals are recorded in its task block rather than glossed over — the
+sign-in and session-management UI (`T-ORG-004`), organization membership and roles (`T-ORG-002`), the
+audit record for a revocation (`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`).
+
+**`T-ORG-002` is the next task, ahead of `T-SEC-001`.** A `TenantScope` is built from membership, so
+tenant isolation cannot be implemented — let alone tested — until an organization and its members
+exist. The original ordering (`T-ORG-001` → `T-SEC-001`) assumed membership came with identity; it does
+not, so the order is corrected here.
+
+Nothing in VS-1 is user-visible yet: no page renders identity state, and there is no deployment to
+exercise sign-in against.
+
 ## VS-2 · Kajian Events
 
 Programs and recurrence, event creation with policies, publish checklist, public discovery list and

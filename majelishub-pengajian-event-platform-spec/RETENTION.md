@@ -55,6 +55,8 @@ Owner: SRE + Privacy · Mechanism: `retention.run` job (`src/server/jobs/retenti
 | R26 | Speaker verification records | rows | permanent | — | keep | Public trust record |
 | R27 | Organizer account data | rows | account life + 90 days | deletion request | delete (audit retains actor references as tombstones) | — |
 | R28 | Prayer-time cache (if configured) | rows | 12 months | — | delete | Not personal data |
+| R29 | Sessions (`sessions`: token, `ip_address`, `user_agent`) | rows | **30 days** (idle timeout is 8 h, `SECURITY.md` §2) | last use | hard delete | The session itself is the credential; `ip_address`/`user_agent` are personal data that exist only to protect it, and must never outlive it |
+| R30 | Auth rate-limit counters (`auth_rate_limit_counters`) | rows | **7 days** | last update | hard delete | Abuse-purpose data with the shortest justifiable life. The bucket key is a keyed digest, not an identifier (`src/server/crypto/subject-hash.ts`), so what is deleted is unlinkable in either direction |
 
 ## 3. Interaction rules (what the clocks do not do)
 

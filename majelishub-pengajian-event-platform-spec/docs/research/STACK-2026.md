@@ -77,7 +77,8 @@ records the 2026 technology validation performed before freezing the architectur
 ## 5. Data access — Drizzle ORM + `pg` driver
 
 - **Classification: SELECTED**
-- **Version line:** Drizzle ORM 0.4x (`drizzle-orm`, `drizzle-kit`); typed SQL-first schema in TypeScript.
+- **Packages:** `drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x, `pg` 8.x (driver), `@types/pg` (types only).
+- **Version line:** Drizzle ORM 0.4x; typed SQL-first schema in TypeScript.
 - **Why:** no codegen step, SQL-shaped output we can read in `EXPLAIN`, first-class partial unique indexes / `ON CONFLICT` needed for idempotent check-in and attendance, small bundle, `pglite`/`node-postgres` compatible, no binary engine to ship into a container.
 - **Rejected — Prisma 7:** substantially narrowed the gap in 2026 (Rust engine removed, ≈1.6 MB client) and has better Studio tooling, but it is a second schema language, a codegen step in CI, and nested-write ergonomics we do not need; our idempotency logic is SQL-shaped.
 - **Rejected — Kysely:** excellent type safety, but fewer batteries (no schema/migration toolkit of the same maturity) for a small team.
@@ -86,7 +87,8 @@ records the 2026 technology validation performed before freezing the architectur
 ## 6. Authentication & authorization — Better Auth
 
 - **Classification: SELECTED** (see ADR-0005)
-- **Status:** Better Auth 1.6.x (May 2026), active development. Auth.js/NextAuth has been in **security-patch-only maintenance since Sept 2025** under the Better Auth team and its own docs redirect new projects to Better Auth — so Auth.js is **REJECTED for greenfield**, not because it is broken (existing apps are safe).
+- **Packages:** `better-auth` 1.7.x, with `better-auth/adapters/drizzle` and `better-auth/next-js`.
+- **Status:** Better Auth 1.6.x at selection (May 2026), 1.7.x installed for VS-1; active development. Auth.js/NextAuth has been in **security-patch-only maintenance since Sept 2025** under the Better Auth team and its own docs redirect new projects to Better Auth — so Auth.js is **REJECTED for greenfield**, not because it is broken (existing apps are safe).
 - **Why:** users live in *our* Postgres; organization plugin with roles/members maps directly onto our multi-tenant organizer model; passkey/MFA/session-revocation plugins available without a per-MAU bill; no vendor lock-in on identity data.
 - **Operational warnings recorded:** Better Auth's default rate limiter is in-memory and resets on deploy — a durable store must be configured before production (`SECURITY.md` §Rate limiting).
 - **Rejected — Clerk / Supabase Auth:** Clerk (reasonable product, per-MAU economics + identity lock-in, US-only data residency); Supabase Auth (only justified if we also adopt Supabase Postgres — we do not).
@@ -164,17 +166,22 @@ records the 2026 technology validation performed before freezing the architectur
 ## 16. Testing — Vitest 4 + Playwright + Testing Library
 
 - **Classification: SELECTED (Vitest, Playwright) — PLANNED (Vitest browser mode coverage)**
-- **Packages:** `vitest` 4.x (declared 3.x at verification time — see the Phase 0 note), `@playwright/test` 1.x.
+- **Packages:** `vitest` 4.x, `@playwright/test` 1.x.
 - **Vitest 4:** stable; Jest-compatible API; native TS/ESM; browser mode **stable** since v4 with `@vitest/browser-playwright`; visual assertions via `toMatchScreenshot`.
 - **Playwright:** the browser layer for the two workflows that dominate risk — **QR check-in at a busy entrance** and **a 2-hour recording session** (needs real MediaRecorder, real device permissions, fake devices via Chromium flags, and trace/video evidence on failure).
 - **Layers:** jsdom-ish/Node unit tests → Postgres-backed integration tests → real-browser component tests → a thin Playwright E2E set over the money paths. See `TESTING.md`.
 - **Rejected:** Jest (slower cold start, worse ESM/TS story, no unified browser mode); Cypress (Playwright overtook it; worse parallelism and mobile-emulation story).
 - **Phase 0 note (updated 2026-09-27):** the test files still contain placeholders only — 338
-  `describe.todo`/`test.todo` in the Vitest layers and 42 `test.fixme` in the Playwright layers, with
-  zero executable assertions. The two runners are now *declared* as devDependencies, because VS-0 exit
-  criterion 2 (`npm run typecheck` passes) cannot be verified while 98 skeleton test files import
+  `test.todo` + 80 `describe.todo` in the Vitest layers and 42 `test.fixme` in the Playwright layers,
+  with zero executable assertions. The two runners are now *declared* as devDependencies, because VS-0
+  exit criterion 2 (`npm run typecheck` passes) cannot be verified while 98 skeleton test files import
   `vitest` and `@playwright/test` with no type declarations available. Declaring them does not start a
   slice: `T-TEST-001` still owns making the suites run.
+- **DB-backed tests:** `@electric-sql/pglite` is a **devDependency** used to run Postgres-backed tests
+  without a container. It is the same engine compiled to WASM, so `ON CONFLICT`, partial indexes and
+  `FOR UPDATE SKIP LOCKED` behave identically — which is what lets the rate-limiter and attendance
+  invariants be tested on a contributor machine with no Docker. `T-TEST-001` remains free to point the
+  same suites at a containerised PostgreSQL 18 in CI.
 
 ## 17. Containerisation & CI/CD
 

@@ -20,14 +20,26 @@
     "test:a11y": "playwright test tests/e2e/a11y",
     "docs:lint": "node ops/docs-lint.mjs",
     "verify:vs0": "node ops/verify-vs0.mjs",
+    "test": "vitest run --project unit --project integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
   "comment": "PHASE 0 NOTE: dependencies are DECLARED here for classification purposes only (docs/research/STACK-2026.md) and are deliberately NOT installed. Installation happens when VS-1 starts. Do not add a dependency without a STACK-2026 classification and, if it is platform-level, an ADR.",
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^22.20.4",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1",
+    "@types/node": "^24",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "5.9.3",
+    "vitest": "^4"
+  },
+  "dependencies": {
+    "better-auth": "^1.7.6",
+    "drizzle-orm": "^0.45.3",
+    "next": "^16.3.6",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

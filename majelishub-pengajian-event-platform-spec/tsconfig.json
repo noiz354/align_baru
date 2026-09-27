@@ -20,6 +20,6 @@
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "*.ts", "*.mjs"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "*.ts", "*.mts", "*.mjs"],
   "exclude": ["node_modules", ".next", "ops/load"]
 }

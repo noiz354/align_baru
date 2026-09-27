@@ -138,29 +138,50 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   );
 }
 
-// ── 4 · test files contain placeholders only ──────────────────────────────────────────────────────
+// ── 4 · test files are placeholders unless their owning task is delivered ─────────────────────────
 {
+  const taskSections = read("TASKS.md").split(/^### (?=T-[A-Z]+-\d{3})/m);
+  const delivered = new Set(
+    taskSections
+      .filter((section) => /\*\*Delivered:\*\*/.test(section))
+      .map((section) => /^(T-[A-Z]+-\d{3})/.exec(section)?.[1])
+      .filter(Boolean),
+  );
+
   const testFiles = walk("tests", (name) => /\.(test|spec)\.ts$/.test(name));
-  const assertions = [];
+  const orphaned = [];
+  const tested = new Set();
   let vitestPlaceholders = 0;
   let playwrightPlaceholders = 0;
+  let placeholdersOnly = 0;
+
   for (const file of testFiles) {
     const text = read(file);
-    text.split("\n").forEach((line, index) => {
-      if (/(^|[^.\w])expect\s*\(/.test(line)) assertions.push(`${file}:${index + 1}`);
-    });
+    const hasAssertions = /(^|[^.\w])expect\s*\(/.test(text);
     vitestPlaceholders += (text.match(/\b(?:describe|test|it)\.todo\(/g) ?? []).length;
     playwrightPlaceholders += (text.match(/\btest\.fixme\(/g) ?? []).length;
+    if (!hasAssertions) {
+      placeholdersOnly += 1;
+      continue;
+    }
+    // Every test file names the task it belongs to in its header (AGENTS.md §5). A file with real
+    // assertions is only legitimate once that task is recorded as delivered — otherwise a spec that
+    // claims "nothing is implemented" would be carrying tests that prove otherwise, or worse, tests
+    // nobody owns.
+    const owner = /Owning task:\s*(T-[A-Z]+-\d{3})/.exec(text)?.[1];
+    if (owner && delivered.has(owner)) tested.add(`${owner} (${file})`);
+    else orphaned.push(`${file}${owner ? ` (${owner} is not marked delivered)` : " (no owning task)"}`);
   }
+
   // The nine Playwright file headers document the placeholder form; they are comments, not tests.
   const documented = 9;
-  const ok = assertions.length === 0;
+  const ok = orphaned.length === 0;
   record(
     4,
     ok ? "PASS" : "FAIL",
     ok
-      ? `${plural(testFiles.length, "test file")}, 0 executable assertions, ${vitestPlaceholders} Vitest placeholders + ${playwrightPlaceholders - documented} Playwright placeholders`
-      : `executable assertions found: ${assertions.join(", ")}`,
+      ? `${placeholdersOnly} files still placeholders (${vitestPlaceholders} Vitest + ${playwrightPlaceholders - documented} Playwright); ${plural(tested.size, "file")} with real assertions, each naming a delivered task`
+      : `tests without a delivered owning task: ${orphaned.join(", ")}`,
   );
 }
 

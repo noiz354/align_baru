@@ -22,9 +22,9 @@ What is here (2026-09-26):
 | Requirements | `PRD.md` — 229 stable IDs (156 functional across 16 families, 73 non-functional) |
 | Documents | 36 root documents + 57 under `docs/` (research, product, design, media, transcription, security, architecture, attendance, testing, operations, 27 ADRs, traceability) |
 | Contracts and skeletons | 165 files under `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 25 API route shells (+ not-found/error shells) |
-| Tests | 98 placeholder test files (338 `test.todo(...)` in Vitest layers, 42 `test.fixme(...)` in Playwright layers) — the acceptance checklists for future tasks |
+| Tests | 102 test files: 98 placeholder files (338 `test.todo(...)` + 80 `describe.todo(...)` in Vitest layers, 42 `test.fixme(...)` in Playwright layers) and 4 with real assertions, owned by the delivered `T-ORG-001` |
 | Operations skeleton | `ops/`: compose stack, two Dockerfiles, smoke suite, docs lint gate, backup/restore, load harness notes |
-| Task plan | `TASKS.md` — 35 fully specified tasks (16 mandatory fields each) + 132 task rows for later slices |
+| Task plan | `TASKS.md` — 36 fully specified tasks (16 mandatory fields each) + 132 task rows for later slices |
 
 Every unimplemented function throws `Error("Not implemented: <TASK-ID>")`, where the task ID exists in
 `TASKS.md`. Prohibited in this phase: fake implementations, production UI, persistence, real
@@ -35,8 +35,17 @@ payments, deployment. Route shells render `null`.
 criteria as met (criterion 7 — reviewer comprehension — is attested by a human, not a script). The
 findings it raised and how each was resolved are recorded in `ROADMAP.md` §Phase 0 state.
 
-**The Phase 0 freeze is lifted for VS-1 · `T-ORG-001` only.** In progress: identity integration
-(`T-ORG-001`). Not started: `T-SEC-001` and the rest of VS-1 (`TASKS.md` §5).
+**The Phase 0 freeze is lifted for VS-1 only.** `T-ORG-001` (identity platform) is **delivered**:
+the identity schema and its reviewed migration, the pooled database client, a durable Postgres-backed
+auth rate limiter, the session service and the `/api/auth/*` route. It is platform work — no page
+renders identity state yet.
+
+Not delivered, and recorded as explicit deferrals in the task block: the sign-in and session-management
+UI (`T-ORG-004`), organization membership and roles (`T-ORG-002`), the revocation audit record
+(`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`). Manual QA was **not executed** — this
+environment has no PostgreSQL instance and no browser, and the sign-in surface does not exist yet.
+
+Next: `T-ORG-002` (organization + membership), then `T-SEC-001` (`ROADMAP.md` §VS-1 status).
 
 ---
 
