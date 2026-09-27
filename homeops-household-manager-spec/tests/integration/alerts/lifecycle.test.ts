@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Alert state machine against the database, including the partial unique index that makes dedupe real.
 

@@ -7,7 +7,12 @@
  */
 
 export type AttentionStripProps = {
-  readonly items: readonly { readonly alertId: string; readonly title: string; readonly priority: string; readonly actionLabel: string }[];
+  readonly items: readonly {
+    readonly alertId: string;
+    readonly title: string;
+    readonly priority: string;
+    readonly actionLabel: string;
+  }[];
 };
 
 export function AttentionStrip(_props: AttentionStripProps) {

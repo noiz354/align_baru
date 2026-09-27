@@ -21,13 +21,42 @@ export type DashboardSnapshot = {
     readonly recipientDisplayName: string;
     readonly action: { readonly label: string; readonly href: string };
   }[];
-  readonly dueToday: readonly { readonly occurrenceId: string; readonly title: string; readonly roomName?: string; readonly assigneeName?: string; readonly inProgress: boolean }[];
-  readonly overdue: readonly { readonly occurrenceId: string; readonly title: string; readonly dueOn: string; readonly daysOverdue: number }[];
-  readonly quickActions: readonly { readonly kind: 'COMPLETE_CHORE' | 'TRASH_COLLECTED' | 'USED_ONE' | 'RESTOCK' | 'REPORT_ISSUE'; readonly label: string; readonly targetId?: string }[];
+  readonly dueToday: readonly {
+    readonly occurrenceId: string;
+    readonly title: string;
+    readonly roomName?: string;
+    readonly assigneeName?: string;
+    readonly inProgress: boolean;
+  }[];
+  readonly overdue: readonly {
+    readonly occurrenceId: string;
+    readonly title: string;
+    readonly dueOn: string;
+    readonly daysOverdue: number;
+  }[];
+  readonly quickActions: readonly {
+    readonly kind: 'COMPLETE_CHORE' | 'TRASH_COLLECTED' | 'USED_ONE' | 'RESTOCK' | 'REPORT_ISSUE';
+    readonly label: string;
+    readonly targetId?: string;
+  }[];
   readonly rooms: readonly RoomListRowDto[];
-  readonly lowSupplies: readonly { readonly resourceId: string; readonly name: string; readonly band: 'LOW' | 'CRITICAL' }[];
-  readonly maintenance: readonly { readonly planId: string; readonly name: string; readonly nextServiceAt: string; readonly overdue: boolean }[];
-  readonly recentActivity: readonly { readonly id: string; readonly summary: string; readonly occurredAt: string; readonly actorName?: string }[];
+  readonly lowSupplies: readonly {
+    readonly resourceId: string;
+    readonly name: string;
+    readonly band: 'LOW' | 'CRITICAL';
+  }[];
+  readonly maintenance: readonly {
+    readonly planId: string;
+    readonly name: string;
+    readonly nextServiceAt: string;
+    readonly overdue: boolean;
+  }[];
+  readonly recentActivity: readonly {
+    readonly id: string;
+    readonly summary: string;
+    readonly occurredAt: string;
+    readonly actorName?: string;
+  }[];
 };
 
 /**

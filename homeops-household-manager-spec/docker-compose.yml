@@ -1,0 +1,51 @@
+# HomeOps — local development services (T-PLAT-003, DEPLOYMENT.md §1).
+# One datastore, no broker, no cache tier: the simplicity budget is ARCHITECTURE.md §3.
+services:
+  postgres:
+    # Postgres 18 is a hard requirement: `uuidv7()` column defaults (ADR-002, DATA_MODEL.md §1).
+    image: postgres:18
+    container_name: homeops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: homeops
+      POSTGRES_PASSWORD: homeops
+      POSTGRES_DB: homeops_dev
+      # UTC container clock: every instant is stored and compared in UTC (ADR-007).
+      TZ: UTC
+      PGTZ: UTC
+    # Bound to the loopback interface only: the database is never exposed publicly (SECURITY.md §10).
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - homeops_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U homeops -d homeops_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Scratch database for the integration tier (TESTING.md §4): name contains "test" so the harness
+  # refuses to connect to anything else (tests/helpers/db.ts).
+  postgres-test:
+    image: postgres:18
+    container_name: homeops-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: homeops
+      POSTGRES_PASSWORD: homeops
+      POSTGRES_DB: homeops_test
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - '127.0.0.1:5433:5432'
+    tmpfs:
+      # Throwaway storage: the test database is recreated on every run.
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U homeops -d homeops_test']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  homeops_pgdata:

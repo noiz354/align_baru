@@ -56,7 +56,7 @@ Rules:
 
 1. **Downward only.** A module may call a module below it; a lower module never calls upward. `alerts` may read the *state* of rooms/chores/trash/resources/maintenance/issues, but only through plain value objects passed in by the caller (`evaluateAlerts(input)`), never by importing their repositories. This is what keeps the detector pure and testable.
 2. **No cycles, no exceptions.** `rooms -> chores` exists; `chores -> rooms` does not (a chore carries a `roomId` value, it never queries rooms). The cycle check in `tests/unit/architecture.test.ts` walks every relative import; a cycle fails CI.
-3. **Features are leaves of the feature layer.** Two features never import each other; shared logic between features moves down into `domain` (pure) or `server` (adapter).
+3. **Features are leaves of the feature layer.** Two features never import each other; shared logic between features moves down into `domain` (pure) or `server` (adapter). **One declared exception:** `features/dashboard` is the composition root for the `/today` read model (ARCHITECTURE.md §8) and may import other features' *read models (`queries.ts`) and DTO types (`dto.ts`)* — never their actions, components, or internals. Nothing may import `features/dashboard`: it is a sink.
 4. **`src/shared` never depends on a layer above it.** It is types, clocks, errors, validation primitives, and three cross-cutting UI primitives.
 5. **Type-only imports are the one permitted cross-module reference.** A domain module may `import type` another module's `types.ts` (never its `ports.ts` or `services.ts`), because sharing a value shape is cheaper and less error-prone than duplicating it. The only current example is `src/domain/alerts/recipients.ts` importing the `Recipient` shape from `src/domain/members/types.ts`. Runtime imports between domain modules are zero today, and an architecture test asserts that (a `import {` line crossing modules fails CI).
 6. **Only `src/server/db` touches the database.** Repositories implement ports declared in `src/domain/*/ports.ts`. Port methods are household-scoped by construction: `householdId` first, or an aggregate root that declares `householdId`, with the single discovery call `findMembershipHousehold(memberId)` as the documented exception (I-XA-001/I-XA-001a) - so an unscoped query cannot be written by accident.
@@ -69,6 +69,7 @@ Rules:
 | `domain/**` importing `drizzle-orm` or `postgres` | The model must not know the persistence shape; that is the anti-corruption boundary | ESLint, `T-PLAT-005` |
 | Any file outside `src/server/db` importing the DB driver | Single place to audit tenancy, transactions, and query budget | ESLint |
 | `features/a/**` importing `features/b/**` | Prevents an accidental god-feature; forces explicit interfaces | ESLint, architecture test |
+| anything importing `features/dashboard/**` | The dashboard is a sink: the composition root has no consumers | ESLint, architecture test |
 | `app/**` importing `domain/**` or `server/**` | Routes coordinate and render; logic belongs in a feature action/query | ESLint |
 | Deep import into another module's internals (`@/domain/chores/recurrence`) from a feature | Keeps each module's public surface intentional | ESLint path rule; public surface is `services.ts` / `ports.ts` / `types.ts` |
 | `src/shared/ui` growing past cross-cutting primitives | A shared component with one caller belongs in that feature | Review + `T-PLAT-015` grep gate for hard-coded colours |
@@ -88,7 +89,7 @@ Rules:
 ## 6. Verification
 
 - `T-PLAT-006` - ESLint `no-restricted-imports` per layer + the path rules above.
-- `tests/unit/architecture.test.ts` - cycle check, layer violations, "schema lives in migrations" check.
+- `tests/unit/architecture.test.ts` - cycle check (runtime edges), layer violations, and schema↔migration agreement (the Drizzle `pgTable` set must equal the `CREATE TABLE` set; the migration SQL stays authoritative, ARCHITECTURE.md §9).
 - `T-PLAT-008` - fails CI when a doc references a module path that does not exist.
 - `T-SEC-002` isolation sweep - one negative test per repository port; the map stays honest because an unscoped port cannot pass it.
 

@@ -13,9 +13,11 @@ import type { OperationResult } from '../../shared/errors/result';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-CHORE-004 - requirements, ADR, design, and tests are listed there.
  */
-export async function completeOccurrenceAction(
-  _input: { readonly occurrenceId: string; readonly note?: string; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly occurrenceId: string; readonly completedAt: string }>> {
+export async function completeOccurrenceAction(_input: {
+  readonly occurrenceId: string;
+  readonly note?: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly occurrenceId: string; readonly completedAt: string }>> {
   throw new Error('Not implemented: T-CHORE-004');
 }
 
@@ -26,9 +28,11 @@ export async function completeOccurrenceAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-CHORE-007 - requirements, ADR, design, and tests are listed there.
  */
-export async function skipOccurrenceAction(
-  _input: { readonly occurrenceId: string; readonly reason: 'AWAY' | 'NOT_NEEDED' | 'CAME_UP' | 'OTHER'; readonly note?: string },
-): Promise<OperationResult<{ readonly occurrenceId: string }>> {
+export async function skipOccurrenceAction(_input: {
+  readonly occurrenceId: string;
+  readonly reason: 'AWAY' | 'NOT_NEEDED' | 'CAME_UP' | 'OTHER';
+  readonly note?: string;
+}): Promise<OperationResult<{ readonly occurrenceId: string }>> {
   throw new Error('Not implemented: T-CHORE-007');
 }
 
@@ -39,8 +43,9 @@ export async function skipOccurrenceAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-CHORE-008 - requirements, ADR, design, and tests are listed there.
  */
-export async function snoozeOccurrenceAction(
-  _input: { readonly occurrenceId: string; readonly snoozedUntil: string },
-): Promise<OperationResult<{ readonly occurrenceId: string; readonly snoozedUntil: string }>> {
+export async function snoozeOccurrenceAction(_input: {
+  readonly occurrenceId: string;
+  readonly snoozedUntil: string;
+}): Promise<OperationResult<{ readonly occurrenceId: string; readonly snoozedUntil: string }>> {
   throw new Error('Not implemented: T-CHORE-008');
 }

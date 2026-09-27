@@ -9,7 +9,9 @@
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-CHORE-010 - requirements, ADR, design, and tests are listed there.
  */
-export async function runMaterialiseChoresJob(_input: { readonly nowInstant: string }): Promise<{ readonly created: number }> {
+export async function runMaterialiseChoresJob(_input: {
+  readonly nowInstant: string;
+}): Promise<{ readonly created: number }> {
   // The loop over households belongs to T-CHORE-010; nothing here may pretend to have run.
   throw new Error('Not implemented: T-CHORE-010');
 }

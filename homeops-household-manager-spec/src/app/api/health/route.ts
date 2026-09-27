@@ -1,15 +1,24 @@
-// HomeOps - route skeleton (specification phase). Handler shells only.
+// HomeOps — health endpoints (T-PLAT-024, OBSERVABILITY.md §5).
+//
+// GET /api/health          liveness: { status, version, schemaVersion }
+// GET /api/health?deep=1   readiness: database, migration match, per-job tick age, outbox backlog
+//
+// Unauthenticated but information-minimal: codes only, `no-store`, and under 200 ms.
 
-/**
- * GET /api/health            liveness: { status, version, schemaVersion }
- * GET /api/health?deep=1     readiness: database, migration match, per-job tick age, outbox backlog
- *
- * Rules: no household data, no counts beyond coarse categories, no-store, under 200 ms, codes only.
- * A degraded dependency returns 200 with status "degraded"; a broken core returns 503 so an uptime
- * monitor can tell "wake me up" from "note it" (OBSERVABILITY.md section 5).
- *
- * Owning task: T-PLAT-024.
- */
-export async function GET(_request: Request): Promise<Response> {
-  throw new Error('Not implemented: T-PLAT-024');
+import { NextResponse } from 'next/server';
+import { httpStatusFor, liveness, readiness } from '../../../features/system/health';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+export async function GET(request: Request): Promise<Response> {
+  const deep = new URL(request.url).searchParams.get('deep');
+  const headers = { 'Cache-Control': 'no-store, max-age=0' };
+
+  if (deep !== '1' && deep !== 'true') {
+    return NextResponse.json(liveness(), { status: 200, headers });
+  }
+
+  const report = await readiness();
+  return NextResponse.json(report, { status: httpStatusFor(report), headers });
 }

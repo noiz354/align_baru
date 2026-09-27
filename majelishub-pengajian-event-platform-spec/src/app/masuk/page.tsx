@@ -5,7 +5,7 @@
  * could be mistaken for the product is forbidden (DESIGN.md phase rule, AGENTS.md §5.3).
  * Purpose (route PAGES.md): Sign-in for organizers (magic link / passkey). Participants never need an account.
  * Requirements: NFR-SEC-001/010
- * Owning task: T-ORG-001
+ * Owning task: T-ORG-004 (the identity platform it sits on is T-ORG-001, delivered)
  *
  * Where the real implementation belongs and what it must respect:
  *   - Data comes from a feature service (src/features/**), never from the database directly.
@@ -19,6 +19,8 @@
 export const dynamic = "force-dynamic"; // correct while nothing is cached; revisit with the real data layer
 
 export default async function Page()  {
-  // TODO(T-ORG-001): Sign-in for organizers (magic link / passkey). Participants never need an account.
+  // TODO(T-ORG-004): Sign-in for organizers (magic link / passkey). Participants never need an account.
+  // Deferred from T-ORG-001: magic link needs the VS-12 email channel and passkeys are T-SEC-009, so
+  // this surface cannot be exercised end to end until one of them exists.
   return null;
 }

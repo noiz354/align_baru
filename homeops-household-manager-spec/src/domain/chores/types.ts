@@ -57,13 +57,26 @@ export type RecurrenceRule =
   | { readonly kind: 'DAILY' }
   | { readonly kind: 'WEEKDAYS'; readonly weekdays: readonly (0 | 1 | 2 | 3 | 4 | 5 | 6)[] } // 0 = Sunday
   | { readonly kind: 'EVERY_N_DAYS'; readonly interval: number; readonly anchor: LocalDate }
-  | { readonly kind: 'EVERY_N_WEEKS'; readonly interval: number; readonly weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; readonly anchor: LocalDate }
+  | {
+      readonly kind: 'EVERY_N_WEEKS';
+      readonly interval: number;
+      readonly weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+      readonly anchor: LocalDate;
+    }
   | { readonly kind: 'MONTHLY'; readonly dayOfMonth: number } // 1-31, clamped per month (I-MNT-005)
-  | { readonly kind: 'EVERY_N_MONTHS'; readonly interval: number; readonly dayOfMonth: number; readonly anchor: LocalDate }
+  | {
+      readonly kind: 'EVERY_N_MONTHS';
+      readonly interval: number;
+      readonly dayOfMonth: number;
+      readonly anchor: LocalDate;
+    }
   | { readonly kind: 'AFTER_COMPLETION'; readonly intervalDays: number }; // anchored to the last completion (I-CHORE-004)
 
 export type ChoreSummary = {
   readonly occurrence: ChoreOccurrence;
-  readonly definition?: Pick<ChoreDefinition, 'id' | 'recurrence' | 'priority' | 'roomId' | 'assigneeMemberId'>;
+  readonly definition?: Pick<
+    ChoreDefinition,
+    'id' | 'recurrence' | 'priority' | 'roomId' | 'assigneeMemberId'
+  >;
   readonly isOverdue: boolean;
 };

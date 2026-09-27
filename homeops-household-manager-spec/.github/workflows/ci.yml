@@ -1,56 +1,269 @@
-# HomeOps - CI skeleton (specification phase).
+# HomeOps — CI pipeline (T-PLAT-009, TESTING.md §6, ADR-016).
 #
-# Every step below is a placeholder for a task in VS-0; the pipeline is intentionally not runnable yet
-# because package.json and the toolchain are created in T-PLAT-001/T-PLAT-009. Job names and ordering
-# are the contract: docs/TESTING.md section 6 defines the tiers, docs/architecture/MODULE-MAP.md the gates.
+# One job per CI tier, named exactly as TESTING.md §6 names the required checks so branch protection
+# can reference them: verify:docs, typecheck, lint, unit, integration, build, e2e, a11y, perf.
+# Rules honoured here:
+#   - no repository secret is available to a pull-request build (the database is a service container
+#     with generated credentials, and every value below is a test-only literal);
+#   - `npm ci` only, from the committed lockfile (T-PLAT-001);
+#   - concurrency cancellation on PRs so a superseded push stops burning runners;
+#   - dependency review on PRs (T-PLAT-009 security case).
 #
-# Tier 1 (every push, fast):   verify:docs, typecheck, lint, unit
-# Tier 2 (PR to main):         integration, build
-# Tier 3 (main only):          e2e (chromium), a11y sweep, perf smoke
-#
+# The workflow is reusable (`workflow_call`) so deploy.yml can require "CI green on the release
+# commit" (DEPLOYMENT.md §4) without duplicating the tiers.
+
 name: ci
+
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+  # Test-only configuration, not secrets: the harness refuses a database whose name lacks dev/test
+  # (scripts/seed.ts, tests/helpers/db.ts), and no default secret is ever substituted in code.
+  APP_URL: http://127.0.0.1:3000
+  SESSION_SECRET: ci-only-session-secret-32-chars-minimum
+  CRON_SECRET: ci-only-cron-secret
+  LOG_LEVEL: warn
 
 jobs:
-  fast:
-    name: tier 1 - docs, types, lint, unit
-    runs-on: ubuntu-latest
+  verify-docs:
+    name: 'verify:docs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      # Node 24 is the pinned runtime (docs/research/STACK-2026.md section 1, ADR-016).
-      - name: Node 24 + lockfile install
-        run: echo "TODO T-PLAT-001: actions/setup-node@v4 with node-version-file .nvmrc, npm ci"
-      - name: Docs and traceability gate
-        run: node scripts/verify-docs.mjs
-      - name: Typecheck
-        run: echo "TODO T-PLAT-009: tsc --noEmit (TypeScript 6.0, strict)"
-      - name: Lint (import boundaries included)
-        run: echo "TODO T-PLAT-009: eslint with the MODULE-MAP import rules (T-PLAT-006)"
-      - name: Unit tests
-        run: echo "TODO T-PLAT-016: vitest run tests/unit"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Traceability, task ids, ADRs, fake implementations (T-PLAT-008)
+        run: npm run verify:docs
+      - name: Token contrast gate (T-PLAT-015)
+        run: npm run verify:contrast
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm run typecheck
+
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: ESLint + import-boundary rules (T-PLAT-006)
+        run: npm run lint
+      - name: Formatting is Prettier's job, not a lint rule
+        run: npm run format:check
+
+  unit:
+    name: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npm run test:unit
 
   integration:
-    name: tier 2 - integration against Postgres 18
-    runs-on: ubuntu-latest
+    name: integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      # Postgres 18 is a hard requirement: uuidv7() column defaults (ADR-002, docker-compose.yml).
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: homeops
+          POSTGRES_PASSWORD: homeops
+          POSTGRES_DB: homeops_test
+          TZ: UTC
+          PGTZ: UTC
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U homeops -d homeops_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://homeops:homeops@127.0.0.1:5432/homeops_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Apply migrations once (T-PLAT-003)
+        run: npm run db:migrate
+      - name: Integration tier, serialised (TESTING.md §4)
+        run: npm run test:integration
+
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Production build
+        run: npm run build
+      - name: Keep .next for the perf and e2e tiers
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: |
+            .next/app-path-routes-manifest.json
+            .next/build-manifest.json
+            .next/prerender-manifest.json
+            .next/routes-manifest.json
+            .next/required-server-files.json
+            .next/BUILD_ID
+            .next/static
+            .next/server
+            .next/standalone
+            public
+          retention-days: 1
+          if-no-files-found: error
+
+  perf:
+    # PERFORMANCE.md §5: "Bundle size — build output check … fail CI over budget by >10% — VS-0
+    # (wiring)". The Lighthouse web-vitals tier (PB-C2..C7) is measured from VS-4 and only becomes
+    # blocking in VS-16 (TESTING.md §6), so this job gates the budget that exists today.
+    name: perf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: next-build, path: . }
+      - name: First-load JS budget, PB-C1 (180 kB gzip)
+        run: npm run verify:bundle
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: build
     services:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: homeops
+          POSTGRES_PASSWORD: homeops
+          POSTGRES_DB: homeops_test
+          TZ: UTC
+          PGTZ: UTC
+        ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U homeops -d homeops_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://homeops:homeops@127.0.0.1:5432/homeops_test
+      E2E_BASE_URL: http://127.0.0.1:3000
+      CI: true
     steps:
-      - uses: actions/checkout@v5
-      - name: Migrate and run integration tests
-        run: echo "TODO T-PLAT-009: npm run db:migrate && vitest run tests/integration"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: next-build, path: . }
+      - name: Install browsers (cached)
+        uses: ./.github/actions/playwright
+      - name: Migrate + seed the dataset the journeys run against (TESTING.md §5)
+        run: npm run db:migrate && npm run db:seed
+      - name: Start the built app
+        run: nohup npm run start > /tmp/homeops-app.log 2>&1 &
+      - name: Wait for liveness (curl retry loop, no new dependency)
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/health > /dev/null; then
+              echo "app is live after ${attempt}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "app did not become live; last 50 log lines:"; tail -50 /tmp/homeops-app.log; exit 1
+      - name: Journeys QA-01..QA-15 (mobile + desktop)
+        run: npm run test:e2e
+      - name: Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Application log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: /tmp/homeops-app.log
+          retention-days: 7
+          if-no-files-found: ignore
 
-  build:
-    name: tier 2 - production build
-    runs-on: ubuntu-latest
+  a11y:
+    # TESTING.md §6: the axe pass runs *inside* E2E; this job isolates its result so the required
+    # check is visible on its own and an a11y regression cannot hide behind a journey failure.
+    name: a11y
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: build
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: homeops
+          POSTGRES_PASSWORD: homeops
+          POSTGRES_DB: homeops_test
+          TZ: UTC
+          PGTZ: UTC
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U homeops -d homeops_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://homeops:homeops@127.0.0.1:5432/homeops_test
+      E2E_BASE_URL: http://127.0.0.1:3000
+      CI: true
     steps:
-      - uses: actions/checkout@v5
-      - name: Build
-        run: echo "TODO T-PLAT-020: next build (standalone output) and docker image build"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: next-build, path: . }
+      - uses: ./.github/actions/playwright
+      - run: npm run db:migrate && npm run db:seed
+      - run: nohup npm run start > /tmp/homeops-app.log 2>&1 &
+      - name: Wait for liveness
+        run: |
+          for attempt in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3000/api/health > /dev/null && exit 0
+            sleep 1
+          done
+          tail -50 /tmp/homeops-app.log; exit 1
+      - name: QA-15 accessibility pass (ACCESSIBILITY.md §7)
+        run: npx playwright test qa-15 --project=mobile --project=desktop
+
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          # A lockfile-only PR is exactly what this step is for; nothing else may add a dependency
+          # without a DECISIONS.md entry (AGENTS.md §9), which verify:docs enforces.
+          fail-on-severity: moderate

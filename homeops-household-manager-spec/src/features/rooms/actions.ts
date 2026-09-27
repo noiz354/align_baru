@@ -14,9 +14,12 @@ import type { RoomStatus } from '../../shared/types';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ROOM-004 - requirements, ADR, design, and tests are listed there.
  */
-export async function setRoomOverrideAction(
-  _input: { readonly roomId: string; readonly status: RoomStatus; readonly reason: string; readonly hours: number },
-): Promise<OperationResult<{ readonly overrideId: string }>> {
+export async function setRoomOverrideAction(_input: {
+  readonly roomId: string;
+  readonly status: RoomStatus;
+  readonly reason: string;
+  readonly hours: number;
+}): Promise<OperationResult<{ readonly overrideId: string }>> {
   throw new Error('Not implemented: T-ROOM-004');
 }
 
@@ -27,8 +30,11 @@ export async function setRoomOverrideAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ROOM-002 - requirements, ADR, design, and tests are listed there.
  */
-export async function updateRoomAction(
-  _input: { readonly roomId: string; readonly name?: string; readonly groupLabel?: string; readonly sortOrder?: number },
-): Promise<OperationResult<{ readonly updated: true }>> {
+export async function updateRoomAction(_input: {
+  readonly roomId: string;
+  readonly name?: string;
+  readonly groupLabel?: string;
+  readonly sortOrder?: number;
+}): Promise<OperationResult<{ readonly updated: true }>> {
   throw new Error('Not implemented: T-ROOM-002');
 }

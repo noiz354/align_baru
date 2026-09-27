@@ -3,8 +3,62 @@ Vehicle entity utilities and license plate sanitization rules.
 """
 
 import re
-from typing import Optional
-from src.core.domain import PlateNumber
+from typing import List, Optional
+from src.core.domain import ObservedItem, PlateNumber
+
+
+# TASK-303: standardized quick-tag vocabulary for "Observasi Visual Barang
+# Tertinggal" (pure visual observation, NOT bailment — see ADR-003 / DESIGN.md).
+OBSERVED_ITEM_TYPES = ("HELMET", "JACKET", "BAG", "PACKAGE", "ACCESSORY")
+
+# Common physical locations on a vehicle where an item is observed.
+ITEM_LOCATIONS = (
+    "MIRROR_HANG",      # helm di gantungan spion
+    "FLOORBOARD",       # di lantai / pijakan kaki
+    "SEAT",             # di atas jok
+    "CARGO_BOX",        # dalam box / bagasi
+    "REAR_RACK",        # di rak belakang
+    "UNKNOWN",
+)
+
+
+class ObservedItemBuilder:
+    """Builds ObservedItem records from quick-tap field tags (TASK-303)."""
+
+    @classmethod
+    def quick(cls, item_type: str, count: int = 1, location: str = "UNKNOWN",
+              notes: Optional[str] = None) -> ObservedItem:
+        item_type = item_type.upper()
+        if item_type not in OBSERVED_ITEM_TYPES:
+            raise ValueError(f"Tipe barang '{item_type}' tidak dikenal. Pilih dari {OBSERVED_ITEM_TYPES}.")
+        if location.upper() not in ITEM_LOCATIONS:
+            location = "UNKNOWN"
+        return ObservedItem(
+            item_type=item_type,
+            count=count,
+            location_on_vehicle=location,
+            notes=notes,
+        )
+
+    @classmethod
+    def helmet(cls, count: int = 1, location: str = "MIRROR_HANG") -> ObservedItem:
+        return cls.quick("HELMET", count, location)
+
+    @classmethod
+    def bag(cls, count: int = 1, location: str = "SEAT") -> ObservedItem:
+        return cls.quick("BAG", count, location)
+
+    @classmethod
+    def from_dict_list(cls, raw: List[dict]) -> List[ObservedItem]:
+        return [
+            cls.quick(
+                item_type=d["item_type"],
+                count=int(d.get("count", 1)),
+                location=d.get("location", "UNKNOWN"),
+                notes=d.get("notes"),
+            )
+            for d in raw
+        ]
 
 
 class PlateSanitizer:

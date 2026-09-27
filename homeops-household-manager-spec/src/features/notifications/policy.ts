@@ -34,7 +34,7 @@ export type MemberChannelPreferences = {
 };
 
 export type SuppressionReason =
-  | 'QUIET_HOURS' | 'CAP_REACHED' | 'AWAY' | 'CHANNEL_DISABLED' | 'DUPLICATE' | 'NO_RECIPIENT' | 'STALE';
+  'QUIET_HOURS' | 'CAP_REACHED' | 'AWAY' | 'CHANNEL_DISABLED' | 'DUPLICATE' | 'NO_RECIPIENT' | 'STALE';
 
 export type NotificationIntent = {
   readonly alertId: string;

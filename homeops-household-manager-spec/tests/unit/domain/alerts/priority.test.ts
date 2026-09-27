@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Priority defaults and the single-escalation rule (I-ALERT-005).
 

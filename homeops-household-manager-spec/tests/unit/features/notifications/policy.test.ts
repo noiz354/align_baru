@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The largest unit suite in the app: the policy layer is pure (I-NOTIF-003).
 

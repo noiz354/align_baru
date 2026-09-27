@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Every alert must answer the five questions; a malformed alert must fail creation (I-ALERT-002).
 

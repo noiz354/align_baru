@@ -3,7 +3,8 @@
 import type { Clock } from '../../shared/time/clock';
 import type { Id } from '../../shared/types';
 import type { TrashState, LocalDate } from '../../shared/types';
-import type { TrashContainer } from './types';
+import type { TrashContainer, TrashStateEvent, CollectionDue } from './types';
+import type { TrashRepository } from './ports';
 
 export type TrashDeps = {
   readonly containers: TrashRepositoryPort;
@@ -11,7 +12,7 @@ export type TrashDeps = {
 };
 
 /** Forward declaration keeps this file readable; the port is declared in ./ports.ts. */
-export type TrashRepositoryPort = import('./ports').TrashRepository;
+export type TrashRepositoryPort = TrashRepository;
 
 /**
  * Apply a state transition (FR-TRASH-002). Enforces the documented graph and the hysteresis
@@ -30,7 +31,7 @@ export function transitionTrashState(_input: {
   readonly reason: 'MARKED_ALMOST_FULL' | 'MARKED_FULL' | 'RESET' | 'COLLECTION_MISSED';
   readonly note?: string;
   readonly nowInstant: string;
-}): { readonly container: TrashContainer; readonly event: import('./types').TrashStateEvent } {
+}): { readonly container: TrashContainer; readonly event: TrashStateEvent } {
   throw new Error('Not implemented: T-TRASH-002');
 }
 
@@ -66,7 +67,12 @@ export async function completeTrashCollection(
  */
 export async function resetContainerState(
   _deps: TrashDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly containerId: Id; readonly reason: string },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly containerId: Id;
+    readonly reason: string;
+  },
 ): Promise<TrashContainer> {
   throw new Error('Not implemented: T-TRASH-007');
 }
@@ -83,6 +89,6 @@ export function evaluateCollectionDue(_input: {
   readonly containers: readonly TrashContainer[];
   readonly today: LocalDate;
   readonly householdTimezone: string;
-}): readonly import('./types').CollectionDue[] {
+}): readonly CollectionDue[] {
   throw new Error('Not implemented: T-TRASH-009');
 }

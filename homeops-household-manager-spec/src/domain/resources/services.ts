@@ -3,10 +3,11 @@
 import type { Clock } from '../../shared/time/clock';
 import type { Id, ResourceMode } from '../../shared/types';
 import type { Level, Resource, ShoppingItem } from './types';
+import type { ResourceRepository, ShoppingRepository } from './ports';
 
 export type ResourceDeps = {
-  readonly resources: import('./ports').ResourceRepository;
-  readonly shopping: import('./ports').ShoppingRepository;
+  readonly resources: ResourceRepository;
+  readonly shopping: ShoppingRepository;
   readonly clock: Clock;
 };
 
@@ -40,7 +41,12 @@ export async function updateResourceLevel(
  */
 export async function recordRestock(
   _deps: ResourceDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly resourceId: Id; readonly clientRequestId: string },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly resourceId: Id;
+    readonly clientRequestId: string;
+  },
 ): Promise<Resource> {
   throw new Error('Not implemented: T-RES-006');
 }
@@ -91,7 +97,12 @@ export async function deriveShoppingList(
  */
 export async function purchaseShoppingItem(
   _deps: ResourceDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly itemId: Id; readonly clientRequestId: string },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly itemId: Id;
+    readonly clientRequestId: string;
+  },
 ): Promise<ShoppingItem> {
   throw new Error('Not implemented: T-SHOP-003');
 }

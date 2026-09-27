@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Intent uniqueness, outbox drain semantics, retry classification, and dead-lettering (ADR-009).
 

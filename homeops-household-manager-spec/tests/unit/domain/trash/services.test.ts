@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The container state graph and the hysteresis rule (I-TRASH-001/003/004).
 

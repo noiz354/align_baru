@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Threshold defaults and the crossing rule that prevents supply-list nagging (I-RES-005).
 

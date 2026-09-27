@@ -37,7 +37,9 @@ for (const block of taskBlocks) {
   const title = head[2].replace(/\.$/, '');
   const reqs = new Set(block.match(/\b(?:FR|NFR)-[A-Z0-9]+-\d{3}\b/g) ?? []);
   const adrs = [...new Set((block.match(/\bADR-\d{3}\b/g) ?? []).filter((a) => a !== 'ADR-000'))].sort();
-  const modules = [...new Set((block.match(/`(src\/[^`]+|tests\/[^`]+)`/g) ?? []).map((s) => s.replace(/`/g, '')))];
+  const modules = [
+    ...new Set((block.match(/`(src\/[^`]+|tests\/[^`]+)`/g) ?? []).map((s) => s.replace(/`/g, ''))),
+  ];
   taskMeta.set(id, { title, adrs, modules });
   for (const r of reqs) {
     if (!taskIndex.has(r)) taskIndex.set(r, []);
@@ -47,29 +49,97 @@ for (const block of taskBlocks) {
 
 /* ---------- 3. family-level design / skeleton / test mapping ---------- */
 const FAMILY = {
-  'FR-HH': ['docs/design/PAGES.md §11 (onboarding) + §10 (settings)', 'src/features/household, src/domain/household', 'tests/integration/household/*.test.ts'],
-  'FR-MEM': ['docs/security/AUTHZ-MATRIX.md §1', 'src/features/members, src/domain/members', 'tests/integration/members/*.test.ts'],
+  'FR-HH': [
+    'docs/design/PAGES.md §11 (onboarding) + §10 (settings)',
+    'src/features/household, src/domain/household',
+    'tests/integration/household/*.test.ts',
+  ],
+  'FR-MEM': [
+    'docs/security/AUTHZ-MATRIX.md §1',
+    'src/features/members, src/domain/members',
+    'tests/integration/members/*.test.ts',
+  ],
   'FR-AUTH': ['SECURITY.md §4', 'src/server/auth', 'tests/integration/auth/*.test.ts'],
-  'FR-ROOM': ['docs/product/ROOMS.md', 'src/domain/rooms, src/features/rooms', 'tests/unit/domain/rooms/status.test.ts + tests/e2e/QA-03*'],
-  'FR-CHORE': ['docs/product/CHORES.md + RECURRENCE.md', 'src/domain/chores, src/features/chores', 'tests/unit/domain/chores/*.test.ts + tests/e2e/QA-04/05*'],
-  'FR-TRASH': ['docs/product/TRASH.md', 'src/domain/trash, src/features/trash', 'tests/unit/domain/trash/*.test.ts + tests/e2e/QA-06*'],
-  'FR-RES': ['docs/product/RESOURCES.md', 'src/domain/resources, src/features/resources', 'tests/unit/domain/resources/*.test.ts + tests/e2e/QA-07*'],
-  'FR-SHOP': ['docs/product/RESOURCES.md §Shopping list', 'src/domain/resources, src/features/resources', 'tests/integration/resources/shopping.test.ts'],
-  'FR-MNT': ['docs/product/MAINTENANCE.md', 'src/domain/maintenance, src/features/maintenance', 'tests/unit/domain/maintenance/*.test.ts + tests/e2e/QA-10*'],
-  'FR-ISSUE': ['docs/product/ISSUES.md', 'src/domain/issues, src/features/issues', 'tests/integration/issues/*.test.ts + tests/e2e/QA-09*'],
-  'FR-ALERT': ['docs/product/ALERTS.md', 'src/domain/alerts, src/features/alerts', 'tests/unit/domain/alerts/*.test.ts + tests/e2e/QA-11/12*'],
-  'FR-NOTIF': ['docs/product/NOTIFICATIONS.md', 'src/features/notifications/policy.ts, src/server/notifications', 'tests/unit/features/notifications/policy.test.ts'],
-  'FR-DASH': ['docs/product/DASHBOARD.md', 'src/features/dashboard, src/domain/dashboard', 'tests/integration/dashboard/snapshot.test.ts + tests/e2e/QA-13*'],
-  'FR-ACT': ['docs/product/ACTIVITY.md', 'src/domain/activity, src/features/activity', 'tests/integration/activity/*.test.ts + tests/e2e/QA-08*'],
+  'FR-ROOM': [
+    'docs/product/ROOMS.md',
+    'src/domain/rooms, src/features/rooms',
+    'tests/unit/domain/rooms/status.test.ts + tests/e2e/QA-03*',
+  ],
+  'FR-CHORE': [
+    'docs/product/CHORES.md + RECURRENCE.md',
+    'src/domain/chores, src/features/chores',
+    'tests/unit/domain/chores/*.test.ts + tests/e2e/QA-04/05*',
+  ],
+  'FR-TRASH': [
+    'docs/product/TRASH.md',
+    'src/domain/trash, src/features/trash',
+    'tests/unit/domain/trash/*.test.ts + tests/e2e/QA-06*',
+  ],
+  'FR-RES': [
+    'docs/product/RESOURCES.md',
+    'src/domain/resources, src/features/resources',
+    'tests/unit/domain/resources/*.test.ts + tests/e2e/QA-07*',
+  ],
+  'FR-SHOP': [
+    'docs/product/RESOURCES.md §Shopping list',
+    'src/domain/resources, src/features/resources',
+    'tests/integration/resources/shopping.test.ts',
+  ],
+  'FR-MNT': [
+    'docs/product/MAINTENANCE.md',
+    'src/domain/maintenance, src/features/maintenance',
+    'tests/unit/domain/maintenance/*.test.ts + tests/e2e/QA-10*',
+  ],
+  'FR-ISSUE': [
+    'docs/product/ISSUES.md',
+    'src/domain/issues, src/features/issues',
+    'tests/integration/issues/*.test.ts + tests/e2e/QA-09*',
+  ],
+  'FR-ALERT': [
+    'docs/product/ALERTS.md',
+    'src/domain/alerts, src/features/alerts',
+    'tests/unit/domain/alerts/*.test.ts + tests/e2e/QA-11/12*',
+  ],
+  'FR-NOTIF': [
+    'docs/product/NOTIFICATIONS.md',
+    'src/features/notifications/policy.ts, src/server/notifications',
+    'tests/unit/features/notifications/policy.test.ts',
+  ],
+  'FR-DASH': [
+    'docs/product/DASHBOARD.md',
+    'src/features/dashboard, src/domain/dashboard',
+    'tests/integration/dashboard/snapshot.test.ts + tests/e2e/QA-13*',
+  ],
+  'FR-ACT': [
+    'docs/product/ACTIVITY.md',
+    'src/domain/activity, src/features/activity',
+    'tests/integration/activity/*.test.ts + tests/e2e/QA-08*',
+  ],
   'FR-SET': ['docs/design/PAGES.md §10', 'src/app/settings/**, src/features/*', 'tests/e2e/settings.spec.ts'],
-  'FR-PWA': ['docs/design/PAGES.md §12 + ADR-014', 'src/app/manifest.ts, src/sw.ts', 'tests/e2e/offline.spec.ts (QA-14*)'],
+  'FR-PWA': [
+    'docs/design/PAGES.md §12 + ADR-014',
+    'src/app/manifest.ts, src/sw.ts',
+    'tests/e2e/offline.spec.ts (QA-14*)',
+  ],
   'NFR-PERF': ['PERFORMANCE.md', 'app-wide', 'tests/e2e/perf/*.spec.ts'],
-  'NFR-SEC': ['SECURITY.md + THREAT_MODEL.md', 'app-wide, src/server/auth', 'tests/integration/security/*.test.ts (T-SEC-*)'],
+  'NFR-SEC': [
+    'SECURITY.md + THREAT_MODEL.md',
+    'app-wide, src/server/auth',
+    'tests/integration/security/*.test.ts (T-SEC-*)',
+  ],
   'NFR-PRIV': ['PRIVACY.md', 'app-wide, src/server/telemetry', 'tests/unit/telemetry/redaction.test.ts'],
-  'NFR-OBS': ['OBSERVABILITY.md', 'src/server/telemetry, src/server/scheduler', 'tests/integration/observability/*.test.ts'],
+  'NFR-OBS': [
+    'OBSERVABILITY.md',
+    'src/server/telemetry, src/server/scheduler',
+    'tests/integration/observability/*.test.ts',
+  ],
   'NFR-REL': ['DEPLOYMENT.md + docs/operations/BACKUP-RESTORE.md', 'ops scripts', 'manual drills (T-OPS-*)'],
   'NFR-MAINT': ['CONTRIBUTING.md + AGENTS.md §7', 'docs + scripts', 'scripts/verify-docs.mjs (T-PLAT-008)'],
-  'NFR-A11Y': ['ACCESSIBILITY.md + docs/design/DESIGN-SYSTEM.md', 'src/shared/ui, features/*/components', 'tests/e2e/a11y/*.spec.ts + component a11y assertions'],
+  'NFR-A11Y': [
+    'ACCESSIBILITY.md + docs/design/DESIGN-SYSTEM.md',
+    'src/shared/ui, features/*/components',
+    'tests/e2e/a11y/*.spec.ts + component a11y assertions',
+  ],
 };
 
 const familyOf = (id) => id.replace(/-\d{3}$/, '').replace(/^(FR|NFR)-/, (m) => m); // FR-HH / NFR-SEC
@@ -79,7 +149,8 @@ const famKey = (id) => {
 };
 
 const short = (s, n = 88) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…');
-const capList = (arr, n = 5) => (arr.length <= n ? arr.join(', ') : `${arr.slice(0, n).join(', ')} +${arr.length - n} more`);
+const capList = (arr, n = 5) =>
+  arr.length <= n ? arr.join(', ') : `${arr.slice(0, n).join(', ')} +${arr.length - n} more`;
 
 /* ---------- 4. build the matrix ---------- */
 const p0p1 = requirements.filter((r) => r.priority === 'P0' || r.priority === 'P1');
@@ -103,7 +174,18 @@ const tasksWithoutReq = [...taskMeta.entries()].filter(([id]) => {
   return block ? !/\b(?:FR|NFR)-[A-Z0-9]+-\d{3}\b/.test(block) : true;
 });
 
-const DOMAIN_MODULES = ['household','members','rooms','chores','trash','resources','maintenance','issues','alerts','activity'];
+const DOMAIN_MODULES = [
+  'household',
+  'members',
+  'rooms',
+  'chores',
+  'trash',
+  'resources',
+  'maintenance',
+  'issues',
+  'alerts',
+  'activity',
+];
 const taskText = [...taskMeta.values()].map((m) => m.modules.join(' ')).join(' ');
 const unownedModules = DOMAIN_MODULES.filter((mod) => !taskText.includes(`domain/${mod}`));
 

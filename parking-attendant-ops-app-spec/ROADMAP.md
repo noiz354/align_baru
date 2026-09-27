@@ -5,14 +5,14 @@
 
 ### Fase 1: Core Foundation & MVP Lapangan (Sprint 1 - 4)
 - [x] Desain Arsitektur Local-First & Model Domain Lengkap.
-- [ ] Implementasi Local Database SQLite & Entitas Domain (Vehicle, Slot, Session, Shift).
-- [ ] Fitur Check-In Cepat dengan input plat manual & pemilihan tipe kendaraan.
-- [ ] Modul Foto Bukti Awal & Form Observasi Barang Tertinggal (Non-asumsi).
-- [ ] Manajemen Slot (Empty, Occupied, Reserved, Blocked) & Fitur Move Vehicle.
-- [ ] Fitur Check-Out dengan kalkulasi tarif waktu sistem, pembayaran tunai/kembalian.
-- [ ] Buka/Tutup Shift Juru Parkir & Rekonsiliasi Kas Sederhana.
-- [ ] Pelaporan Insiden Lapangan (Form bodi rusak & catatan insiden).
-- [ ] Pencetakan Tiket Thermal 58mm via Bluetooth ESC/POS.
+- [x] Implementasi Local Database SQLite & Entitas Domain (Vehicle, Slot, Session, Shift).
+- [x] Fitur Check-In Cepat dengan input plat manual & pemilihan tipe kendaraan.
+- [x] Modul Foto Bukti Awal & Form Observasi Barang Tertinggal (Non-asumsi).
+- [x] Manajemen Slot (Empty, Occupied, Reserved, Blocked) & Fitur Move Vehicle.
+- [x] Fitur Check-Out dengan kalkulasi tarif waktu sistem, pembayaran tunai/kembalian.
+- [x] Buka/Tutup Shift Juru Parkir & Rekonsiliasi Kas Sederhana.
+- [x] Pelaporan Insiden Lapangan (Form bodi rusak & catatan insiden).
+- [x] Pencetakan Tiket Thermal 58mm via ESC/POS (builder; transport Bluetooth device-specific).
 
 ---
 

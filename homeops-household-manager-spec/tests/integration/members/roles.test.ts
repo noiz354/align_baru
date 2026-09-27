@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Role rules, the last-owner guarantee, and removal cascade (I-MEM-001..005).
 

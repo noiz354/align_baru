@@ -67,9 +67,18 @@ table and enabled adapters are compared at boot, and a new processor requires an
 `PRIVACY.md` §5).
 
 ### 2.7 "Is the design materially simpler than the problem?"
-Yes, in three places where complexity was cut deliberately: no participant accounts (registration is
-lightweight), no offline sync engine, no message broker. Each removal is documented with its cost, and
-each has a revisit trigger.
+Yes. Three subsystems were cut deliberately rather than built, and each cut is recorded as a decision
+with its cost and a revisit trigger rather than left implicit:
+
+| Cut | What replaces it | Where the decision lives |
+|---|---|---|
+| No participant accounts | A contact channel identifies a registration; an opaque capability token authorises it. Participants never sign in. | `ADR-0005` §Context, `ADR-0006` |
+| No offline sync engine | The entrance keeps working on paper and reconciles afterwards; the online offline-check-in path stays deferred against a written evidence trigger. | `ADR-0007`, `docs/attendance/OFFLINE-EVALUATION.md` |
+| No message broker | The outbox and the job queue are Postgres tables polled with `FOR UPDATE SKIP LOCKED`. | `ADR-0010`, `ADR-0015` |
+
+None of the three removes a control that `SECURITY.md` or `PRIVACY.md` depends on: authorization is
+unchanged by the absence of accounts, attendance stays reconcilable without offline sync, and the
+outbox is transactional in Postgres rather than in a broker.
 
 ### 2.8 "Is it accessible for the people who actually attend?"
 WCAG 2.2 AA targets, 56 px touch targets, short-code targets ≥ 32 px with large-text mode, triple-channel
