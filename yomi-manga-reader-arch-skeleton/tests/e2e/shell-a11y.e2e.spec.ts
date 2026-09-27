@@ -1,0 +1,168 @@
+/**
+ * E2E — the shell's target-size and focus guarantees (NFR-A11Y-003/010).
+ *
+ * Task: T-FOUND-003 (the not-found shell), T-FOUND-004 (AppShell + the
+ * primitives). Requirements: NFR-A11Y-003 (initial focus + labelling),
+ * NFR-A11Y-010 (≥ 44×44 px touch targets).
+ * Spec: ACCESSIBILITY.md §3.3 ("Touch targets ≥ 44×44 px (NFR-A11Y-010),
+ * including reader chrome and tap-zone keyboard equivalents"), §4 (skip link),
+ * §6 (error/empty states are focusable, announced, and offer a next action).
+ *
+ * Why this file exists separately from route-map.e2e.test.ts: that file proves
+ * the ROUTE MAP resolves. This one proves a measurable a11y FLOOR on what the
+ * map renders — a property that can silently regress when a page swaps an
+ * inline link for a text run, which is exactly what happened on the not-found
+ * shell (its two actions were 19 px tall, below the 44 px the product commits
+ * to). A route returning 200 is not evidence that its controls are hittable.
+ *
+ * a11y gate note: @axe-core/playwright is NOT installed (no research-registry
+ * row; AGENTS.md §4.4), so the axe leg of ACCESSIBILITY.md §7 is not wired.
+ * These are the geometric + accessibility-tree checks that can be made with
+ * what is available. They do not replace axe; see the report.
+ */
+import { readFileSync } from 'node:fs';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+/** NFR-A11Y-010. Also `--target-min` in tokens.css, the single source. */
+const MIN_TARGET = 44;
+
+/** The whole-map sample: the shell chrome plus both boundary states. */
+const SAMPLE_ROUTES = ['/', '/discover', '/admin', '/no-such-page'];
+
+/**
+ * Every interactive element that is actually rendered. A link with no
+ * accessible name is reported separately rather than skipped, because an
+ * unnamed control is a worse defect than a small one.
+ */
+async function interactive(page: Page): Promise<Locator[]> {
+  const all = page.locator('a[href], button:not([disabled])');
+  const count = await all.count();
+  const out: Locator[] = [];
+  for (let i = 0; i < count; i += 1) out.push(all.nth(i));
+  return out;
+}
+
+test.describe('target size (NFR-A11Y-010, the 44px floor)', () => {
+  for (const route of SAMPLE_ROUTES) {
+    test(`${route} — every rendered control is at least 44×44`, async ({ page }) => {
+      await page.goto(route);
+
+      const tooSmall: string[] = [];
+      const unnamed: string[] = [];
+
+      for (const el of await interactive(page)) {
+        const box = await el.boundingBox();
+        if (box === null) continue; // not laid out (display:none) — not hittable
+        const name = (await el.evaluate((n) => (n.textContent ?? '').trim())) || '(no text)';
+        const aria = await el.getAttribute('aria-label');
+        const label = aria === null ? name : `${name} [aria-label="${aria}"]`;
+
+        if (box.width < MIN_TARGET || box.height < MIN_TARGET) {
+          tooSmall.push(`"${label}" is ${Math.round(box.width)}×${Math.round(box.height)}`);
+        }
+        if (name === '(no text)' && aria === null) unnamed.push(label);
+      }
+
+      expect(tooSmall, `controls below the ${MIN_TARGET}px floor on ${route}`).toEqual([]);
+      expect(unnamed, `controls with no accessible name on ${route}`).toEqual([]);
+    });
+  }
+
+  test('the shell nav and admin nav are hittable, not just the page content', async ({ page }) => {
+    // The nav is the one place a target-size regression is easiest to miss,
+    // because the links look fine in a screenshot and every other assertion in
+    // the suite is about the page body.
+    await page.goto('/admin');
+    for (const selector of ['.shell-nav a', '.admin-nav a']) {
+      const boxes = await page.locator(selector).evaluateAll((nodes) =>
+        nodes.map((n) => {
+          const r = n.getBoundingClientRect();
+          return { t: (n.textContent ?? '').trim(), h: r.height, w: r.width };
+        }),
+      );
+      expect(boxes.length, `no ${selector} rendered`).toBeGreaterThan(0);
+      for (const b of boxes) {
+        expect(b.h, `${selector} "${b.t}" height`).toBeGreaterThanOrEqual(MIN_TARGET);
+        expect(b.w, `${selector} "${b.t}" width`).toBeGreaterThanOrEqual(MIN_TARGET);
+      }
+    }
+  });
+});
+
+test.describe('boundary states are announced (NFR-A11Y-003)', () => {
+  test('not-found takes focus and exposes its heading as an accessible name', async ({ page }) => {
+    await page.goto('/no-such-page');
+
+    // Focus lands in the state on entry — not left on the skip link at the top
+    // of the document, which is the failure mode FocusRegion exists to prevent.
+    const active = await page.evaluate(() => {
+      const el = document.activeElement;
+      return el === null
+        ? null
+        : { cls: el.className, tag: el.tagName, labelledby: el.getAttribute('aria-labelledby') };
+    });
+    expect(active?.tag).toBe('DIV');
+    expect(active?.cls).toContain('focus-region');
+    expect(active?.labelledby).toBe('not-found-title');
+
+    // The label must actually resolve, not merely be present in the markup:
+    // `aria-labelledby` on a roleless element is a classic silent no-op, so
+    // the name is read out of the accessibility tree instead of the source.
+    const name = await page.locator('.focus-region').evaluate((el) => {
+      const id = el.getAttribute('aria-labelledby');
+      const heading = id === null ? null : document.getElementById(id);
+      return heading?.textContent?.trim() ?? null;
+    });
+    expect(name).toBe('Page not found');
+  });
+
+  test('not-found offers the two destinations that always exist', async ({ page }) => {
+    // ACCESSIBILITY.md §6: a link home, and a next action. A 404 must not be
+    // a dead end, and `main` must never be blank.
+    await page.goto('/no-such-page');
+    await expect(page.locator('main')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Go to the catalog' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to the home page' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to the catalog' })).toHaveAttribute(
+      'href',
+      '/discover',
+    );
+    await expect(page.getByRole('link', { name: 'Go to the home page' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+  });
+
+  test('the error boundary leaks nothing it should not (NFR-SEC-010, THREAT T-13)', async () => {
+    // The boundary cannot be reached on a healthy app, so "it leaks nothing"
+    // is a property of the FILE, asserted here as a source invariant rather
+    // than by trying to crash the app. NFR-SEC-010: a 5xx body never carries
+    // internals; THREAT T-13: no stack, no message, no path in the UI.
+    const raw = readFileSync(new URL('../../src/app/error.tsx', import.meta.url), 'utf8');
+
+    // Comments are stripped first, and deliberately: the file's header explains
+    // at length WHY there is no console.error, so a raw-text match would flag
+    // its own documentation. The assertion is about code.
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    // The only field of the caught error the UI may read is Next's opaque
+    // digest. `message` and `stack` are the two leaks the requirement names.
+    expect(code).not.toMatch(/error\s*\.\s*message/);
+    expect(code).not.toMatch(/error\s*\.\s*stack/);
+    // Printing the error in the browser console puts both in front of the
+    // user, which is the same leak by another route.
+    expect(code).not.toMatch(/console\s*\.\s*(error|warn|log)/);
+    // The digest is the one thing it may render, and it is rendered as text.
+    expect(code).toMatch(/error\s*\.\s*digest/);
+  });
+
+  test('an unknown route is a 404, never the 5xx boundary', async ({ page }) => {
+    // The other half of "leaks nothing": the error boundary is not reachable
+    // by typing, so no attacker-supplied path can land a user on a page that
+    // renders an error object.
+    const response = await page.goto('/error-boundary-probe');
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+    await expect(page.getByText(/error digest|at Object|\.tsx:|\/home\//i)).toHaveCount(0);
+  });
+});

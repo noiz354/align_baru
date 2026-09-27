@@ -8,11 +8,20 @@
  * aria-describedby, display name optional); policy errors inline;
  * duplicate email → 409 message; auto-login on success. The `role`
  * field does not exist in this form (THREAT T-07). No feature code.
+ *
+ * Task: T-FOUND-003. API_CONTRACT §5 row 5: features/auth.
  */
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Register',
+};
+
 export default function RegisterPage() {
   return (
-    <main>
+    <>
+      <h1>Create an account</h1>
       {/* TODO(T-AUTH-012): register form (labeled, policy hints, a11y) */}
-    </main>
+    </>
   );
 }
