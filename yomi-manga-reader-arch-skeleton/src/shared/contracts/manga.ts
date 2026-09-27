@@ -68,9 +68,18 @@ export interface MangaDetail extends MangaSummary {
   genres: Genre[];
   tags: Tag[];
   createdAt: string;
-  continueReading?: {
-    chapterId: string;
-    chapterNumber: number;
-    pageNumber: number;
-  };
+  /**
+   * FR-CATALOG-008. Absent, never null: absent for an anonymous caller and
+   * absent again for a caller with no position yet. The explicit `| undefined`
+   * is what "may be absent" means under `exactOptionalPropertyTypes` — a Zod
+   * `.optional()` produces `T | undefined`, and without it a correctly-parsed
+   * response is a type error.
+   */
+  continueReading?:
+    | {
+        chapterId: string;
+        chapterNumber: number;
+        pageNumber: number;
+      }
+    | undefined;
 }

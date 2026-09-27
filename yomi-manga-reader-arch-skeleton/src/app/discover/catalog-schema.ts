@@ -85,9 +85,23 @@ export const mangaDetailSchema = mangaSummarySchema.extend({
   genres: z.array(z.object({ id: z.string().min(1), name: z.string().min(1) })),
   tags: z.array(z.object({ id: z.string().min(1), name: z.string().min(1) })),
   createdAt: z.string().min(1),
-  // FR-CATALOG-008 / T-CATALOG-009 has NOT landed, so `continueReading` is not
-  // in the contract yet and is not parsed here. When it does, it is OPTIONAL:
-  // absent for anonymous callers, never null (shared/contracts/manga.ts).
+  // FR-CATALOG-008 / T-CATALOG-009. OPTIONAL and never null: absent for an
+  // anonymous caller (the reader's position lives on the device until sign-in,
+  // T-READER-024) and absent again when the caller simply has no position yet.
+  // A missing key and a `null` are different answers here, so the schema is
+  // `.optional()` and NOT `.nullable()` — matching shared/contracts/manga.ts.
+  //
+  // It is currently always absent in this deployment, because the API's caller
+  // resolver is the anonymous default until T-AUTH-007 lands (see
+  // src/app/api/v1/_runtime.ts). The field is parsed and rendered anyway so
+  // that landing the session changes nothing outside this file.
+  continueReading: z
+    .object({
+      chapterId: z.string().min(1),
+      chapterNumber: chapterNumber,
+      pageNumber: z.coerce.number().int().nonnegative(),
+    })
+    .optional(),
 });
 
 export const chapterSummarySchema = z.object({

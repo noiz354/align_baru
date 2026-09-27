@@ -134,6 +134,42 @@ export interface CatalogServiceDeps {
   vocabulary?: CatalogVocabularyPort;
 }
 
+/**
+ * The resume RULES, as the catalog service consumes them.
+ *
+ * `CatalogServiceDeps.progress` is typed as the published `ProgressReader` port
+ * on purpose, so every existing double stays valid. `ResumeService` EXTENDS
+ * that port with the rule evaluation T-CATALOG-009 owns, and the composition
+ * root injects an instance of it — so this intersection is the honest shape of
+ * what actually arrives, and a plain `ProgressReader` without the rules says so
+ * instead of answering from the port.
+ */
+type ProgressReader = NonNullable<CatalogServiceDeps['progress']>;
+type ResumeRules = {
+  resolveResume(
+    mangaId: import('../../shared/types').MangaId,
+    caller: CallerContext,
+  ): Promise<ResumePosition | null>;
+};
+
+/**
+ * The resume RULES on a `ProgressReader`, or `null` when it has none.
+ *
+ * The type intersection above is a compile-time claim; this is its RUNTIME
+ * counterpart, and it is not optional bookkeeping. `CatalogServiceDeps.progress`
+ * is the published `ProgressReader` port, and a plain port double — the shape
+ * the integration harness injects, and the shape any caller that only wants
+ * `latestForManga` would inject — has no `resolveResume` at all. Calling it
+ * unguarded turns every detail read for such a caller into a 500, which is how
+ * a type-level widening became a real outage in the first draft of this method.
+ */
+function resumeRulesOf(progress: ProgressReader | undefined): ResumeRules | null {
+  if (progress === undefined) return null;
+  return 'resolveResume' in progress && typeof progress.resolveResume === 'function'
+    ? (progress as ProgressReader & ResumeRules)
+    : null;
+}
+
 /* ── input shape: what a validated query looks like once untyped ─────────── */
 
 /**
@@ -361,13 +397,15 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
      * one read (T-CATALOG-001), so this method has no second query and no
      * fan-out (NFR-PERF-004/014).
      *
-     * `continueReading` is NOT added: it is a caller-authenticated field
-     * (FR-CATALOG-008) and the contract type has it optional and absent for an
-     * anonymous caller. Omitting it keeps the response identical for every
-     * caller of this read, and `src/app/discover/catalog-schema.ts` does not
-     * parse it yet.
+     * `continueReading` (FR-CATALOG-008) is added ONLY for a real caller with
+     * a position, and it is OMITTED — never null — otherwise, so an anonymous
+     * reader and a signed-in reader who has not started look identical on the
+     * wire. The resume RULES live in `features/progress`; this is the
+     * delegation, so the detail page and the reader cannot disagree about where
+     * "continue" points.
      *
-     * Requirements: FR-CATALOG-006, NFR-PERF-004. Task: T-CATALOG-006.
+     * Requirements: FR-CATALOG-006/008, NFR-PERF-004.
+     * Tasks: T-CATALOG-006, T-CATALOG-009.
      */
     async detail(slug: MangaSlug, caller: CallerContext): Promise<MangaDetail | null> {
       const found = await manga.bySlug(slug, caller);
@@ -378,7 +416,7 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       // separately: `firstChapter` is `{id, number}` and `latestChapter` is
       // `{number, title, publishedAt}` (MangaDetail vs MangaSummary), so
       // sharing one helper would launder a field that is not on both.
-      return {
+      const base = {
         ...found,
         ...(found.latestChapter === null
           ? {}
@@ -386,6 +424,27 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
         ...(found.firstChapter === null
           ? {}
           : { firstChapter: { ...found.firstChapter, number: chapterNumber(found.firstChapter.number) } }),
+      };
+
+      // FR-CATALOG-008. Anonymous → absent, no error: the position is on the
+      // device until sign-in (T-READER-024), so the server has nothing to say.
+      // And a port WITHOUT the rules → absent, not a 500: the detail page must
+      // still render, and it has no business failing over an optional field.
+      if (caller === null) return base;
+      const rules = resumeRulesOf(progress);
+      if (rules === null) return base;
+      const position = await rules.resolveResume(found.id, caller);
+      // No progress yet → still absent, NOT null: "you have not started" and
+      // "you are anonymous" are the same wire answer, and the page renders one
+      // state for both.
+      if (position === null) return base;
+      return {
+        ...base,
+        continueReading: {
+          chapterId: position.chapterId,
+          chapterNumber: position.chapterNumber,
+          pageNumber: position.pageNumber,
+        },
       };
     },
 
@@ -447,22 +506,15 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       // the `ProgressReader` port this dependency is typed as. The guard is the
       // whole widening: a plain `ProgressReader` double is honest about not
       // having the rules, and says so instead of answering from the port.
-      const service = progress as
-        | (import('../progress').ProgressReader & {
-            resolveResume(
-              mangaId: import('../../shared/types').MangaId,
-              caller: CallerContext,
-            ): Promise<ResumePosition | null>;
-          })
-        | undefined;
-      if (service?.resolveResume === undefined) {
+      const rules = resumeRulesOf(progress);
+      if (rules === null) {
         throw new AppError('INTERNAL_ERROR', {
           cause: new Error('catalog progress reader is not registered'),
         });
       }
       // The port types `mangaId` as `string`; the brand is the progress
       // feature's, and the cast is the same one its own adapter makes.
-      return service.resolveResume(mangaId as import('../../shared/types').MangaId, caller);
+      return rules.resolveResume(mangaId as import('../../shared/types').MangaId, caller);
     },
   };
 }

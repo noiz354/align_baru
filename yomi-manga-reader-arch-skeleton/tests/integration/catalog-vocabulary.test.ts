@@ -29,6 +29,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createGenreTagVocabularyPort } from '../../src/server/db/repositories/vocabulary.repository';
+import { createMangaRepository } from '../../src/server/db/repositories/manga.repository';
 import {
   GENRES,
   HIDDEN_ONLY_GENRE,
@@ -108,11 +109,48 @@ describeDb('INT-CAT-003 (T-CATALOG-012) CatalogVocabularyPort over real PostgreS
 
   /* ── row shape ─────────────────────────────────────────────────────────── */
 
-  it('returns exactly { id, name } per row — no counts, no internal columns', async () => {
+  it('returns exactly { id, name, slug } per row — no counts, no internal columns', async () => {
     const facets = await vocabulary.listVocabulary({ onlyUsed: false });
 
-    for (const genre of facets.genres) expect(Object.keys(genre).sort()).toEqual(['id', 'name']);
-    for (const tag of facets.tags) expect(Object.keys(tag).sort()).toEqual(['id', 'name']);
+    for (const genre of facets.genres) {
+      expect(Object.keys(genre).sort()).toEqual(['id', 'name', 'slug']);
+    }
+    for (const tag of facets.tags) {
+      expect(Object.keys(tag).sort()).toEqual(['id', 'name', 'slug']);
+    }
+  });
+
+  it('carries the DERIVED slug, so a client never has to re-derive it', async () => {
+    // The filter's vocabulary is slugs (API_CONTRACT §2.1: "csv slugs"), and the
+    // only definition of that derivation is `genreSlugSql` in the product. A
+    // response without it forces every client to repeat the rule — and one did:
+    // the discover page's `facetsSchema` demands a `slug`, so before this the
+    // page could not parse a correct response at all and showed "the genre list
+    // could not be loaded" against a healthy 200.
+    const facets = await vocabulary.listVocabulary({ onlyUsed: false });
+
+    for (const genre of facets.genres) {
+      const expected = genre.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      expect(genre.slug).toBe(expected);
+    }
+  });
+
+  it('emits a slug the catalog filter can actually consume', async () => {
+    // The round trip that matters: take a slug FROM the facets response, feed it
+    // to the catalog list, and get a title back. If these two ever disagree
+    // again, the filter is dead in production while both unit tests stay green.
+    const facets = await vocabulary.listVocabulary({ onlyUsed: true });
+    const slug = facets.genres[0]?.slug;
+    expect(typeof slug).toBe('string');
+
+    const repo = createMangaRepository(open.db);
+    const page = await repo.list({ limit: 48, genres: [slug as string], sort: 'updated_desc' });
+
+    expect(page.items.length).toBeGreaterThan(0);
   });
 
   it('never leaks a timestamp or a join-table column through the vocabulary', async () => {

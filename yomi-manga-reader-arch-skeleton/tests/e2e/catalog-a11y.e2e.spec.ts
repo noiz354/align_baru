@@ -286,7 +286,7 @@ test.describe('states are announced (ACCESSIBILITY.md §6, NFR-A11Y-003)', () =>
     await expect(page.getByRole('link', { name: /clear the filters/i })).toBeVisible();
   });
 
-  test('a failed catalog read takes focus, so it is announced rather than hunted for', async ({
+  test('a failed catalog read is ANNOUNCED, and does not steal focus on a hard load', async ({
     page,
   }) => {
     // The page renders normally; only its own data read fails. Forcing that
@@ -294,10 +294,27 @@ test.describe('states are announced (ACCESSIBILITY.md §6, NFR-A11Y-003)', () =>
     // collection, and the harness has no way to fail THAT one without failing
     // the page itself. So the assertion is made on the detail page's own
     // failure state, which is the same component contract.
+    //
+    // SQ-A11Y-1 (`docs/architecture/spec-questions.md`) changed WHAT is
+    // asserted, and this is the second spec that had encoded the old reading.
+    // It used to require the region to be FOCUSED, which on a document load put
+    // focus past the skip link and made the bypass block unreachable by Tab
+    // (WCAG 2.4.1). The requirement in ACCESSIBILITY.md §6 is that the state is
+    // focusable AND announced — both still hold — so the assertion is now on
+    // the announcement, plus the focusable property the live region keeps.
     await page.goto(detail('upstream-unavailable'));
     const region = page.locator('[aria-labelledby="detail-unavailable-h"]');
     await expect(region).toBeVisible();
-    await expect(region).toBeFocused();
+    // Announced: a polite live region, read out without moving focus.
+    await expect(region).toHaveAttribute('role', 'status');
+    // Focusable, so a skip-to-content affordance can still send the reader here.
+    await expect(region).toHaveAttribute('tabindex', '-1');
+    // And focus is NOT stolen: it is still on the body, so the first Tab reaches
+    // the skip link.
+    const focusedClass = await page.evaluate(() => String(document.activeElement?.className ?? ''));
+    expect(focusedClass).not.toContain('focus-region');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
   });
 
   test('a failed genre read degrades the filter, not the grid', async ({ page }) => {

@@ -480,10 +480,12 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
  * Requirements: FR-CATALOG-002, API_CONTRACT §2.1, NFR-PERF-004/014.
  * Tasks: T-CATALOG-001, T-CATALOG-002.
  *
- * @param column the `genre.name` column
- * @returns a SQL fragment evaluating to that name's slug
+ * @param column the `genre.name` (or `tag.name`) column
+ * @returns a SQL fragment evaluating to that name's slug, typed so a
+ *   `.select({ slug: genreSlugSql(col) })` yields a `string` rather than
+ *   `unknown`
  */
-export function genreSlugSql(column: AnyColumn): SQL {
+export function genreSlugSql(column: AnyColumn): SQL<string> {
   return sql`trim(both '-' from regexp_replace(lower(btrim(${column})), '[^a-z0-9]+', '-', 'g'))`;
 }
 

@@ -1,5 +1,7 @@
 # GitHub only discovers workflow files at the repository root.
-# This smoke matrix intentionally does NOT claim database/browser coverage.
+# The shared `node`/`manga` jobs intentionally do NOT claim database or browser
+# coverage; the yomi-integration job below is the one that provides a database,
+# and the E2E suites remain a local gate (T-FOUND-001).
 name: Project checks
 on:
   push:
@@ -38,10 +40,85 @@ jobs:
         working-directory: ${{ matrix.project }}
       - run: npm run typecheck
         working-directory: ${{ matrix.project }}
+      # Lint was missing here, which is why a boundary-rule or token-contrast
+      # regression could reach main without anything objecting. All four projects
+      # in this matrix ship a `lint` script, so this is safe for each of them.
+      - run: npm run lint
+        working-directory: ${{ matrix.project }}
       - run: npm test
         working-directory: ${{ matrix.project }}
       - run: npm run build
         working-directory: ${{ matrix.project }}
+  # The integration suite needs a real PostgreSQL AND real object storage, and
+  # the shared `node` job has neither. Without this, every `describeDb` in
+  # tests/integration/ degrades to `describe.skip` and CI reports a green run
+  # that proved nothing about persistence — which is exactly how the slice that
+  # shipped `GET /api/v1/*` answering 500 in production stayed green here.
+  yomi-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-bookworm
+        env:
+          POSTGRES_USER: yomi
+          POSTGRES_PASSWORD: yomi
+          POSTGRES_DB: yomi
+        ports:
+          - 55470:5432
+        options: >-
+          --health-cmd "pg_isready -U yomi -d yomi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      # S3-compatible storage, the same image the dev compose pins
+      # (docker/docker-compose.dev.yml). `rustfs/rustfs:1.0.0`.
+      object-storage:
+        image: rustfs/rustfs:1.0.0
+        env:
+          RUSTFS_ACCESS_KEY: yomi-ci-access-key
+          RUSTFS_SECRET_KEY: yomi-ci-secret-key-0001
+          RUSTFS_VOLUMES: /data
+        ports:
+          - 55471:9000
+    env:
+      # `loadEnv` only demands https in production, and these point at a
+      # loopback service container, so http is correct here and https would be a
+      # lie that fails TLS. APP_ORIGIN and SESSION_SECRET are required by the
+      # inventory check even though the integration suite never opens a page.
+      NODE_ENV: test
+      APP_ORIGIN: http://127.0.0.1:3100
+      SESSION_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgres://yomi:yomi@127.0.0.1:55470/yomi
+      S3_ENDPOINT: http://127.0.0.1:55471
+      S3_REGION: auto
+      S3_BUCKET: yomi-media
+      S3_ACCESS_KEY_ID: yomi-ci-access-key
+      S3_SECRET_ACCESS_KEY: yomi-ci-secret-key-0001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: yomi-manga-reader-arch-skeleton/package-lock.json
+      - run: npm ci
+        working-directory: yomi-manga-reader-arch-skeleton
+      - run: npm run db:migrate
+        working-directory: yomi-manga-reader-arch-skeleton
+      # The storage service has no health endpoint, so readiness is polled. The
+      # bucket itself is created by the app's own client (T-FOUND-010): a bucket
+      # another tool could create but the app's client cannot is a real dev trap.
+      - name: wait for object storage, then create the bucket with the app's client
+        working-directory: yomi-manga-reader-arch-skeleton
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:55471/"; then break; fi
+            sleep 2
+          done
+          sh docker/init-s3-bucket.sh
+      - run: npm run test:integration
+        working-directory: yomi-manga-reader-arch-skeleton
   siomayops:
     runs-on: ubuntu-latest
     steps:

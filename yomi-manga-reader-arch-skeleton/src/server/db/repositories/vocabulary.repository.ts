@@ -43,11 +43,15 @@
  */
 import { asc, eq, inArray } from 'drizzle-orm';
 
-import type { CatalogFacets, CatalogVocabularyPort } from '../../../features/catalog';
-import type { Genre, Tag } from '../../../shared/contracts';
+import type {
+  CatalogFacets,
+  CatalogVocabularyPort,
+  GenreFacet,
+  TagFacet,
+} from '../../../features/catalog';
 import type { Db } from '../client';
 import { genre, manga, mangaGenre, mangaTag, tag } from '../schema';
-import { mangaVisibleWhere } from './manga.repository';
+import { genreSlugSql, mangaVisibleWhere } from './manga.repository';
 
 /** The distinct genre ids carried by at least one VISIBLE manga. */
 function usedGenreIds(db: Db) {
@@ -85,19 +89,19 @@ export function createGenreTagVocabularyPort(db: Db): CatalogVocabularyPort {
       const onlyUsed = query.onlyUsed ?? true;
       const [genreRows, tagRows] = await Promise.all([
         db
-          .select({ id: genre.id, name: genre.name })
+          .select({ id: genre.id, name: genre.name, slug: genreSlugSql(genre.name) })
           .from(genre)
           .where(onlyUsed ? inArray(genre.id, usedGenreIds(db)) : undefined)
           .orderBy(asc(genre.name)),
         db
-          .select({ id: tag.id, name: tag.name })
+          .select({ id: tag.id, name: tag.name, slug: genreSlugSql(tag.name) })
           .from(tag)
           .where(onlyUsed ? inArray(tag.id, usedTagIds(db)) : undefined)
           .orderBy(asc(tag.name)),
       ]);
       return {
-        genres: genreRows.map((row): Genre => ({ id: row.id, name: row.name })),
-        tags: tagRows.map((row): Tag => ({ id: row.id, name: row.name })),
+        genres: genreRows.map((row): GenreFacet => ({ id: row.id, name: row.name, slug: row.slug })),
+        tags: tagRows.map((row): TagFacet => ({ id: row.id, name: row.name, slug: row.slug })),
       };
     },
   };

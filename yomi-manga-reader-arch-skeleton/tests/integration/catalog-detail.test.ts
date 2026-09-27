@@ -17,7 +17,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createMangaDetailHandler } from '../../src/app/api/v1/manga/[slug]/route';
+import { createCatalogService } from '../../src/features/catalog';
+import { createMangaRepository } from '../../src/server/db/repositories/manga.repository';
+import { createProgressPositionReader } from '../../src/server/db/repositories/progress.repository';
+import { createResumeService } from '../../src/features/progress';
+import { chapter, manga, readingProgress, users } from '../../src/server/db/schema';
+import { eq } from 'drizzle-orm';
 import type { ApiV1Deps } from '../../src/app/api/v1/_deps';
+import type { CallerContext } from '../../src/shared/contracts';
+import type { UserId } from '../../src/shared/types';
 import {
   CALLERS,
   HIDDEN_SLUGS,
@@ -216,5 +224,76 @@ describeDb('INT-CAT-002 (T-CATALOG-011) GET /api/v1/manga/{slug}', () => {
     // The harness probe counts statements the repository issues; a detail page
     // that fanned out per genre/tag/creator would show up here.
     expect(open.probe.statements.length).toBeLessThanOrEqual(2);
+  });
+
+  /* ── FR-CATALOG-008: continueReading over real rows ────────────────────── */
+
+  describe('continueReading (FR-CATALOG-008 / T-CATALOG-009)', () => {
+    // Real UUIDs: `reading_progress.user_id` is a uuid column, so a
+    // human-readable id would be refused by the database before the rules ran.
+    const READER: CallerContext = {
+      userId: '00000000-0000-4000-8000-00000000c0de' as UserId,
+      role: 'reader',
+    };
+    const STRANGER: CallerContext = {
+      userId: '00000000-0000-4000-8000-00000000f00d' as UserId,
+      role: 'reader',
+    };
+    let slug: string;
+    let chapterId: string;
+    let service: ReturnType<typeof createCatalogService>;
+
+    beforeAll(async () => {
+      slug = VISIBLE_SLUGS[0] as string;
+      const [row] = await harness.db
+        .select({ id: chapter.id })
+        .from(chapter)
+        .innerJoin(manga, eq(manga.id, chapter.mangaId))
+        .where(eq(manga.slug, asSlug(slug)))
+        .limit(1);
+      chapterId = row?.id ?? '';
+      // `reading_progress.user_id` references `users`, so the two callers are
+      // real rows rather than invented ids — the FK is part of what is under
+      // test here, and a hand-written id would fail before the rules ran.
+      await harness.db.insert(users).values([
+        { id: READER.userId, email: 'cr-reader@catalog.test', passwordHash: 'x' },
+        { id: STRANGER.userId, email: 'cr-stranger@catalog.test', passwordHash: 'x' },
+      ]);
+      // Written ONCE: the primary key is `(user_id, chapter_id)`, so a per-test
+      // insert is a duplicate-key error rather than a second fixture.
+      await harness.db.insert(readingProgress).values({
+        userId: READER.userId,
+        chapterId: chapterId as never,
+        pageNumber: 5,
+        scrollPosition: 0,
+        completed: false,
+        updatedAt: new Date(),
+      });
+      service = createCatalogService({
+        manga: createMangaRepository(harness.db),
+        chapters: { listByManga: async () => [] } as unknown as never,
+        progress: createResumeService({ reads: createProgressPositionReader(harness.db) }),
+      });
+    });
+
+    it('is absent for an anonymous caller even when progress exists', async () => {
+      const detail = await service.detail(asSlug(slug), null);
+
+      expect(detail).not.toHaveProperty('continueReading');
+    });
+
+    it('carries the position for a caller that has one', async () => {
+      const detail = await service.detail(asSlug(slug), READER);
+
+      expect(detail?.continueReading).toBeDefined();
+      expect(detail?.continueReading?.pageNumber).toBe(5);
+    });
+
+    it('is absent — never null — for a caller with no progress row', async () => {
+      const detail = await service.detail(asSlug(slug), STRANGER);
+
+      expect(detail).not.toHaveProperty('continueReading');
+      expect(detail?.continueReading).toBeUndefined();
+    });
   });
 });

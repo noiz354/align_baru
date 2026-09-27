@@ -23,6 +23,8 @@
  * compiles routes on demand, streams HMR, and unminified chunks, so its
  * request count and LCP are not the product's.
  */
+import { gzipSync } from 'node:zlib';
+
 import { expect, test, type Page } from '@playwright/test';
 import { startCatalogHarness, type CatalogHarness } from './support/catalog-harness';
 import { findBySlug } from './support/catalog-fixtures';
@@ -35,6 +37,9 @@ const MAX_REQUESTS = 30;
 const MAX_CLS = 0.1;
 /** PERFORMANCE.md §2: whole-page JS, gzipped. */
 const MAX_JS_BYTES = 400 * 1024;
+
+/** KB with one decimal, for the printed evidence line. */
+const kb = (bytes: number): string => (bytes / 1024).toFixed(1);
 
 let harness: CatalogHarness;
 
@@ -161,28 +166,48 @@ test.describe('T-CATALOG-003 — the request budget (NFR-PERF-008)', () => {
   test('the whole page ships at most 400 KB of gzipped JavaScript (NFR-PERF-007)', async ({
     page,
   }) => {
-    let jsBytes = 0;
-    page.on('response', async (response) => {
+    // The budget is denominated in GZIPPED bytes (PERFORMANCE.md: "Whole-page JS
+    // ≤ 400 KB gzipped"), so that is what this measures. An earlier revision
+    // measured the uncompressed transfer and argued that an uncompressed figure
+    // inside the budget left room for the compressed one — sound as long as the
+    // uncompressed figure is INSIDE the budget. It is not: the honest number is
+    // ~846 KB uncompressed, so the argument decided nothing, and the test was
+    // really measuring the wrong unit.
+    //
+    // It was also under-reporting. The listener is async (a response with no
+    // `content-length` header only adds its bytes after `await response.body()`),
+    // and the assertion used to read the total while those continuations were
+    // still in flight — so it compared a partial number against the budget and
+    // passed on a page that was over the uncompressed figure by more than 2×.
+    // Every continuation is now tracked and drained before the comparison, and
+    // the unit matches the budget.
+    const bodies: Buffer[] = [];
+    const pending: Promise<void>[] = [];
+    page.on('response', (response) => {
       if (!response.url().includes('/_next/static/')) return;
       if (!/\.(js|mjs)(\?|$)/.test(response.url())) return;
-      const length = response.headers()['content-length'];
-      if (length !== undefined) {
-        jsBytes += Number(length);
-        return;
-      }
-      jsBytes += (await response.body().catch(() => Buffer.alloc(0))).length;
+      pending.push(
+        response
+          .body()
+          .then((body) => {
+            bodies.push(body);
+          })
+          .catch(() => undefined),
+      );
     });
     await page.goto(discover(), { waitUntil: 'load' });
     await page.waitForLoadState('networkidle').catch(() => undefined);
+    await Promise.all(pending);
+
+    const rawBytes = bodies.reduce((sum, body) => sum + body.length, 0);
+    const gzipBytes = bodies.reduce((sum, body) => sum + gzipSync(body).length, 0);
+
     // The measurement is the evidence, so it is printed, not just asserted.
     console.log(
-      `/discover: ${(jsBytes / 1024).toFixed(1)} KB of uncompressed JS text — ` +
-        `budget ${(MAX_JS_BYTES / 1024).toFixed(0)} KB gzipped (this figure is an UPPER bound, ` +
-        `since the local server sends it uncompressed)`,
+      `/discover: ${String(bodies.length)} JS chunks, ${kb(rawBytes)} KB uncompressed, ` +
+        `${kb(gzipBytes)} KB gzipped — budget ${kb(MAX_JS_BYTES)} KB gzipped`,
     );
-    // An upper bound that is already inside the gzip budget leaves room for the
-    // compressed figure to be inside it too.
-    expect(jsBytes).toBeLessThanOrEqual(MAX_JS_BYTES);
+    expect(gzipBytes).toBeLessThanOrEqual(MAX_JS_BYTES);
   });
 });
 

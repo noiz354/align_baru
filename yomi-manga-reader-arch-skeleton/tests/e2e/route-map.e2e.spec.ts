@@ -24,27 +24,36 @@ import { expect, test, type Page } from '@playwright/test';
  * The planned route map, one entry per route that src/app owns. `title` is
  * the metadata contract from the root layout template (`%s · Yomi`).
  *
- * Every entry here answers **200**, including `/manga/<slug>`. That looks
- * wrong for a slug nothing owns, and a previous revision of this spec "fixed"
- * it to expect 404 — which was a false premise, twice over:
+ * Each entry declares the status it must answer. All of them are 200 except
+ * `/manga/some-slug`, which is a 404 — and getting there took three
+ * corrections in both directions, so the reasoning is recorded rather than
+ * replaced each time:
  *
- *  1. This spec runs with no seeded catalog and no `API_ORIGIN`, so
+ *  1. FIRST this spec asserted 404, because a slug nothing owns looks like it
+ *     should not exist. Against a BARE app with no API origin that was false:
  *     `readMangaDetail` (`src/app/discover/catalog-data.ts`) resolves its
- *     origin to `null` and returns `failure: 'unavailable'`, not
- *     `'not-found'`. `manga/[slug]/page.tsx` renders `DetailUnavailable` at
- *     200, which is the specified degraded read — a title that exists but
- *     cannot be read right now is deliberately NOT a 404.
- *  2. T-CATALOG-006's real 404 requirement (a draft or soft-deleted title is
- *     indistinguishable from one that never existed) is proved where the data
- *     exists: in the API/route integration suites and E2E-CATALOG, which seed
- *     a real manga. Asserting 404 here would have deleted the degraded-read
- *     contract instead of testing it.
+ *     origin to `null`, returns `failure: 'unavailable'` (NOT `'not-found'`),
+ *     and `manga/[slug]/page.tsx` renders `DetailUnavailable` at 200 — a title
+ *     that exists but cannot be read right now is deliberately not a 404.
+ *  2. THEN it was corrected to 200, which was right for the bare app and was
+ *     verified by running the app. But it is wrong HERE, because this spec runs
+ *     against the E2E harness (`tests/e2e/support/catalog-harness.ts`), which
+ *     answers `GET /api/v1/manga/{slug}` itself and returns **404** for a slug
+ *     it does not own — preserving the Host header so the page's server-side
+ *     fetch reaches the harness rather than Next. So the RSC does get an
+ *     answer, and the answer is "no such title".
+ *  3. Which is the specified behaviour: T-CATALOG-006 requires a draft or
+ *     soft-deleted title to be indistinguishable from one that never existed,
+ *     and a title that genuinely does not exist is the same sentence. 404 is
+ *     the honest response once the API can say "no" instead of "I cannot reach
+ *     my own API".
  *
- * A slug that is genuinely absent reaches `notFound()` — and then the global
- * 404 shell — only with a live API origin. The unplanned-route test below is
- * what pins that shell's contract.
+ * So the map states a status per entry rather than assuming one. The degraded
+ * 200 read is still real and still specified — it is what a BARE deployment
+ * shows, and it is covered by `catalog-journey.e2e.spec.ts`'s unavailable
+ * state, not by lying about this route.
  */
-const ROUTES: ReadonlyArray<{ path: string; title: string }> = [
+const ROUTES: ReadonlyArray<{ path: string; title: string; status?: 200 | 404 }> = [
   // `/` sits in the same segment as the root layout, so Next does not apply
   // the layout's `%s · Yomi` template to it — it uses the layout default.
   { path: '/', title: 'Yomi' },
@@ -56,7 +65,8 @@ const ROUTES: ReadonlyArray<{ path: string; title: string }> = [
   { path: '/settings', title: 'Settings · Yomi' },
   { path: '/auth/signin', title: 'Sign in · Yomi' },
   { path: '/auth/register', title: 'Register · Yomi' },
-  { path: '/manga/some-slug', title: 'Manga · Yomi' },
+  // The harness owns this slug list, and `some-slug` is not in it.
+  { path: '/manga/some-slug', title: 'Page not found · Yomi', status: 404 },
   { path: '/manga/some-slug/chapter/1', title: 'Reader · Yomi' },
   { path: '/admin', title: 'Admin · Yomi' },
   { path: '/admin/manga', title: 'Manga · Yomi' },
@@ -67,23 +77,96 @@ const ROUTES: ReadonlyArray<{ path: string; title: string }> = [
   { path: '/admin/audit', title: 'Audit · Yomi' },
 ];
 
-/** Console/page errors seen while a page settles — a shell must emit none. */
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
+/**
+ * What a page emitted while it settled, with URLs.
+ *
+ * WHY THIS IS NOT A TEXT MATCH ON console errors. Chrome logs the document's
+ * OWN status as a console error — a route that is SUPPOSED to 404 produces
+ * "Failed to load resource: … 404" with no URL in the text at all. So a text
+ * filter can only either hide every 404 or hide nothing, and the assertion ends
+ * up reporting a product regression when the browser is behaving correctly.
+ * (That is not hypothetical: this file filtered on the text, and it could not
+ * tell a genuine failure from a planned 404.)
+ *
+ * So the guarantee is expressed over RESPONSES, which carry the URL, and the
+ * console is used only for the things a response cannot show — uncaught
+ * exceptions and hydration/rendering errors. Two documented exemptions, both
+ * narrow and both with a reason:
+ *
+ * 1. The document's own 404, when the route map DECLARES that status. The
+ *    browser reporting a deliberate 404 is the correct behaviour.
+ * 2. A failed `/media/` sub-resource in a seeded database. The seed harness
+ *    writes `coverAssetKey` / `assetKey` values and uploads no bytes at all
+ *    (`scripts/seed.mjs`: "Synthetic pages rendered in memory — nothing written
+ *    to disk or to object storage"), so media delivery 404s BY DESIGN and the
+ *    optimizer adds its own error. A production database sets `coverUrl` only
+ *    when a cover exists, so this never applies there.
+ *
+ * Everything else still fails the test, which is what the assertion is for.
+ */
+interface PageEmissions {
+  /** Console errors that are not a bare resource-status line. */
+  readonly consoleErrors: readonly string[];
+  /** Uncaught exceptions. */
+  readonly pageErrors: readonly string[];
+  /** Every response the browser did not like, as `status url`. */
+  readonly badResponses: readonly string[];
+}
+
+const RESOURCE_STATUS_LINE = /^Failed to load resource: the server responded with a status of /;
+
+function collectEmissions(page: Page): PageEmissions {
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  const badResponses: string[] = [];
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
+    if (msg.type() !== 'error') return;
+    if (RESOURCE_STATUS_LINE.test(msg.text())) return;
+    consoleErrors.push(msg.text());
   });
-  page.on('pageerror', (err) => errors.push(String(err)));
-  return errors;
+  page.on('pageerror', (err) => pageErrors.push(String(err)));
+  page.on('response', (res) => {
+    if (res.status() < 400) return;
+    badResponses.push(`${String(res.status())} ${res.url()}`);
+  });
+  return { consoleErrors, pageErrors, badResponses };
+}
+
+/** The failures a shell must not produce, given the status its route declares. */
+function unexpectedEmissions(
+  seen: PageEmissions,
+  plannedStatus: 200 | 404,
+  pageUrl: string,
+): string[] {
+  const unplanned = seen.badResponses.filter((entry) => {
+    // `badResponses` entries are `status url`, and the url Playwright reports is
+    // ABSOLUTE, so the comparison is on the pathname — otherwise the document's
+    // own 404 never matches its own route and the exemption below never fires.
+    const url = entry.slice(entry.indexOf(' ') + 1);
+    let pathname = url;
+    try {
+      pathname = new URL(url).pathname;
+    } catch {
+      pathname = url;
+    }
+    if (pathname === pageUrl) return plannedStatus !== 404; // the declared document status
+    return !/\/(media|\/_next\/image)(\/|$|\?)/.test(pathname); // the seed's missing-media contract
+  });
+  return [
+    ...seen.pageErrors.map((e) => `pageerror: ${e}`),
+    ...seen.consoleErrors.map((e) => `console: ${e}`),
+    ...unplanned.map((e) => `response: ${e}`),
+  ];
 }
 
 test.describe('route map (T-FOUND-003)', () => {
   for (const route of ROUTES) {
     test(`${route.path} renders its shell`, async ({ page }) => {
-      const errors = collectErrors(page);
+      const seen = collectEmissions(page);
       const response = await page.goto(route.path);
+      const expected = route.status ?? 200;
 
-      expect(response?.status()).toBe(200);
+      expect(response?.status(), `status on ${route.path}`).toBe(expected);
       await expect(page).toHaveTitle(route.title);
 
       // ACCESSIBILITY.md §2: one main, one h1, real landmarks.
@@ -93,7 +176,8 @@ test.describe('route map (T-FOUND-003)', () => {
       await expect(page.getByRole('banner')).toHaveCount(1);
       await expect(page.getByRole('contentinfo')).toHaveCount(1);
       await expect(page.getByRole('navigation', { name: 'Site' })).toHaveCount(1);
-      expect(errors, `console errors on ${route.path}`).toEqual([]);
+      const unplanned = unexpectedEmissions(seen, expected, route.path);
+      expect(unplanned, `unplanned emissions on ${route.path}`).toEqual([]);
     });
   }
 
@@ -110,12 +194,12 @@ test.describe('route map (T-FOUND-003)', () => {
   test('a nonsense ?page= value does not crash the reader shell', async ({ page }) => {
     // TASKS.md T-FOUND-003 edge case. Param validation belongs to
     // T-READER-032; the layout must tolerate the value either way.
-    const errors = collectErrors(page);
+    const seen = collectEmissions(page);
     const response = await page.goto('/manga/x/chapter/1?page=abc');
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('main')).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    expect(errors).toEqual([]);
+    expect(unexpectedEmissions(seen, 200, '/manga/x/chapter/1')).toEqual([]);
   });
 });
 

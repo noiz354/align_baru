@@ -248,6 +248,15 @@ Conventions:
 - Security: synopsis rendered as text only (T-01).
 - Testing: E2E-CATALOG-001 (detail step), INT-CAT (404 cases).
 - Manual QA: detail page on 3 viewports.
+- **Landed with a documented limit:** the continue-reading entry (FR-CATALOG-008) is
+  implemented end to end — the resume rules (`features/progress`), the service
+  delegation, the `continueReading` contract field, the detail page's Resume
+  action, and tests on real PostgreSQL. It is **always absent in this deployment**
+  because `CatalogService.detail` only adds it for a real caller, and the `/api/v1`
+  caller resolver returns anonymous until **T-AUTH-007** lands a verified session
+  (`src/app/api/v1/_runtime.ts`). The reader's position lives on the device until
+  sign-in (T-READER-024), so "absent" is the correct answer, not a gap. The
+  read/unread indicator is still genuinely unlanded (T-LIB-006, VS-5).
 - DoD: AGENTS.md.
 
 ## T-CATALOG-007 — Chapter list API

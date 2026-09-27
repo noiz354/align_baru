@@ -58,7 +58,35 @@ function repositoryDouble(answer: MangaDetail | null): {
   return { bySlug: vi.fn(async () => answer), list: vi.fn(async () => ({ items: [], nextCursor: null })) };
 }
 
-function serviceWith(answer: MangaDetail | null): {
+type ResumeAnswer = { chapterId: string; chapterNumber?: number; pageNumber?: number } | null;
+
+/**
+ * A `ResumeService` double: the port plus the rule evaluation, because that is
+ * what the composition root actually injects.
+ */
+function resumeDouble(answer: ResumeAnswer): {
+  resolveResume: ReturnType<typeof vi.fn>;
+  latestForManga: ReturnType<typeof vi.fn>;
+} {
+  return {
+    resolveResume: vi.fn(async () =>
+      answer === null
+        ? null
+        : {
+            chapterId: answer.chapterId,
+            chapterNumber: answer.chapterNumber ?? 1,
+            pageNumber: answer.pageNumber ?? 1,
+            scrollOffset: 0,
+          },
+    ),
+    latestForManga: vi.fn(async () => null),
+  };
+}
+
+function serviceWith(
+  answer: MangaDetail | null,
+  progress?: ReturnType<typeof resumeDouble>,
+): {
   service: ReturnType<typeof createCatalogService>;
   bySlug: ReturnType<typeof vi.fn>;
 } {
@@ -66,6 +94,7 @@ function serviceWith(answer: MangaDetail | null): {
   const deps = {
     manga,
     chapters: { listByManga: vi.fn(async () => []) },
+    ...(progress === undefined ? {} : { progress }),
   } as unknown as CatalogServiceDeps;
   return { service: createCatalogService(deps), bySlug: manga.bySlug };
 }
@@ -135,6 +164,61 @@ describe('UNIT-CAT-008 — CatalogService.detail', () => {
     // The contract type has it optional and it is an authenticated field
     // (FR-CATALOG-008); the detail page's Zod schema does not parse it yet, so
     // emitting it here would be a field nothing reads.
+    expect(detail).not.toHaveProperty('continueReading');
+  });
+
+  /* ── FR-CATALOG-008: continueReading, and the three ways it is absent ──── */
+
+  it('omits continueReading for an ANONYMOUS caller', async () => {
+    // The reader's position lives on the device until sign-in (T-READER-024), so
+    // the server has nothing to say. Absent, not an error and not null.
+    const { service } = serviceWith(detailRow(), resumeDouble({ chapterId: 'chapter-9' }));
+
+    const detail = await service.detail(SLUG, null);
+
+    expect(detail).not.toHaveProperty('continueReading');
+  });
+
+  it('carries continueReading for a caller WITH a position', async () => {
+    const { service } = serviceWith(
+      detailRow(),
+      resumeDouble({ chapterId: 'chapter-2', chapterNumber: 2, pageNumber: 7 }),
+    );
+
+    const detail = await service.detail(SLUG, READER);
+
+    expect(detail?.continueReading).toEqual({
+      chapterId: 'chapter-2',
+      chapterNumber: 2,
+      pageNumber: 7,
+    });
+  });
+
+  it('omits continueReading for a caller with NO position — absent, never null', async () => {
+    const { service } = serviceWith(detailRow(), resumeDouble(null));
+
+    const detail = await service.detail(SLUG, READER);
+
+    expect(detail).not.toHaveProperty('continueReading');
+  });
+
+  it('does not ask the progress port at all for an anonymous caller', async () => {
+    const resume = resumeDouble({ chapterId: 'chapter-9' });
+    const { service } = serviceWith(detailRow(), resume);
+
+    await service.detail(SLUG, null);
+
+    expect(resume.resolveResume).not.toHaveBeenCalled();
+  });
+
+  it('does not ask the progress port when none is registered, and still answers', async () => {
+    // A boot without progress registered must still serve the detail — the gap
+    // is reported by `resolveResume`, not by making the page unavailable.
+    const { service } = serviceWith(detailRow(), undefined);
+
+    const detail = await service.detail(SLUG, READER);
+
+    expect(detail?.slug).toBe('some-slug');
     expect(detail).not.toHaveProperty('continueReading');
   });
 

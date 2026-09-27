@@ -25,15 +25,14 @@
  * re-derived per query site.
  *
  * Requirements: FR-CATALOG-002, FR-SEARCH-003, NFR-PERF-004/014.
- * Tasks: T-CATALOG-002 (port + endpoint), T-CATALOG-004 (consumer).
+ * Tasks: T-CATALOG-002 (port + endpoint), T-CATALOG-004 (consumer),
+ * T-CATALOG-012 (the read; it also carries the derived slug — see GenreFacet).
  * Implementation: `server/db/repositories/vocabulary.repository.ts`
  * (T-CATALOG-012), registered by the composition root. It was written ONLY in
  * the test harness for a while, which left this public endpoint answering 500
  * in production while its integration tests were green — so the harness now
  * imports the product factory rather than keeping a second copy.
  */
-import type { Genre, Tag } from '../../shared/contracts';
-
 export interface CatalogVocabularyQuery {
   /**
    * Restrict to vocabulary rows linked to at least one VISIBLE manga. Default
@@ -42,9 +41,51 @@ export interface CatalogVocabularyQuery {
   readonly onlyUsed?: boolean;
 }
 
+/**
+ * One genre as the FILTER control needs it: the row plus the slug the request
+ * vocabulary uses.
+ *
+ * Why the slug travels in the response when `Genre` (the shape inside
+ * `MangaDetail`) does not carry it:
+ *
+ * - API_CONTRACT §2.1 gives the catalog filter a csv of **slugs**, and
+ *   `T-CATALOG-004`'s control has to put one on the wire. A response of
+ *   `{ id, name }` therefore leaves the client with a choice: send `id` (which
+ *   the filter does not accept) or re-derive the slug itself.
+ * - Re-deriving is what broke. The rule already exists twice — TypeScript
+ *   (`normaliseGenreSlug`) and SQL (`genreSlugSql`) — and the discover page
+ *   added a third expectation of it in `facetsSchema`, which then FAILED to
+ *   parse a perfectly correct `200` and rendered "the genre list could not be
+ *   loaded". A third copy of a rule is a third chance to disagree.
+ * - The server already computes the slug (it has to, to filter). Emitting it
+ *   costs one selected column and makes the round trip exact.
+ *
+ * So: the derivation has ONE definition, the server applies it, and the client
+ * sends back what it was given.
+ *
+ * The detail page needs no slug — it renders `name` only — which is why
+ * `MangaDetail.genres` stays `Genre[]`.
+ *
+ * Requirements: FR-CATALOG-002, API_CONTRACT §2.1.
+ * Tasks: T-CATALOG-012 (the read), T-CATALOG-004 (the consumer).
+ */
+export interface GenreFacet {
+  readonly id: string;
+  readonly name: string;
+  /** The name-derived slug the catalog filter accepts (`genreSlugSql`). */
+  readonly slug: string;
+}
+
+/** One tag, with the same reasoning as {@link GenreFacet}. */
+export interface TagFacet {
+  readonly id: string;
+  readonly name: string;
+  readonly slug: string;
+}
+
 export interface CatalogFacets {
-  readonly genres: Genre[];
-  readonly tags: Tag[];
+  readonly genres: GenreFacet[];
+  readonly tags: TagFacet[];
 }
 
 export interface CatalogVocabularyPort {

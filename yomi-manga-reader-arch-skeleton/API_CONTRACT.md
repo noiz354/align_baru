@@ -50,6 +50,34 @@ Format per operation:
 | Rate limit | generic 300/min/IP |
 | Idempotency | pure read; safe retries |
 
+**GET /api/v1/catalog/facets**
+| Field | Value |
+|---|---|
+| Requirement | FR-CATALOG-002, FR-SEARCH-003 |
+| Purpose | The public genre/tag vocabulary behind the catalog filter controls |
+| Caller | Catalog page (RSC) — T-CATALOG-004's controls |
+| Auth / Authz | none / public |
+| Input | none |
+| Output | `{ genres: [{ id, name, slug }], tags: [{ id, name, slug }] }`, each list ordered by name. **No counts** (T-CATALOG-002 scope) |
+| Failures | INTERNAL_ERROR → 500 |
+| Validation | none; the response is the vocabulary, so there is nothing to validate |
+| Rate limit | generic 300/min/IP |
+| Idempotency | pure read; safe retries |
+
+Notes:
+- `slug` is the name-derived slug the catalog filter accepts (lowercase, runs of
+  non-alphanumerics collapsed to `-`, no leading/trailing `-`). The filter's
+  vocabulary is slugs (see the catalog row's `genre?` input), so the server
+  emits the slug it already derives rather than leaving every client to repeat
+  the rule — see `docs/architecture/spec-questions.md` SQ-CAT-2. `MangaDetail`'s
+  `genres[]` does NOT carry a slug: the detail page renders `name` only.
+- The vocabulary is narrowed to genres/tags carried by at least one VISIBLE
+  manga (`published ∧ ¬deleted`); a control that could only ever return zero
+  results is not a filter.
+- A genre whose name is entirely non-latin has a degenerate slug and cannot be
+  filtered. Both the request edge and the query drop it, so the behaviour is
+  "not filterable", not "silently unfiltered".
+
 **GET /api/v1/manga/{slug}**
 | Field | Value |
 |---|---|

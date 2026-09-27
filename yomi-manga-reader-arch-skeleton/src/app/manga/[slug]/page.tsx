@@ -68,6 +68,13 @@ type Params = Promise<{ slug: string }>;
 const SLUG = /^[\p{L}\p{N}][\p{L}\p{N}._~-]{0,189}$/u;
 
 /**
+ * The title a 404 carries. It is `not-found.tsx`'s own `metadata.title`, kept
+ * as one constant so the document title and the rendered body cannot drift —
+ * which is exactly what happened when this returned a generic 'Manga'.
+ */
+const NOT_FOUND_METADATA: Metadata = { title: 'Page not found' };
+
+/**
  * HTML is `no-store` (PERFORMANCE.md §7): a title published a minute ago has to
  * be visible now. Stated explicitly rather than left to the read, because the
  * read also opts out of caching and the two are different decisions.
@@ -81,9 +88,17 @@ export const dynamic = 'force-dynamic';
  */
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  if (!SLUG.test(slug)) return { title: 'Manga' };
+  // A 404 must be TITLED as a 404. This segment's metadata wins over the
+  // not-found boundary's, so a generic 'Manga' here left the document title
+  // reading "Manga · Yomi" on a page whose body says "Page not found" — a
+  // misdescribed page (WCAG 2.4.2), and one a screen reader announces as a
+  // title that does not exist. The name comes from the same boundary the body
+  // comes from, so the two cannot disagree.
+  if (!SLUG.test(slug)) return NOT_FOUND_METADATA;
   const manga = await readMangaDetail(slug);
-  if (!manga.ok) return { title: 'Manga' };
+  if (!manga.ok) {
+    return manga.failure === 'not-found' ? NOT_FOUND_METADATA : { title: 'Manga' };
+  }
   return { title: manga.data.title, description: synopsisExcerpt(manga.data.synopsis) };
 }
 
@@ -121,6 +136,10 @@ export default async function MangaDetailPage({ params }: { params: Params }) {
   const synopsis = manga.synopsis.trim();
   const first = manga.firstChapter;
   const latest = manga.latestChapter;
+  // FR-CATALOG-008 / T-CATALOG-009. Absent for an anonymous reader and absent
+  // for a reader with no position yet — the same wire answer, so the page has
+  // one state to render. See the note on the action row below.
+  const resume = manga.continueReading ?? null;
   const readerBase = `/manga/${manga.slug}/chapter`;
 
   return (
@@ -211,19 +230,42 @@ export default async function MangaDetailPage({ params }: { params: Params }) {
               FR-CATALOG-006: the primary action opens chapter 1 — and for a
               one-chapter title, chapter 1 IS the latest chapter, so the two
               links below are the same link and only one is rendered.
-              TODO(T-CATALOG-009): when `continueReading` exists, a resume entry
-              takes this place for a reader with a position, and this becomes the
-              secondary "Start from chapter 1".
+
+              FR-CATALOG-008 / T-CATALOG-009: a reader WITH a position gets
+              Resume as the primary action, and starting over becomes the
+              secondary. Both are real links carrying the chapter in their
+              accessible name, so the choice is never colour-only
+              (ACCESSIBILITY.md §3.3), and the page number is spelled out rather
+              than implied.
             */}
             {first === null ? (
               <span className={styles.meta}>Nothing is readable yet.</span>
-            ) : (
+            ) : resume === null ? (
               <UiLink
                 className="btn btn--primary"
                 href={`${readerBase}/${chapterSegment(first.number)}`}
               >
                 {`Read ${chapterLabel(first.number)}`}
               </UiLink>
+            ) : (
+              <>
+                <UiLink
+                  className="btn btn--primary"
+                  href={`${readerBase}/${chapterSegment(resume.chapterNumber)}`}
+                >
+                  {`Continue ${chapterLabel(resume.chapterNumber)} — page ${String(
+                    resume.pageNumber,
+                  )}`}
+                </UiLink>
+                {/* Only when it is a DIFFERENT chapter: resuming chapter 1 and
+                    "start from chapter 1" are one link, and two buttons for one
+                    destination is a keyboard trap with no meaning. */}
+                {resume.chapterNumber === first.number ? null : (
+                  <UiLink className="btn" href={`${readerBase}/${chapterSegment(first.number)}`}>
+                    {`Start from ${chapterLabel(first.number)}`}
+                  </UiLink>
+                )}
+              </>
             )}
             {latest === null || latest.number === first?.number ? null : (
               <UiLink className="btn" href={`${readerBase}/${chapterSegment(latest.number)}`}>

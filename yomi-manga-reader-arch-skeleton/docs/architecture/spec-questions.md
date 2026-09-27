@@ -187,3 +187,63 @@ only to be looked up.
   **No code change.** The comment at
   `src/server/db/repositories/chapter.repository.ts:175-184` already records the
   open question and should be updated to point here once the amendment lands.
+---
+
+## SQ-A11Y-1 — On a document load, does a boundary state take focus or announce politely?
+
+**Status: RESOLVED (code changed; two E2E specs reframed, no product behaviour lost)**
+**Tags: spec-question, a11y, spec-fix**
+
+### The contradiction
+
+Two specs asserted opposite things about the same page, and neither was wrong
+about its own text — which is why it stayed invisible:
+
+| Source | Asserts |
+|---|---|
+| `tests/e2e/shell-a11y.e2e.spec.ts` (not-found) | on a hard load, `document.activeElement` IS the `.focus-region` |
+| `tests/e2e/route-map.e2e.spec.ts` (every route) | on every route, the first `Tab` focuses the skip link |
+| `ACCESSIBILITY.md §6` / NFR-A11Y-003 | error/empty states are "focusable, announced, and offer a next action" |
+| `ACCESSIBILITY.md §4` / NFR-A11Y-002 | the skip link is the first focusable element on every page |
+
+On a hard load of the 404 page these cannot both hold. `FocusRegion` focused on
+every mount, and the region sits AFTER the skip link in the DOM, so the first
+`Tab` moved forward from the error body and the bypass link could never be
+reached (WCAG 2.4.1). Measured in the browser: `activeElement` was the
+`div.focus-region` at DOM index 39, while `a.skip-link` sat at index 20 and was
+focusable #1.
+
+### The decision
+
+**Split by moment, because the two requirements are about different moments.**
+
+- **HARD document load** (`page.goto`, a pasted URL, a refresh): do NOT move
+  focus. The reader has no in-app context to reorient and the bypass link is the
+  first thing they should reach. The state is still ANNOUNCED, through a
+  `role="status"` wrapper — which is what §6 actually asks for.
+- **IN-APP navigation** (a client-side transition into an error state): DO move
+  focus. The reader triggered the change, the bypass link has already done its
+  job, and moving focus is how a state change is announced.
+
+Both branches keep `tabIndex={-1}` and the label, so the region stays
+programmatically **focusable** — §6's "focusable" is not the same claim as
+"focused", and nothing is lost.
+
+The two moments are told apart by `src/shared/ui/hydration.tsx`: a marker in the
+ROOT LAYOUT sets a module flag at first hydration, and `FocusRegion` reads it
+during render. React runs child effects before parent effects, so on a hard load
+a `FocusRegion` deeper in the tree still sees `false`; on a soft navigation the
+layout's effect has already run. One boolean, no router internals.
+
+### What follows
+
+- `FocusRegion` rewritten; `hydration.tsx` added; the root layout mounts the
+  marker. Both E2E specs that encoded the old reading are reframed onto the
+  per-case contract, and both say why in place.
+- **Coverage honesty:** the in-app-navigation branch is NOT covered end to end.
+  A plain `<a href>` click is a full document navigation, and the app exposes no
+  in-app link whose target 404s — exercising it would mean adding a link that
+  exists only for the test. The branch is guarded by `hasHydrated()`; the branch
+  that was broken, and that a reader hits by pasting a URL, is covered.
+- T-CATALOG-013 carries the document-side amendments this round produces.
+

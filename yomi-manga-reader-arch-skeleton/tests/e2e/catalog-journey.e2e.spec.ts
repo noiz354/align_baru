@@ -602,16 +602,28 @@ test.describe('T-CATALOG-008 — the chapter list', () => {
     await expect(rows.first()).not.toContainText('Latest');
   });
 
-  test('the read indicator and the Continue badge are absent until VS-5 / T-CATALOG-009', async ({
+  test('no Continue/Resume entry for an anonymous reader, and no read indicator', async ({
     page,
   }) => {
     await page.goto(detailUrl('long-series'));
-    // Two-phase state, implemented honestly: neither feature has landed, so
-    // neither is faked. This assertion fails LOUDLY the day someone invents one
-    // without the API behind it.
+    // The RESUME PATH has landed (T-CATALOG-009's rules, the service
+    // delegation, the contract field and this page's rendering), so this is no
+    // longer a "not implemented" assertion — it is a claim about the ANONYMOUS
+    // case, which is the only one reachable here: the E2E harness has no
+    // session, and the API's caller resolver is the anonymous default until
+    // T-AUTH-007 lands (src/app/api/v1/_runtime.ts). The reader's position
+    // lives on the device until sign-in (T-READER-024), so the server has
+    // nothing to return and `continueReading` is ABSENT — not null.
+    //
+    // The authenticated half is covered where a caller can exist:
+    // UNIT-CAT-008 (the three absence/presence cases) and INT-CAT-002's
+    // `continueReading` block, on real PostgreSQL.
+    //
+    // The read/unread indicator is still genuinely unlanded (T-LIB-006, VS-5),
+    // so that half of the original assertion stands.
     await expect(page.getByText(/^continue\b/i)).toHaveCount(0);
+    await expect(page.getByText(/^resume/i)).toHaveCount(0);
     await expect(page.getByText(/unread/i)).toHaveCount(0);
-    await expect(page.getByText(/resume/i)).toHaveCount(0);
   });
 });
 

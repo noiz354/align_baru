@@ -33,6 +33,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import AppShell from '../shared/ui/AppShell';
+import { HydrationBoundary } from '../shared/ui/hydration';
 import '../shared/ui/tokens.css';
 import '../shared/ui/base.css';
 
@@ -57,6 +58,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        {/* Mounted here, and only here: the whole focus/announce
+            distinction rests on this NOT remounting on a client-side
+            navigation. See shared/ui/hydration.tsx (SQ-A11Y-1). */}
+        <HydrationBoundary />
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -90,30 +90,80 @@ test.describe('target size (NFR-A11Y-010, the 44px floor)', () => {
 });
 
 test.describe('boundary states are announced (NFR-A11Y-003)', () => {
-  test('not-found takes focus and exposes its heading as an accessible name', async ({ page }) => {
+  test('on a HARD load not-found does not steal focus, and is announced instead', async ({ page }) => {
     await page.goto('/no-such-page');
 
-    // Focus lands in the state on entry — not left on the skip link at the top
-    // of the document, which is the failure mode FocusRegion exists to prevent.
+    // SQ-A11Y-1 (docs/architecture/spec-questions.md). This page's region sits
+    // AFTER the skip link, so moving focus here made the bypass link
+    // unreachable by Tab (WCAG 2.4.1) on the page that most needs it. The
+    // requirement is that the state is FOCUSABLE and ANNOUNCED — and it is:
+    // `tabIndex={-1}` can still take focus, and a `role="status"` region reads
+    // itself out. What it must not do is MOVE focus on a document load.
     const active = await page.evaluate(() => {
       const el = document.activeElement;
-      return el === null
-        ? null
-        : { cls: el.className, tag: el.tagName, labelledby: el.getAttribute('aria-labelledby') };
+      return el === null ? null : { tag: el.tagName, cls: String(el.className ?? '') };
     });
-    expect(active?.tag).toBe('DIV');
-    expect(active?.cls).toContain('focus-region');
-    expect(active?.labelledby).toBe('not-found-title');
+    expect(active?.cls).not.toContain('focus-region');
 
-    // The label must actually resolve, not merely be present in the markup:
-    // `aria-labelledby` on a roleless element is a classic silent no-op, so
-    // the name is read out of the accessibility tree instead of the source.
-    const name = await page.locator('.focus-region').evaluate((el) => {
-      const id = el.getAttribute('aria-labelledby');
-      const heading = id === null ? null : document.getElementById(id);
+    // Announced: the state is a polite live region, and its label resolves to
+    // a real heading (an `aria-labelledby` on a roleless element is a classic
+    // silent no-op, so the name is read out of the accessibility tree).
+    const region = page.locator('.focus-region');
+    await expect(region).toHaveAttribute('role', 'status');
+    const name = await region.evaluate((el) => {
+      const heading = document.getElementById('not-found-title');
       return heading?.textContent?.trim() ?? null;
     });
     expect(name).toBe('Page not found');
+  });
+
+  test('the not-found region is still programmatically focusable', async ({ page }) => {
+    // "Focusable" is the half of ACCESSIBILITY.md §6 that the focus move used
+    // to be mistaken for: the element CAN receive focus, so a skip-to-content
+    // link or a future recovery affordance has somewhere to send the reader.
+    await page.goto('/no-such-page');
+
+    const focusable = await page
+      .locator('.focus-region')
+      .evaluate((el) => el.getAttribute('tabindex') === '-1');
+    expect(focusable).toBe(true);
+  });
+
+  test('a raw anchor to a 404 does NOT move focus — it is a document load', async ({ page }) => {
+    // The in-app-navigation branch of FocusRegion (focus DOES follow the state)
+    // is deliberately NOT asserted here, and the reason is worth recording
+    // rather than papering over:
+    //
+    //  - A plain `<a href>` click is a FULL document navigation, so it exercises
+    //    the hard-load path again, not the soft one. An earlier version of this
+    //    file used one and asserted focus — which was simply false, and it failed.
+    //  - A real soft transition needs a Next `<Link>`, and the app exposes NO
+    //    in-app link whose target 404s: the nav points at real routes, and a
+    //    catalog card points at a manga that exists. Exercising the branch would
+    //    mean adding a link that exists only for the test, i.e. a test-only
+    //    affordance in product code.
+    //
+    // So the branch is guarded by `hasHydrated()` (shared/ui/hydration.tsx),
+    // which is set once per document by a component in the ROOT LAYOUT and
+    // never remounts on a soft transition — the one signal that separates the
+    // two moments. The hard-load branch, which is the one that was broken and
+    // the one a reader hits by pasting a URL, is asserted above.
+    await page.goto('/discover');
+    await page.evaluate(() => {
+      const link = document.createElement('a');
+      link.href = '/no-such-page';
+      link.id = 'probe-nav';
+      link.textContent = 'probe';
+      document.body.appendChild(link);
+    });
+    await page.locator('#probe-nav').click();
+
+    const active = await page.evaluate(() => {
+      const el = document.activeElement;
+      return el === null ? null : { cls: String(el.className ?? '') };
+    });
+    expect(active?.cls).not.toContain('focus-region');
+    await expect(page.locator('.focus-region')).toHaveAttribute('role', 'status');
   });
 
   test('not-found offers the two destinations that always exist', async ({ page }) => {
