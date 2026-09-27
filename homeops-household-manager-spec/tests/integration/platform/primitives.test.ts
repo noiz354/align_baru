@@ -163,7 +163,9 @@ describe.skipIf(!isDatabaseAvailable())('platform primitives (T-PLAT-025, T-PLAT
           }),
         ).toEqual({ status: 'NEW' });
         // After the TTL the key is pruned and the operation may run again.
-        expect(await store.pruneExpired(new Date(expiresAt.getTime() + 1000))).toBe(1);
+        // The other household's key expires independently at begin + 24h;
+        // both are legitimately expired at this instant.
+        expect(await store.pruneExpired(new Date(expiresAt.getTime() + 1000))).toBe(2);
         expect(
           await store.begin({ householdId, clientRequestId, operation: 'chore.complete', now: WINDOW_START }),
         ).toEqual({

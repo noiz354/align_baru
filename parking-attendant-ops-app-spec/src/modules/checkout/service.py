@@ -66,11 +66,18 @@ class CheckOutUseCase:
         self,
         session_id: str,
         attendant_id: str,
-        payment_method: str,  # CASH, QRIS, WAIVED
+        payment_method: str,  # CASH or WAIVED; QRIS requires verified provider integration
         is_lost_ticket: bool = False,
         is_waived: bool = False,
         supervisor_pin: Optional[str] = None
     ) -> ParkingSession:
+        # PRD §4.A.7 / SECURITY.md: a QRIS request is NOT proof of settlement.
+        # Until a provider-authenticated callback + amount reconciliation exist,
+        # fail *before* any slot/session/shift mutation. Never report fake PAID.
+        if payment_method == "QRIS":
+            raise ValueError("QRIS requires verified provider settlement before checkout")
+        if payment_method not in ("CASH", "WAIVED") or (payment_method == "WAIVED") != is_waived:
+            raise ValueError("Payment method must be CASH, or WAIVED with is_waived=True")
         session = self.parking_repo.get_session(session_id)
         if not session or session.state not in (SessionState.ACTIVE, SessionState.UNDER_INVESTIGATION):
             raise ValueError(f"Sesi parkir {session_id} tidak dalam status dapat di-checkout.")
@@ -184,6 +191,10 @@ class LostTicketVerificationUseCase:
         ktp_photo_evidence_id: str,
         payment_method: str = "CASH",
     ) -> ParkingSession:
+        # No production QRIS adapter exists; never close a lost-ticket session
+        # as PAID on an unverified digital-payment request (PRD §4.A.7).
+        if payment_method != "CASH":
+            raise ValueError("Lost-ticket checkout requires verified CASH payment; QRIS is not configured")
         if self.supervisor_pins.get(supervisor_id) != supervisor_pin:
             raise PermissionError("PIN Supervisor tidak valid untuk resolusi tiket hilang.")
 
@@ -223,14 +234,9 @@ class LostTicketVerificationUseCase:
         if self.shift_repo is not None:
             shift = self.shift_repo.get_shift(session.shift_id)
             if shift and shift.status.value == "OPEN":
-                if payment_method == "QRIS":
-                    shift.qris_collected_system = (
-                        float(shift.qris_collected_system or 0.0) + pricing.total_fee
-                    )
-                else:
-                    shift.cash_collected_system = (
-                        float(shift.cash_collected_system or 0.0) + pricing.total_fee
-                    )
+                shift.cash_collected_system = (
+                    float(shift.cash_collected_system or 0.0) + pricing.total_fee
+                )
                 self.shift_repo.save_shift(shift)
 
         self.audit_logger.record_audit(

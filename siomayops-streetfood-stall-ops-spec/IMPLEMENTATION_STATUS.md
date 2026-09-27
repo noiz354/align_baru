@@ -7,8 +7,10 @@
 ## Tasks Discovered: 70
 From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-001 (5), T-LOC-001..003 (3), T-SHIFT-001..002, T-LOC-004..005, T-OFF-001, T-HQ-001 (6), T-MENU-001..002, T-PRICE-001..004 (6), T-SALE-001..004 (4), T-PAY-001..004 (4), T-EXP-001..004 (4), T-STOCK-001..004 (4), T-CLOSE-001..004 (4), T-HQ-002..003 (2), T-LOY-001..003 (3), T-COMM-001, T-ALERT-001 (2), T-INC-001..002 (2), T-PERF-001..002 (2), T-REC-001..002 (2), T-OFF-002..004 (3), T-SEC-001..002, T-OPS-001 (3), T-OBS-001..002 (2), T-OPS-002..004 (3) = 70
 
-## Tasks Completed: 68
-## Tasks Externally Blocked: 2
+## Tasks Completed: 68 (historical claim; NOT a verified completion gate)
+## Tasks Externally Blocked: 2 (historical; audit corrected below)
+
+> Audit 2026-09-27: A synthetic Playwright assertion is **not an E2E test**. The seven `tests/e2e/*.spec.ts` tests never navigate to the application and use fabricated constants; they must be replaced with real browser journeys. Chromium installation was attempted (`npx playwright install chromium`) and failed `ECONNRESET`; `apt-get update` also failed to reach Debian mirrors. `PAYMENT_WEBHOOK_SECRET` is now required and HMAC-SHA256 checked fail-closed, but the production QRIS adapter and its merchant credentials remain pending. The HQ verification page formerly posted a public `fake-signature` to a payment webhook; that fake-success path was removed. The 68/70 status is a claim from the prior implementation report, **not** a verified full-spec audit. The Playwright issue is test implementation debt as well as unavailable browser tooling; it is not a production credential blocker.
 
 ### Completed:
 - **Foundation (VS-0):** T-FOUND-001..006 — repo tooling, design tokens (tokens.ts with 44px/72px, contrast 4.5), audit infrastructure (append-only, same transaction, no UPDATE/DELETE), idempotency (key storage, replay marked, mismatch 422, concurrent dedup), auth port (fake guarded, no production default), money primitives (integer minor units, no float, IDR only, half-up %, allocate no loss, provider decimal string, snapshot immutability)

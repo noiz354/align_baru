@@ -397,7 +397,7 @@ NOT PART OF CURRENT PHASE
 
 | Slice | Tasks | Status |
 | --- | --- | --- |
-| VS-0 Foundation | T-PLAT-001..028, T-TIME-001..004 | NOT STARTED |
+| VS-0 Foundation | T-PLAT-001..028, T-TIME-001..003 | IMPLEMENTED (15 platform integration assertions passed on scratch PG18; DoD audit still pending) |
 | VS-1 Household + Members + Auth | T-HH-001..006, T-MEM-001..006, T-AUTH-001..008 | NOT STARTED |
 | VS-2 Rooms | T-ROOM-001..010 | NOT STARTED |
 | VS-3 Basic Chores | T-CHORE-001..020 | NOT STARTED |
@@ -416,4 +416,4 @@ NOT PART OF CURRENT PHASE
 | VS-16 Production | T-OPS-001..006, T-DOC-004, T-DOC-005 | NOT STARTED |
 | All slices | T-QA-001..003, T-DOC-001..003 | NOT STARTED |
 
-**Current phase status: 0 of 252 tasks started — by design (AGENTS.md §1). No task may be marked started while the phase rule in AGENTS.md §1 stands.**
+**Current audit (2026-09-27):** T-PLAT-001..028 and T-TIME-001..003 have foundation implementations; 15 platform integration assertions passed on a scratch PostgreSQL 18 during this audit; these remain IMPLEMENTED_BUT_UNVERIFIED until the full DoD (including E2E) is audited, not VERIFIED_DONE. T-TIME-004 is VS-5; the previous VS-0 row incorrectly placed it in VS-0. All remaining slices are NOT STARTED. The old “0 of 252 started” claim was stale; the task register still needs a per-task DoD audit before a verified-completion count can be asserted.
