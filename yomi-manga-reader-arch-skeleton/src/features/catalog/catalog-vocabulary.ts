@@ -26,10 +26,11 @@
  *
  * Requirements: FR-CATALOG-002, FR-SEARCH-003, NFR-PERF-004/014.
  * Tasks: T-CATALOG-002 (port + endpoint), T-CATALOG-004 (consumer).
- * Implementation: server/db (NOT yet written — T-CATALOG-001's lane owns
- * `server/db/repositories/**` and did not include a vocabulary read; until it
- * lands, the composition root has nothing to register here. Recorded as a
- * follow-up, not worked around in product code).
+ * Implementation: `server/db/repositories/vocabulary.repository.ts`
+ * (T-CATALOG-012), registered by the composition root. It was written ONLY in
+ * the test harness for a while, which left this public endpoint answering 500
+ * in production while its integration tests were green — so the harness now
+ * imports the product factory rather than keeping a second copy.
  */
 import type { Genre, Tag } from '../../shared/contracts';
 

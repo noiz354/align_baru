@@ -452,17 +452,50 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
 /* ── query builders (one definition each; the factory and the gate share them) */
 
 /**
- * Resolves genre names to ids, DROPPING the names that do not exist.
+ * THE genre-slug rule, as SQL.
  *
  * The public filter carries "genre slugs" (API_CONTRACT §2.1,
  * `?genre=action,drama` in T-CATALOG-004) while `DATA_MODEL.md` §6 gives a
- * genre only a `name`, so the match is a case-insensitive fold of the name.
- * `ix_genres_name` is a plain btree, so this is a scan of a controlled
- * vocabulary of ~20 rows — NFR-PERF-014 governs the catalog read, which is
- * index-backed on the manga side, not this lookup.
+ * genre only a `name` and no slug column. The slug is therefore DERIVED, and it
+ * must be derived the same way on both sides of the wire: the service derives
+ * it in TypeScript (`normaliseGenreSlug`) and the query derives it again here.
  *
- * An unknown name is IGNORED, not an error (API_CONTRACT §2.1); when every name
- * is unknown no genre filter is applied at all.
+ * Why the derivation lives in SQL rather than being sent as a name: the client
+ * sends whatever the facets endpoint gave it, and comparing a slug against a
+ * name only works for single-word genres. `Slice of Life` slugifies to
+ * `slice-of-life`, and no `lower(name)` equals that — so a name comparison
+ * silently matched nothing, the genre predicate was dropped, and the endpoint
+ * answered with the WHOLE catalog under a filter. That is a filter that lies,
+ * which is worse than one that returns nothing.
+ *
+ * `ix_genres_name` is a plain btree and the vocabulary is ~20 rows
+ * (DATA_MODEL §6/§7), so evaluating this expression is a scan of a controlled
+ * set, not a table walk; NFR-PERF-014 governs the catalog read, which is
+ * index-backed on the manga side.
+ *
+ * ONE definition, two consumers: the test harness imports this instead of
+ * carrying its own copy, so the tested query and the shipped query cannot
+ * diverge again. INT-CAT-004 drives this repository over real rows.
+ *
+ * Requirements: FR-CATALOG-002, API_CONTRACT §2.1, NFR-PERF-004/014.
+ * Tasks: T-CATALOG-001, T-CATALOG-002.
+ *
+ * @param column the `genre.name` column
+ * @returns a SQL fragment evaluating to that name's slug
+ */
+export function genreSlugSql(column: AnyColumn): SQL {
+  return sql`trim(both '-' from regexp_replace(lower(btrim(${column})), '[^a-z0-9]+', '-', 'g'))`;
+}
+
+/**
+ * Resolves genre slugs to ids, DROPPING the ones that do not exist.
+ *
+ * An unknown slug is IGNORED, not an error (API_CONTRACT §2.1). When EVERY slug
+ * is unknown no genre filter is applied at all — which is the documented
+ * behaviour for "a filter value that names nothing", and the reason
+ * INT-CAT-004 pins the resolved case separately: a slug that SHOULD have
+ * resolved and did not is indistinguishable from "no filter" here, so the
+ * per-genre cases are asserted on rows.
  */
 async function resolveGenreIds(db: Db, names: string[] | undefined): Promise<string[]> {
   if (names === undefined || names.length === 0) return [];
@@ -471,7 +504,7 @@ async function resolveGenreIds(db: Db, names: string[] | undefined): Promise<str
   const rows = await db
     .select({ id: genre.id })
     .from(genre)
-    .where(inArray(sql`lower(${genre.name})`, wanted));
+    .where(inArray(genreSlugSql(genre.name), wanted));
   return rows.map((row) => row.id);
 }
 

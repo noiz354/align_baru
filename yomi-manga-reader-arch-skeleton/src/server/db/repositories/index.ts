@@ -60,7 +60,12 @@ export function createRepositories(db: Db): Repositories {
   };
 }
 
-export { createMangaRepository, buildCatalogListQuery, mangaVisibleWhere } from './manga.repository';
+export {
+  createMangaRepository,
+  buildCatalogListQuery,
+  mangaVisibleWhere,
+  genreSlugSql,
+} from './manga.repository';
 export {
   createChapterRepository,
   buildChapterListQuery,

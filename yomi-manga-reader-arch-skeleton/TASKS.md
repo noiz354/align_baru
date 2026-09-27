@@ -315,6 +315,32 @@ Conventions:
 - Manual QA: open a seeded detail page with the API reachable; confirm the page stops rendering its "unavailable" state.
 - DoD: AGENTS.md.
 
+## T-CATALOG-012 — Genre/tag vocabulary repository
+- Requirements: FR-CATALOG-002, FR-SEARCH-003, NFR-PERF-004/014, NFR-SEC-015
+- Goal: the `CatalogVocabularyPort` implementation in `server/db`, so `GET /api/v1/catalog/facets` stops being a 500 and the discover page's genre filter works against real rows.
+- Depends on: T-CATALOG-002 (declares the port and the endpoint), T-CATALOG-001 (the `server/db/repositories` lane this joins)
+- Expected modules: server/db/repositories, src/server/composition
+- Inputs: DATA_MODEL §6 (`genre`) / §7 (`tag`) / the join tables
+- Expected behavior: 1. Two bounded reads — genre vocabulary and tag vocabulary — each ordered by name. 2. `onlyUsed` (default true) narrows to rows linked to at least one VISIBLE manga (`published ∧ ¬deleted`), reusing the shared visibility rule rather than re-deriving it per query site. 3. NO counts (T-CATALOG-002 scope; a count per genre is a different aggregate and a different index). 4. The composition root registers it, so the service stops reporting a missing port.
+- Edge cases: a genre linked only to unpublished/soft-deleted manga (excluded under `onlyUsed`); a manga with no genres (no rows, not a 500); empty vocabulary (empty arrays, 200).
+- Security: parameterized only (NFR-SEC-015); no free-text reaches SQL. Visibility is applied here too, so a hidden title's private genre cannot widen the public vocabulary.
+- Testing: INT-CAT-003 (real PG: `onlyUsed` true/false, ordering, hidden-linkage exclusion, empty vocabulary), plus the live endpoint check.
+- Manual QA: `/discover` shows the genre filter populated rather than its unavailable state.
+- DoD: AGENTS.md.
+
+## T-CATALOG-013 — Spec-fix: three document contradictions found in VS-1
+- Requirements: FR-CHAPTER-004, FR-CATALOG-002, AGENTS.md §6
+- Goal: amend the three documents that disagree with the shipped behaviour. Every finding, its `file:line` evidence, the authority it was resolved against, and the decision are recorded in `docs/architecture/spec-questions.md` (SQ-CAT-1/2/3). **No product code changes** — in all three cases the code is already right and a document is wrong.
+- Depends on: T-CATALOG-001, T-CATALOG-002, T-CATALOG-012
+- Expected modules: docs/product/admin-workflow.md, DATA_MODEL.md, API_CONTRACT.md, docs/architecture/spec-questions.md
+- Inputs: docs/architecture/spec-questions.md
+- Expected behavior: 1. `admin-workflow.md` §4 and the chapter-admin task row say `reading_order` is assigned **max+1**; amend both to the derivation the code actually uses — `number × 100`, injective because `number` is `numeric(8,2)`. `max+1` encodes insertion order and renders 5 before 3 when 3 is added second. 2. `DATA_MODEL.md` §10 line 140 declares `PK: id uuid` while lines 142/143/144 describe the composite `(chapter_id, page_number)`; amend line 140 to the composite, which is what the schema, the migration and the plans all implement. 3. `API_CONTRACT.md` §2.1's genre row should name the name-derived slug and the rule, and record that a genre with a non-latin name is not filterable.
+- Edge cases: — (documentation).
+- Security: —.
+- Testing: none new; the behaviour each amendment describes is already pinned (INT-CAT-004 for the genre slug, INT-CHAP-001 for chapter order, INT-MEDIA-001 for page keys).
+- Manual QA: —.
+- DoD: AGENTS.md.
+
 ---
 
 # EPIC-03 — Reader (VS-2 minimal reader; VS-3 navigation; VS-4 performance)

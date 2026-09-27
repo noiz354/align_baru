@@ -51,6 +51,7 @@ import {
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { runMigrations } from '../../../src/server/db/migrations';
+import { genreSlugSql } from '../../../src/server/db/repositories/manga.repository';
 import { AppError } from '../../../src/shared/contracts/errors';
 import * as dbSchema from '../../../src/server/db/schema';
 // A repository — not the service — defines the cursor payload. This double
@@ -65,11 +66,9 @@ import type { MangaRepository } from '../../../src/features/manga';
 import type {
   CallerContext,
   ChapterSummary,
-  Genre,
   MangaDetail,
   MangaStatus,
   MangaSummary,
-  Tag,
 } from '../../../src/shared/contracts';
 import type { ChapterId, MangaId, MangaSlug } from '../../../src/shared/types';
 import { deterministicUuid } from '../../../scripts/seed.mjs';
@@ -502,7 +501,15 @@ export async function seedCatalogFixtures(db: Db): Promise<void> {
  * the statement. The hot path is still `ix_manga_visible` +
  * `ix_manga_genre_genre_id` (NFR-PERF-014).
  */
-const genreSlug = sql<string>`trim(both '-' from regexp_replace(lower(btrim(${dbSchema.genre.name})), '[^a-z0-9]+', '-', 'g'))`;
+/**
+ * The PRODUCT rule, not a second copy of it. This constant used to inline its own
+ * version of the expression, and the two drifted: the product compared
+ * `lower(name)` against the slug (so a multi-word genre never matched) while this
+ * one slugified in SQL (so it did). Every genre-filtered behaviour test ran this
+ * query and therefore passed while the shipped query silently dropped the
+ * predicate. `genreSlugSql` is now the single definition — see INT-CAT-004.
+ */
+const genreSlug = genreSlugSql(dbSchema.genre.name);
 
 /** The keyset the repository mints into a cursor token. */
 interface Keyset {
@@ -850,44 +857,17 @@ export function createPgChapterRepository(db: Db): Pick<ChapterRepository, 'list
 }
 
 /**
- * `CatalogVocabularyPort.listVocabulary` — the public genre/tag vocabulary,
- * narrowed to what can actually filter a result (`onlyUsed`, default true).
- * No counts: out of scope for T-CATALOG-002, and a different aggregate.
+ * `CatalogVocabularyPort.listVocabulary` — re-exported from the PRODUCT
+ * repository, not re-implemented here.
+ *
+ * This harness used to carry its own copy of the vocabulary read, which meant
+ * the facets endpoint was green in integration while production had no
+ * implementation at all (T-CATALOG-012). Pointing it at the real factory is
+ * what makes INT-CAT-001's facets assertions a statement about shipped code.
  */
-export function createPgVocabularyPort(db: Db): CatalogVocabularyPort {
-  return {
-    async listVocabulary(query) {
-      const onlyUsed = query.onlyUsed ?? true;
-      const usedGenre = db
-        .select({ id: dbSchema.mangaGenre.genreId })
-        .from(dbSchema.mangaGenre)
-        .innerJoin(dbSchema.manga, eq(dbSchema.manga.id, dbSchema.mangaGenre.mangaId))
-        .where(and(eq(dbSchema.manga.published, true), isNull(dbSchema.manga.deletedAt)));
-      const usedTag = db
-        .select({ id: dbSchema.mangaTag.tagId })
-        .from(dbSchema.mangaTag)
-        .innerJoin(dbSchema.manga, eq(dbSchema.manga.id, dbSchema.mangaTag.mangaId))
-        .where(and(eq(dbSchema.manga.published, true), isNull(dbSchema.manga.deletedAt)));
+import { createGenreTagVocabularyPort } from '../../../src/server/db/repositories/vocabulary.repository';
 
-      const [genreRows, tagRows] = await Promise.all([
-        db
-          .select({ id: dbSchema.genre.id, name: dbSchema.genre.name })
-          .from(dbSchema.genre)
-          .where(onlyUsed ? inArray(dbSchema.genre.id, usedGenre) : undefined)
-          .orderBy(asc(dbSchema.genre.name)),
-        db
-          .select({ id: dbSchema.tag.id, name: dbSchema.tag.name })
-          .from(dbSchema.tag)
-          .where(onlyUsed ? inArray(dbSchema.tag.id, usedTag) : undefined)
-          .orderBy(asc(dbSchema.tag.name)),
-      ]);
-      return {
-        genres: genreRows.map((row): Genre => ({ id: row.id, name: row.name })),
-        tags: tagRows.map((row): Tag => ({ id: row.id, name: row.name })),
-      };
-    },
-  };
-}
+export { createGenreTagVocabularyPort as createPgVocabularyPort };
 
 /** Everything a suite needs to drive the real service over real rows. */
 export interface PgCatalogHarness {
@@ -903,7 +883,7 @@ export async function createPgCatalogHarness(open: OpenDatabase): Promise<PgCata
   await seedCatalogFixtures(open.db);
   const manga = createPgMangaRepository(open.db);
   const chapters = createPgChapterRepository(open.db);
-  const vocabulary = createPgVocabularyPort(open.db);
+  const vocabulary = createGenreTagVocabularyPort(open.db);
   const { createCatalogService } = await import('../../../src/features/catalog');
   return {
     db: open.db,

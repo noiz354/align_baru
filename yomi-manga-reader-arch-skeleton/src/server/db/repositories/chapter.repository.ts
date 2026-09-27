@@ -175,12 +175,16 @@ function toPageAsset(row: {
 /**
  * `ChapterPageRecord.id`.
  *
- * spec-question for the document owner: `DATA_MODEL.md` §10 states the primary
- * key as the composite `(chapter_id, page_number)` and lists NO `id` column, but
- * `shared/contracts/chapter.ts` types the record's `id` as a string. The
- * composite is rendered as `"{chapterId}:{pageNumber}"` — deterministic,
- * unique, and derived from the real key, so nothing is invented. A DATA_MODEL
- * amendment should either add the column or drop it from the DTO.
+ * RESOLVED as SQ-CAT-3 in `docs/architecture/spec-questions.md`: the composite
+ * `(chapter_id, page_number)` IS the primary key, and the DTO's `id` is that
+ * real key rendered deterministically — nothing is invented, and no surrogate
+ * column is needed (`ix_pages_asset_key` is already unique, and no query needs
+ * an opaque page key the composite does not provide).
+ *
+ * The document side of the finding: `DATA_MODEL.md` §10 contradicted ITSELF —
+ * line 140 declared `PK: id uuid` while lines 142/143/144 described the
+ * composite and listed no `id` column. Line 140 is the error; T-CATALOG-013
+ * amends it. `src/server/db/schema.ts` has always implemented the composite.
  */
 function pageRecordId(chapterId: string, pageNumber: number): string {
   return `${chapterId}:${pageNumber}`;
@@ -503,6 +507,18 @@ export function createChapterRepository(db: Db): ChapterRepository {
               // `reading_order` — and the seed harness uses the same
               // "reading_order tracks the number" convention
               // (`Number.parseInt(number)` for the integer chapters it makes).
+              //
+              // SQ-CAT-1 (`docs/architecture/spec-questions.md`): two documents
+              // — `admin-workflow.md` §4 and the chapter-admin task row — say
+              // `max+1`. That is INSERTION order, and it renders 5 before 3 when
+              // chapter 3 is added second, while `number` — the value the reader
+              // sees — says otherwise. It also costs a `MAX(reading_order)` read
+              // per insert, racy under concurrent admin writes, to derive what
+              // the row already determines. Those two lines are amended by
+              // T-CATALOG-013; this derivation stands. Note the ×100 factor is
+              // only injective BECAUSE `number` is `numeric(8,2)`: if chapter
+              // numbers ever need more decimals, revisit this before the schema
+              // changes, or the UNIQUE index starts throwing on legal input.
               readingOrder: sql`(${input.number.toFixed(2)}::numeric * 100)::int`,
             })
             .returning({ id: chapter.id });

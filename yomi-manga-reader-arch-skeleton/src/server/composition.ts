@@ -35,6 +35,7 @@ import { loadEnv } from '../shared/validation';
 import type { Env, EnvSource } from '../shared/validation';
 import { createDb, closeDb, type Db } from './db/client';
 import { createProgressPositionReader } from './db/repositories/progress.repository';
+import { createGenreTagVocabularyPort } from './db/repositories/vocabulary.repository';
 import { createRepositories } from './db/repositories';
 import { createLogger, type Logger } from './telemetry/logger';
 
@@ -85,19 +86,18 @@ export function buildComposition(source?: EnvSource): Composition {
  * Memoised per process by the caller (`apiV1DepsWith`), not here, so this stays
  * a plain async factory that a test can call directly.
  *
- * One port is deliberately absent, and it is not faked (AGENTS.md §4.3):
- * `vocabulary` (`CatalogVocabularyPort`, FR-CATALOG-002) has no
- * implementation, so `facets()` reports the gap. Until it lands,
- * `GET /api/v1/catalog/facets` is a 500 and the discover page's genre filter
- * shows its unavailable state — the honest outcome, and NOT a licence to pass a
- * fake vocabulary.
+ * Nothing is faked here (AGENTS.md §4.3): every port the catalog service takes
+ * is registered from a real implementation. When one is missing, `facets()` and
+ * `resolveResume()` report the gap instead of inventing an answer — which is why
+ * this list is short only while the landed repositories are short.
  *
  * @param source the environment source; the real process env when omitted
  * @returns the wired catalog service and the pool handle
  * @throws {DatabaseConfigurationError} when the DSN is unusable or unreachable
  *
  * Requirements: NFR-OPS-002, NFR-PERF-014, FR-CATALOG-001…009.
- * Tasks: T-CATALOG-002, T-CATALOG-006, T-CATALOG-007, T-CATALOG-009.
+ * Tasks: T-CATALOG-002, T-CATALOG-006, T-CATALOG-007, T-CATALOG-009,
+ * T-CATALOG-012.
  */
 export async function createCatalogComposition(source?: EnvSource): Promise<CatalogComposition> {
   const { env, logger } = buildComposition(source);
@@ -111,6 +111,10 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
       // the Drizzle READ here, and `ResumeService` extends `ProgressReader`, so
       // this is the injection its own header asked the composition root for.
       progress: createResumeService({ reads: createProgressPositionReader(db) }),
+      // T-CATALOG-012: the facets read. It used to be registered nowhere, so
+      // `GET /api/v1/catalog/facets` was a 500 and `/discover`'s genre filter
+      // showed its unavailable state on a perfectly healthy deployment.
+      vocabulary: createGenreTagVocabularyPort(db),
     }),
     logger,
     close: () => closeDb(db),
