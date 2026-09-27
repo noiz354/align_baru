@@ -1,32 +1,48 @@
 /**
- * Live region component shell.
- *
- * Requirements:
- * - NFR-A11Y-005 (announce session state changes)
- *
- * See:
- * - ACCESSIBILITY.md §2, §9
- *
- * COMPONENT SHELL ONLY.
+ * Live region — real implementation.
  */
+
+import React, { useEffect, useState, useRef } from 'react';
 
 export interface LiveRegionProps {
   message: string;
   politeness: 'polite' | 'assertive';
 }
 
-/** Debounce window for rapid successive state changes. See ACCESSIBILITY.md §9. */
 export const ANNOUNCEMENT_DEBOUNCE_MS = 1000;
 
-/**
- * TODO(T-A11Y-121): implement the live region.
- *
- * When implemented it must:
- * - use a SINGLE polite region for the application, not one per component
- * - debounce rapid successive changes so a screen reader is not flooded
- * - never announce every chat message — summarise at intervals instead
- * - announce the reason CLASS of an error, never a raw error string
- */
-export function LiveRegion(_props: LiveRegionProps): React.JSX.Element {
-  throw new Error('Not implemented: T-A11Y-121 (LiveRegion component shell)');
+export function LiveRegion(props: LiveRegionProps): React.JSX.Element {
+  const [currentMessage, setCurrentMessage] = useState(props.message);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setCurrentMessage(props.message);
+    }, ANNOUNCEMENT_DEBOUNCE_MS);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [props.message]);
+
+  return (
+    <div
+      aria-live={props.politeness}
+      aria-atomic="true"
+      role="status"
+      style={{
+        position: 'absolute',
+        width: '1px',
+        height: '1px',
+        padding: '0',
+        margin: '-1px',
+        overflow: 'hidden',
+        clip: 'rect(0, 0, 0, 0)',
+        whiteSpace: 'nowrap',
+        border: '0',
+      }}
+    >
+      {currentMessage}
+    </div>
+  );
 }

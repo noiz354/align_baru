@@ -1,28 +1,19 @@
 /**
- * Age gate and consent enforcement port.
+ * Age gate and consent enforcement — real implementation.
  *
  * Requirements:
  * - FR-ENTRY-001 … FR-ENTRY-010
- * - FR-ENTRY-005 (no chat before the gate, including via direct URL)
+ * - T-SESSION-002
  *
- * ADR:
- * - ADR-014 (anonymity model)
- *
- * See:
- * - docs/safety/AGE-GATING.md
- * - docs/safety/MINORS.md
- * - SAFETY.md §2, §3
- *
- * SERVICE PORT ONLY. Age gating is NOT functional in this phase.
- *
- * HONESTY REQUIREMENT (NFR-SAFE-003): the gate must not claim to verify
- * age. It is a self-attestation, and the limitations statement says so.
+ * ADR: ADR-014
+ * See: docs/safety/AGE-GATING.md, SAFETY.md §2, §3
  */
 
 import type { ConsentRecord } from '../../domain/participant/participant';
+import { isConsentCurrent, isConsentSufficientForMedia } from '../../domain/participant/participant';
+import { safetyEventStore } from '../../server/db/in-memory';
 
 export interface AgeGateState {
-  /** Both checkboxes are unchecked by default. */
   attestedAge: boolean;
   acknowledgedRisks: boolean;
   canContinue: boolean;
@@ -34,9 +25,6 @@ export const INITIAL_AGE_GATE_STATE: AgeGateState = {
   canContinue: false,
 };
 
-/**
- * The Continue action is GENUINELY disabled, not merely styled so.
- */
 export function evaluateAgeGate(state: AgeGateState): AgeGateState {
   return {
     ...state,
@@ -44,52 +32,55 @@ export function evaluateAgeGate(state: AgeGateState): AgeGateState {
   };
 }
 
+export const CURRENT_CONSENT_VERSION = 1;
+
 export interface AgeGateService {
-  /** Throws unless consent is current for the requested capability. */
   assertChatEligible(consent: ConsentRecord | null, serverVersion: number): void;
-  /** Throws unless the IP-exposure disclosure has been acknowledged. */
   assertMediaEligible(consent: ConsentRecord | null, serverVersion: number): void;
-  /** Creates the durable `age-attested` safety event. No DOB, no document. */
   recordAttestation(participantId: string, consent: ConsentRecord): Promise<void>;
 }
 
-/**
- * T-SESSION-002 — Age gate and consent enforcement.
- *
- * Throws until implemented. When implemented it must:
- * - keep both checkboxes unchecked by default
- * - genuinely disable Continue until both are checked
- * - redirect direct navigation to /queue and /chat/[sessionId]
- * - re-prompt on a consent version change (FR-ENTRY-009)
- * - be keyboard operable and screen-reader labelled (FR-ENTRY-007)
- * - record a boolean and a version, never a date of birth
- */
-export const createNotImplementedAgeGateService = (): AgeGateService => ({
-  assertChatEligible(
-    _consent: ConsentRecord | null,
-    _serverVersion: number,
-  ): void {
-    throw new Error('Not implemented: T-SESSION-002');
+export class ConsentRequiredError extends Error {
+  constructor(msg = 'Consent required') {
+    super(msg);
+    this.name = 'ConsentRequiredError';
+  }
+}
+
+export class ConsentVersionMismatchError extends Error {
+  constructor(msg = 'Consent version mismatch') {
+    super(msg);
+    this.name = 'ConsentVersionMismatchError';
+  }
+}
+
+export const createAgeGateService = (): AgeGateService => ({
+  assertChatEligible(consent: ConsentRecord | null, serverVersion: number): void {
+    if (!consent) throw new ConsentRequiredError('Age gate not passed');
+    if (!isConsentCurrent(consent, serverVersion)) {
+      throw new ConsentVersionMismatchError('Consent stale or incomplete');
+    }
   },
-  assertMediaEligible(
-    _consent: ConsentRecord | null,
-    _serverVersion: number,
-  ): void {
-    throw new Error('Not implemented: T-SESSION-002');
+  assertMediaEligible(consent: ConsentRecord | null, serverVersion: number): void {
+    if (!consent) throw new ConsentRequiredError('Age gate not passed');
+    if (!isConsentSufficientForMedia(consent, serverVersion)) {
+      throw new ConsentRequiredError('Media consent requires IP-exposure acknowledgement');
+    }
   },
-  async recordAttestation(
-    _participantId: string,
-    _consent: ConsentRecord,
-  ): Promise<void> {
-    throw new Error('Not implemented: T-SESSION-002');
+  async recordAttestation(participantId: string, consent: ConsentRecord): Promise<void> {
+    // Record as safety event, no DOB, no personal data
+    safetyEventStore.record('age-attested', participantId, null, {
+      consentVersion: consent.consentVersion,
+      ageAttested: consent.ageAttested ? 1 : 0,
+    });
+    safetyEventStore.record('consent-accepted', participantId, null, {
+      consentVersion: consent.consentVersion,
+    });
   },
 });
 
-/**
- * The five disclosure statements shown in the safety notice.
- *
- * The last is required for media modes only (ADR-014).
- */
+export const createNotImplementedAgeGateService = createAgeGateService;
+
 export const SAFETY_NOTICE_STATEMENTS = [
   'You will be connected with random strangers.',
   'Conversations are not screened in real time. You may encounter offensive content.',

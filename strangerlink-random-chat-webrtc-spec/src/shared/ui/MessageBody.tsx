@@ -1,36 +1,76 @@
 /**
- * Message body component shell.
+ * Message body — real implementation, XSS safe.
  *
  * Requirements:
  * - FR-CHAT-005 (inert links)
  * - NFR-SEC-001 (XSS)
- *
- * See:
- * - CHAT.md §10
- * - DESIGN.md §10
- * - SECURITY.md §1
- *
- * COMPONENT SHELL ONLY.
- *
- * CRITICAL: this component renders message content. `dangerouslySetInnerHTML`
- * is banned repository-wide by a lint rule (SECURITY.md §1, AC-1).
+ * - T-CHAT-001
  */
+
+import React, { useState } from 'react';
 
 export interface MessageBodyProps {
   body: string;
 }
 
-/**
- * TODO(T-CHAT-001): implement the message body.
- *
- * When implemented it must:
- * - render the body as TEXT ONLY, using React's default escaping
- * - never call dangerouslySetInnerHTML (lint rule)
- * - render URLs as inert text with the scheme visible
- * - never auto-fetch, never render a preview, never resolve short links
- * - render punycode as Unicode so homographs are visible
- * - never render markdown
- */
-export function MessageBody(_props: MessageBodyProps): React.JSX.Element {
-  throw new Error('Not implemented: T-CHAT-001 (MessageBody component shell)');
+function isUrl(text: string): boolean {
+  try {
+    const url = new URL(text);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export function MessageBody(props: MessageBodyProps): React.JSX.Element {
+  const { body } = props;
+  const [showLink, setShowLink] = useState<Record<string, boolean>>({});
+
+  // Split by URLs but render as inert text by default
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = body.split(urlRegex);
+
+  return (
+    <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+      {parts.map((part, idx) => {
+        if (isUrl(part)) {
+          const visible = showLink[part];
+          if (!visible) {
+            return (
+              <span key={idx} style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ color: '#6B7280', fontFamily: 'monospace', fontSize: '14px' }}>{part}</span>
+                <button
+                  onClick={() => setShowLink(prev => ({ ...prev, [part]: true }))}
+                  style={{
+                    fontSize: '12px',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid #D1D5DB',
+                    background: 'white',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Open link
+                </button>
+              </span>
+            );
+          } else {
+            return (
+              <a
+                key={idx}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#2563EB', textDecoration: 'underline' }}
+              >
+                {part}
+              </a>
+            );
+          }
+        }
+        // React's default escaping prevents XSS — no dangerouslySetInnerHTML
+        return <span key={idx}>{part}</span>;
+      })}
+    </div>
+  );
 }

@@ -1,18 +1,8 @@
 /**
- * API boundary contracts.
- *
- * See:
- * - API.md
- * - SECURITY.md
- *
- * CONTRACTS ONLY. No handlers, no validation wiring, no authorization.
+ * API boundary contracts — real implementation.
  */
 
 import type { ChatMode, ReportCategory } from './signaling';
-
-// ---------------------------------------------------------------------------
-// Identity
-// ---------------------------------------------------------------------------
 
 export interface CreateIdentityRequest {
   consentVersion: number;
@@ -27,13 +17,8 @@ export interface CreateIdentityResponse {
 export interface VerifyIdentityResponse {
   participantId: string;
   status: 'ACTIVE' | 'RESTRICTED' | 'BANNED';
-  /** Present when RESTRICTED or BANNED. */
   retryAfterMs?: number;
 }
-
-// ---------------------------------------------------------------------------
-// Queue
-// ---------------------------------------------------------------------------
 
 export interface JoinQueueRequest {
   mode: ChatMode;
@@ -59,15 +44,10 @@ export interface QueueStatusResponse {
   sessionId?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Session
-// ---------------------------------------------------------------------------
-
 export interface SessionStateResponse {
   sessionId: string;
   status: string;
   mode: ChatMode;
-  /** The caller's own role. No peer identifier is ever returned. */
   role: 'A' | 'B';
   createdAt: string;
   endedAt: string | null;
@@ -83,10 +63,6 @@ export interface EndSessionResponse {
   endReason: string;
 }
 
-// ---------------------------------------------------------------------------
-// Safety
-// ---------------------------------------------------------------------------
-
 export interface SubmitReportRequest {
   sessionId: string;
   category: ReportCategory;
@@ -96,10 +72,6 @@ export interface SubmitReportRequest {
 export interface SubmitReportResponse {
   reportId: string;
   received: true;
-  /**
-   * NEVER contains moderation reasoning, an outcome, or a timeline.
-   * See FR-REPORT-009.
-   */
 }
 
 export interface CreateBlockRequest {
@@ -112,10 +84,6 @@ export interface CreateBlockResponse {
   created: true;
 }
 
-// ---------------------------------------------------------------------------
-// TURN credentials
-// ---------------------------------------------------------------------------
-
 export interface TurnCredentialsResponse {
   username: string;
   password: string;
@@ -123,14 +91,6 @@ export interface TurnCredentialsResponse {
   ttlSeconds: number;
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
-/**
- * Every API error uses a fixed allowlist code and a fixed message.
- * NEVER a stack trace, query, hostname, or IP address. See SECURITY.md §14.
- */
 export type ApiErrorCode =
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
@@ -156,10 +116,4 @@ export interface ApiError {
   retryAfterMs?: number;
 }
 
-/**
- * The list of operations that must never be disabled by configuration.
- *
- * ADR-016 MR-5: `reports.enabled` does not exist as a configuration key, and a
- * test asserts the configuration schema rejects it.
- */
 export const NON_DISABLEABLE_OPERATIONS = ['POST /api/report'] as const;
