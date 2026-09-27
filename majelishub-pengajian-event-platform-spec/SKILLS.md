@@ -16,7 +16,7 @@ it, and what it cannot do.
 | Step | Command / location | What it proves |
 |---|---|---|
 | 1 | `ls -la ~/.claude ~/.config ~/skills /opt /usr/local/share/skills` | Whether skill directories exist at the conventional locations |
-| 2 | `find / -maxdepth 5 -iname '*skill*' 2>/dev/null` | Any skill manifest (`SKILL.md`, `*.skill.json`, skill packs) |
+| 2 | `find / -maxdepth 5 -iname '*skill*' 2>/dev/null` | Any skill manifest (a `SKILL` manifest file, `*.skill.json`, skill packs) |
 | 3 | `env \| grep -iE 'skill\|agent\|mcp'` | Skill-related environment or MCP configuration |
 | 4 | Inspect the agent runtime's own tool list (e.g. a "list skills" capability) | Skills registered inside the runtime rather than on disk |
 

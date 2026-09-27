@@ -164,7 +164,17 @@ records the 2026 technology validation performed before freezing the architectur
 - **Playwright:** the browser layer for the two workflows that dominate risk — **QR check-in at a busy entrance** and **a 2-hour recording session** (needs real MediaRecorder, real device permissions, fake devices via Chromium flags, and trace/video evidence on failure).
 - **Layers:** jsdom-ish/Node unit tests → Postgres-backed integration tests → real-browser component tests → a thin Playwright E2E set over the money paths. See `TESTING.md`.
 - **Rejected:** Jest (slower cold start, worse ESM/TS story, no unified browser mode); Cypress (Playwright overtook it; worse parallelism and mobile-emulation story).
-- **Phase 0 note:** only `describe.todo()` skeletons exist. No test runner is installed.
+- **Phase 0 note (historical):** only `describe.todo()` skeletons existed and no test runner was
+  installed. Vitest 4 is installed as of VS-1 (see §Installation record).
+- **Integration database in environments without a container runtime — PGlite (dev-only).**
+  `@electric-sql/pglite` 0.5.8 embeds a real PostgreSQL 18 (WASM) in the test process. Classification:
+  **SELECTED as a development/CI convenience, never a runtime dependency.** It is used by
+  `tests/support/db.ts` when `INTEGRATION_DATABASE_URL` is not set; when that variable is set the same
+  suite runs against a real PostgreSQL server (the service container in `ops/docker-compose.test.yml`,
+  owned by `T-TEST-001`). It is *not* a mock: constraints, row-level security, transactions and
+  `current_setting()` behave identically, which is what makes the `T-SEC-001` isolation proof valid
+  (`TESTING.md` §1.3 forbids mocking the database for constraint behaviour). It never ships to
+  production and never appears in `dependencies`.
 
 ## 17. Containerisation & CI/CD
 
@@ -195,7 +205,52 @@ records the 2026 technology validation performed before freezing the architectur
 4. No `latest` tags anywhere — Docker images, CI actions and ffmpeg are pinned by digest/version.
 5. A dependency may only be added if it removes more code than it adds, or removes an operational risk we cannot otherwise cover.
 
-## 20. Sources consulted (validation trail)
+## 20. Installation record (VS-1, 2026-09-27)
+
+The Phase 0 freeze was lifted and the SELECTED toolchain was installed, exactly as §Classification
+legend prescribes ("Installation happens when VS-1 starts"). Pinned versions (`package.json`,
+`--save-exact`), all inside the version lines this document selects:
+
+| Package | Version | Classification basis |
+|---|---|---|
+| `next` | 16.3.6 | §1 SELECTED (16.3.x line) |
+| `react`, `react-dom` | 19.3.0 | §2 SELECTED (React 19.x; the 19.2 line advanced to 19.3 — same major, §19.3) |
+| `zod` | 4.6.5 | validation schemas (`src/shared/validation/**`) |
+| `drizzle-orm` | 0.45.3 | §5 SELECTED (0.4x line) |
+| `drizzle-kit` | 0.31.11 | §5 SELECTED (migrations as reviewed SQL) |
+| `pg` | 8.23.0 | §5 SELECTED (`pg` driver) |
+| `better-auth` | 1.6.33 | §6 SELECTED (1.6.x line), ADR-0005 |
+| `typescript` | 5.9.3 | §2 SELECTED (5.9+, strict) |
+| `eslint` + `typescript-eslint` | 9.39.5 / 8.70.1 | §16, `T-ARCH-002/003` (flat config) |
+| `vitest` | 4.1.11 | §16 SELECTED (Vitest 4) |
+| `@playwright/test` | 1.63.0 | §16 SELECTED (browser download skipped here; `T-TEST-001`) |
+| `@electric-sql/pglite` | 0.5.8 | §16 dev-only integration harness (above) |
+| `@better-auth/memory-adapter` | 1.6.33 | dev-only: identity store for the `T-ORG-001` round-trip test (below) |
+| `@types/node`, `@types/react`, `@types/react-dom`, `@types/pg` | 24.19.0 / 19.3.0 / 19.3.0 / 8.23.1 | types for the above |
+
+Not installed, deliberately: any provider SDK, Redis/BullMQ, Elasticsearch, vector stores, Kubernetes
+tooling — all REJECTED or PLANNED for a later slice (§13, §14, §18).
+
+**Dev-only addition, 2026-09-27: `@better-auth/memory-adapter` 1.6.33** (a `devDependency`, never in
+`dependencies`). Classification: **test double for the identity store only.**
+`tests/integration/identity/auth-round-trip.test.ts` proves the sign-up → cookie → `getSession()` round
+trip through the production `createAuth` configuration, but injects this adapter instead of the `pg`
+pool. Reason, recorded because it constrains `T-ORG-001`: `@better-auth/drizzle-adapter` (a transitive
+dependency of `better-auth`, deliberately *not* installed) resolves Better Auth's mapped field names
+against Drizzle table **properties**, while the production `pg` pool adapter needs the real snake_case
+**column** names; with the mappings the pool requires, the Drizzle adapter emits `DEFAULT` for `users.id`
+and the insert fails the not-null constraint. Running the identity store on PostgreSQL through Drizzle is
+a recorded follow-up for `T-ORG-001`; production remains `database: getPool()`, and session/user rows in
+PostgreSQL are covered by `tests/integration/security/session-revocation.test.ts` and `session-scope.test.ts`.
+
+Runtime note for this environment: the sandbox default is Node 22 (Maintenance LTS) while `engines` and
+§3 target Node 24 Active LTS. As of 2026-09-27 the whole verification set — `tsc --noEmit`, `eslint`,
+`vitest run`, `ops/docs-lint.mjs` and `next build` — was executed on **Node.js v24.21.0** (installed from
+the npm `node@24.21.0` package, because direct downloads from `nodejs.org` are blocked by this
+environment's network egress) with npm 11.20.0. Node 22 also passes everything except that `engines`
+warns; the deployment target is Node 24 (ADR-0020).
+
+## 21. Sources consulted (validation trail)
 
 Official and primary sources (accessed 2026-09-26):
 

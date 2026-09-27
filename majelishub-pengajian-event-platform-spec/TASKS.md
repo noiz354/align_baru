@@ -6,8 +6,12 @@ write, and what "done" means.
 
 Read `AGENTS.md` first — the ten-step pre-change checklist applies to every task here.
 
-**Status: Phase 0.** Nothing below the "Part A" tasks that are marked *Phase 0* is implemented. The
-skeleton repository contains contracts, ports, route shells and `describe.todo()` tests only.
+**Status: VS-1 in progress (Phase 0 freeze lifted 2026-09-27).** Six tasks are delivered — `T-ORG-001`
+(identity integration with durable rate limiting), `T-SEC-001` (tenant isolation), `T-SEC-002`
+(authorization enforcement), `T-DOCS-001` (documentation gate), `T-ARCH-002` (module-boundary lint rule)
+and `T-ARCH-003` (no-fake-implementation lint rule) — each with a `Delivered:` line recording what was and
+was not built. The app shell also builds (`src/app/layout.tsx`, `next.config.ts`). Everything else is
+still specified only: contracts, ports, route shells and `describe.todo()` tests.
 
 ---
 
@@ -84,6 +88,18 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/docs/references.test.ts` — the checker itself is unit-tested against fixture document trees (missing ADR index entry, dangling requirement ID, empty doc).
 - **Manual QA:** run the gate against the current repository; expect zero findings. Then introduce a deliberate dangling reference and confirm it fails.
 - **Definition of Done:** the script exists, is wired into CI, is unit-tested, and the repository passes it as of the Phase 0 freeze.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/docs-lint.mjs` implements all five
+  checks (`adr-index`, `requirement-id`, `doc-path`, `task-id`, `empty-doc`) plus a `structure` check for a
+  missing catalogue, exports `collectFindings`/`formatFindings`/`run` so it is unit-testable, and exits 1 on
+  any finding (`npm run docs:lint`). `tests/unit/docs/references.test.ts` (10 tests) runs it against fixture
+  trees for every rule and against this repository, which must yield zero findings. Two deviations, both
+  recorded here rather than hidden: the ADR index is `ADR.md` at the repository root (`docs/adr/README.md` is
+  accepted as a fallback), and `REFERENCE_EXEMPTIONS` lists the two test files whose fixtures deliberately
+  contain invalid identifiers — the exemption covers only the three reference rules, is asserted narrow by a
+  test, and turning it off is proven to surface findings. Its first run found three real defects, all fixed:
+  a check-in requirement id cited by the authorization matrix that `PRD.md` does not define (that row now
+  cites `FR-ATTEND-004`), a skill-manifest file name cited by `SKILLS.md` that is not in this repository, and
+  a placeholder document name cited by this gate's own header comment.
 
 ---
 
@@ -104,6 +120,15 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/lint/boundaries.test.ts` — runs ESLint programmatically over violating fixtures and asserts each is reported.
 - **Manual QA:** introduce a `domain → server` import in a scratch branch; confirm CI fails with an explanatory message.
 - **Definition of Done:** rule active on `src/**` and `tests/**`, fixture tests pass, no unexplained disables exist in the codebase.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/eslint/module-boundaries.mjs`
+  (`majelishub/module-boundaries`), wired in `eslint.config.mjs` for `src/**`. It understands the `@/` alias
+  and enforces the allowed-import map from `ARCHITECTURE.md` §5 (`app → features → domain → shared`; `domain`
+  may import `shared` only, and may not import `next`, `react`, `pg`, `drizzle-orm`, `better-auth` or
+  `node:fs|net|http`), plus cross-feature imports through the published surface only, no `src/server/**` from
+  a `"use client"` component, and the Drizzle schema only inside `src/server/**`. An inline disable without a
+  written reason (`-- why`) is itself an error. `tests/unit/lint/boundaries.test.ts` (8 tests) lints fixtures
+  with the shipped config. Note: `tests/**` is exempt from the layer rule (tests legitimately reach every
+  layer) but not from `no-fake-implementation`.
 
 ---
 
@@ -124,6 +149,17 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/lint/no-fake.test.ts` — positive and negative fixtures, including a stub naming a non-existent task ID.
 - **Manual QA:** add a fake `return { success: true }` in a scratch branch and confirm the rule reports it.
 - **Definition of Done:** rule active, fixtures tested, CI green on the Phase 0 skeleton with zero unexplained exceptions.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/eslint/no-fake-implementation.mjs`
+  (`majelishub/no-fake-implementation`) reports (a) constant `success: true`/`ok: true` object returns in
+  `src/**` (only when every property is a constant — a computed value is not a lie), (b) a
+  `throw new Error("Not implemented: …")` without a task id, (c) one whose id is absent from `TASKS.md` (all
+  53 ids in `src/**` are validated on every lint run), and (d) a `test.todo`/`describe.todo`/`test.fixme`
+  title that states no behaviour (< 12 characters or a placeholder word). If `TASKS.md` cannot be read the
+  rule reports `catalogue-unreadable` instead of passing silently. `tests/unit/lint/no-fake.test.ts` (4 tests)
+  covers positive and negative fixtures. Also delivered with it, under the same plugin
+  (`ops/eslint/index.mjs`): the `no-console` ban of T-OBS-002 with the `src/server/bootstrap/**` exemption,
+  tested by `tests/unit/lint/console-ban.test.ts` (3 tests); the runtime logger half of T-OBS-002 remains
+  open, as does the T-SEC-004 field-name ban.
 
 ---
 
@@ -147,6 +183,41 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 
 ---
 
+### T-ORG-001 — Identity integration (Better Auth) with durable rate limiting
+
+- **Requirement IDs:** NFR-SEC-001 (every mutating API requires an authenticated principal), NFR-SEC-010 (rate limits survive restarts and are shared), FR-ORG-001/002 (identity behind the tenant), NFR-PRIV-006 (no credentials in telemetry)
+- **Goal:** An organizer, volunteer, reviewer or platform administrator can sign in and hold a session that lives in our database, and every authentication attempt is limited by a counter that survives a deploy and is shared by every replica.
+- **ADR:** ADR-0005 (Better Auth, sessions in our Postgres, in-memory limiter forbidden), ADR-0017 (identity is global while roles stay scoped), ADR-0020 (migrations are an explicit deploy step)
+- **Product documents:** `SECURITY.md` §2/§9/§13, `docs/security/AUTHZ-MATRIX.md` §1, `DATA_MODEL.md` §1 (`users`, `sessions`), `docs/research/STACK-2026.md` §6
+- **Expected modules:** `src/server/auth/auth.ts`, `src/server/auth/session.ts`, `src/server/auth/rate-limit.ts`, `src/server/http/rate-limit.ts`, `src/server/config.ts`, `src/server/db/schema/identity.ts`, `drizzle/0000_identity_and_tenancy.sql`, `src/app/api/auth/[...all]/route.ts`
+- **Dependencies:** Phase 0 dependency freeze lifted (VS-0 exit verification); Drizzle + `pg` schema scaffolding
+- **Expected behavior:** the identity handler is mounted at `/api/auth/*`; users, sessions, accounts and verifications are stored in our PostgreSQL with the column names `DATA_MODEL.md` specifies; the session cookie is `HttpOnly`, `Secure` (production) and `SameSite=Lax`; `getSession()` reads the session row and the user's ACTIVE memberships (never a cached cookie); `revokeSession()` deletes the row and records the action with actor and reason; every authentication path is rate limited through a Postgres bucket table using a single atomic statement per attempt.
+- **Invariants:** sessions live in the database, so a restart logs nobody out; the library's in-memory rate limiter is never used (`RATE_LIMIT_STORE=memory` is refused in production); roles are read from memberships on every request, so a role change takes effect on the next request; no token value or raw IP address is written to a row, a log line or an error message; a rate limiter that cannot count fails closed rather than allowing.
+- **Security:** this task removes the single largest operational risk recorded in ADR-0005 (an in-memory limiter that resets on deploy); secrets are validated at boot; cookies carry no authorization decisions; revocation is immediate at the next request.
+- **Privacy:** identity data stays in our database (exportable and deletable under UU PDP); rate-limit keys are HMAC-hashed with a rotating salt, so no client IP is stored; no participant account is created by any path in this task (participants hold capability tokens, ADR-0006).
+- **Concurrency:** the check and the increment are one `INSERT … ON CONFLICT DO UPDATE … RETURNING`, so N simultaneous attempts cannot all pass a stale read; the window start is derived from the clock, so replicas compute the same bucket without coordinating.
+- **Failure cases:** database unreachable → the sign-in fails (never a local fallback session) · missing or short `BETTER_AUTH_SECRET` → boot failure · expired or revoked session → `getSession()` returns null and the caller answers 401 · limit reached → `RATE_LIMITED` with `Retry-After` · unknown session id on revocation → `NOT_FOUND`.
+- **Tests:** `tests/integration/security/rate-limits.test.ts` (documented thresholds, shared durable counters, 200 scans/min/event not throttled, `RATE_LIMITED` shape, no raw IP stored) · `tests/integration/security/session-revocation.test.ts` (revocation deletes the row, event without the token, reason length, `NOT_FOUND`).
+- **Manual QA:** sign in with two organizer accounts on one deployment, list and revoke one session, and confirm the revoked browser is signed out on its next request while the other is unaffected. Record the outcome in the PR.
+- **Definition of Done:** the identity handler is mounted and sessions are database-backed; no code path uses an in-memory rate limiter; the listed tests pass against a real PostgreSQL; `npm run typecheck`, `npm run lint` and both test layers are green.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru`. **Round trip closed 2026-09-27:**
+  `tests/integration/identity/auth-round-trip.test.ts` (7 tests) drives `POST /api/auth/sign-up/email`
+  through the same `handler(request)` call the mounted route makes, asserts the session cookie attributes
+  (`HttpOnly`, `SameSite=Lax`, `Secure` only in production), reads the session back with `getSession()`,
+  refuses a wrong password with 401, ends the session on sign-out, returns null for an unknown cookie, and
+  proves the durable Postgres limiter refuses with 429. Two findings from that work are now part of the code:
+  `createAuth` takes the identity store as an injected dependency (`AuthDependencies.database`) because the
+  store is a port, and `src/server/http/auth-response.ts` adds the standard `Retry-After` header to the
+  library's 429 (Better Auth sends the non-standard `x-retry-after`; API.md §1 promises `Retry-After`).
+  Explicitly **not** delivered here: the round trip injects Better Auth's memory adapter, because
+  `@better-auth/drizzle-adapter` resolves the snake_case field mappings that the production `pg` pool needs
+  against Drizzle table *properties* instead of column names, and the insert then sends `NULL` for `id`;
+  running the identity store on PostgreSQL through Drizzle is a follow-up for this task (production keeps
+  `database: getPool()`, and session/user rows in PostgreSQL are covered by `session-revocation` and
+  `session-scope`). Passkeys/2FA are T-SEC-009; membership CRUD and invitations are T-ORG-002/T-ORG-003; the rejection metric and bucket cleanup job are T-SEC-010. Deviation recorded: `users.id` is a text identifier issued by Better Auth, while domain aggregates keep UUIDv7 (`DATA_MODEL.md` global conventions) — the identity tables are owned by the library (ADR-0005).
+
+---
+
 ### T-SEC-001 — Tenant isolation (scope enforcement + RLS)
 
 - **Requirement IDs:** FR-ORG-003, NFR-SEC-003, NFR-SEC-001
@@ -164,6 +235,7 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/isolation.test.ts` — for each tenant-scoped table and each role, attempt cross-org read/write/delete by id, slug and list query; assert 404/empty and zero rows returned; a dedicated test asserts an unscoped repository call is impossible to express.
 - **Manual QA:** QA-07 row 1 (contact harvesting attempt) executed against a staging deployment with two organizations.
 - **Definition of Done:** isolation suite green across every route and Server Action touching tenant data; RLS enabled with documented policies; audit events emitted for attempted cross-org access.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — scope contract (`src/shared/contracts/scope.ts`), `deriveScope` (`src/server/auth/permissions.ts`), scoped repositories (`src/server/db/repositories/{organizations,mosques}.ts`), the scoped transaction that sets the RLS session variables and switches to the application role (`src/server/db/client.ts`), and RLS policies (`drizzle/0001_row_level_security.sql`). Tests: `tests/integration/security/isolation.test.ts` (both layers proved independently), `tests/integration/security/session-scope.test.ts`, `tests/unit/security/scope-guards.test.ts`. Explicitly **not** delivered at the time: `requirePermission`/`permissionsForRole` — since delivered by T-SEC-002 on 2026-09-27; the audit event is emitted through an interim stdout sink until T-SEC-007 provides the durable hash-chained table; the isolation suite enumerates the repositories that exist today and must grow with every new scoped endpoint (route-manifest enumeration arrives with the first API routes in VS-2).
 
 ---
 
@@ -184,6 +256,28 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/permissions.test.ts` — a generated matrix test that calls every protected action with every role and asserts the documented outcome (✓ allowed, — denied, ✓* reason required), plus a test that no protected action executes without a `requirePermission` call (static analysis).
 - **Manual QA:** attempt a role-escalation flow with a mosque administrator account and confirm refusal plus audit entry.
 - **Definition of Done:** the generated test covers 100% of the matrix rows; the static check proves no unprotected action exists; audit records verified.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `src/server/auth/permissions.ts` holds the
+  matrix as data (`AUTHORIZATION_MATRIX`: 53 rows × 9 roles, each row citing where it comes from in
+  `docs/security/AUTHZ-MATRIX.md`), `grantForRole`, `permissionsForRole` (unknown role → empty list, never a
+  default), `allPermissionKeys`, `requiresReason` and the single choke point `requirePermission`, plus
+  `assertCanGrantRoles` for the escalation guard and `PLATFORM_ONLY_PERMISSIONS` /
+  `SEPARATION_OF_DUTIES_PERMISSIONS` / `NON_DELEGABLE_ROLES`. `PERMISSION_KEYS` is now the single source of
+  truth for the vocabulary in `src/shared/contracts/permissions.ts` (the union type is derived from it).
+  Order of evaluation: identity → key validity (unknown key fails closed with an event) → role grant →
+  ownership for `⬤` grants → device binding for entrance scanning → reason ≥ 8 characters → separation of
+  duties → no self-escalation → scope chain. Cross-organization access answers **404**, a permission the role
+  does not hold answers **403**, and every denial emits an `authorization_denied` event with actor, scope and
+  permission key but no resource identifiers; reason-required grants emit `authorization_reason_recorded`
+  carrying the reason (SECURITY.md §12). `tests/integration/security/permissions.test.ts` (6 tests) walks all
+  477 matrix cells, proves the reason rule for every reason-required key, refuses self-approval and
+  self-escalation, and statically proves that every one of the 26 route files either calls
+  `requirePermission` or is listed with a reason in the new `src/server/auth/public-routes.ts` (today:
+  `/api/v1/health`, `/api/auth/[...all]`); the 24 remaining shells are recognised as stubs only while every
+  handler is a bare `Not implemented: <real task id>` throw with no data access imported. Two deviations,
+  recorded in `docs/security/AUTHZ-MATRIX.md` §4.5: where the matrix shows a plain ✓ for a key that
+  `REASON_REQUIRED_PERMISSIONS` lists, the stricter rule wins; and `speaker.claim` is folded into
+  `speaker.write`. Still open: durable audit storage for these events (T-SEC-007) — they go through the
+  interim stdout sink — and the per-route `requirePermission` calls, which arrive with each route's own task.
 
 ---
 
@@ -803,7 +897,7 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 
 | ID | Task | Requirements | Slice |
 |---|---|---|---|
-| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | Planned / VS-1 |
+| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | **Delivered 2026-09-27** — full block in A.1 |
 | T-ORG-002 | Organization + membership model and role assignment | FR-ORG-001, FR-ORG-002 | Planned / VS-1 |
 | T-ORG-003 | Role switching, invitation and offboarding flows | FR-ORG-004, FR-ORG-005 | Planned / VS-1 |
 | T-MOSQUE-001 | Mosque create/edit with address, coordinates, timezone | FR-MOSQUE-001 | Planned / VS-1 |
@@ -960,15 +1054,17 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 
 ---
 
-## 3. Task status summary (Phase 0)
+## 3. Task status summary
 
-Every task in this file is **specified only**. Nothing here is implemented, and nothing may be until the
-Phase 0 freeze is lifted (`ROADMAP.md` VS-0 exit criteria).
+The Phase 0 freeze was lifted on 2026-09-27 after the VS-0 exit criteria were verified
+(`ROADMAP.md`). Six tasks are delivered (`T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-DOCS-001`,
+`T-ARCH-002`, `T-ARCH-003`); every other task in this file is still **specified only**, and each Part B row
+must be expanded into a full sixteen-field block before its slice begins.
 
 | Section | Part A — full sixteen-field blocks | Part B — planned inventory rows |
 |---|---|---|
-| A.1 / B.1 Foundation, architecture, testing | 4 | 7 |
-| A.1 / B.1 Security, observability, operations | 12 | 6 |
+| A.1 / B.1 Foundation, architecture, testing | 4 (incl. `T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`, delivered) | 7 |
+| A.1 / B.1 Security, observability, operations | 13 (incl. `T-ORG-001`, `T-SEC-001`, `T-SEC-002`, delivered) | 5 |
 | A.2 / B.4 Registration | 2 | 10 |
 | A.2 / B.5 Check-in and attendance | 8 | 18 |
 | A.2 / B.6 Audio | 3 | 13 |
@@ -976,7 +1072,7 @@ Phase 0 freeze is lifted (`ROADMAP.md` VS-0 exit criteria).
 | A.3 / B.8 Feedback and notifications | 3 | 14 |
 | B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 0 | 26 |
 | B.9 Dashboards, moderation, audit, hardening | 0 | 19 |
-| **Total** | **35** | **132** |
+| **Total** | **36** | **131** |
 
 Part A tasks are the ones other documents already point at by ID (see the "Task ownership" lines in the
 skeleton files, `THREAT_MODEL.md` mitigations, and the ADRs). Part B rows are the remaining inventory;
@@ -1014,8 +1110,14 @@ Counts by module, for cross-checking against other documents:
 
 ## 5. First implementation task
 
-When the Phase 0 freeze is lifted, the first task to execute is **VS-1 · T-ORG-001** (identity
-integration with a durable rate limiter) followed immediately by **T-SEC-001** (tenant isolation) — see
+The first tasks after the Phase 0 freeze were **VS-1 · T-ORG-001** (identity integration with a durable
+rate limiter) followed immediately by **T-SEC-001** (tenant isolation) — see
 `docs/architecture/FINAL-REVIEW.md` and the VS-0 exit criteria in `ROADMAP.md`. Everything else depends
 on those two being correct, because every later slice adds rows that must never be visible across
 organizations.
+
+**Executed 2026-09-27.** Both tasks carry a `Delivered:` line above, as do the four tasks delivered
+after them the same day (`T-SEC-002`, `T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`). The next task in VS-1
+order is `T-ORG-002` (organization + membership model and role assignment) — it is the first task that can
+use the delivered `organization_members` schema and `assertCanGrantRoles` escalation guard — followed by
+`T-MOSQUE-001` (mosque create/edit) and `T-ORG-003` (role switching, invitation, offboarding).

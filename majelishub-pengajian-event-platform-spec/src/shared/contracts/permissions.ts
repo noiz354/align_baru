@@ -14,24 +14,59 @@
  *   4. Separation of duties: a reviewer cannot approve their own revision, and moderation decisions
  *      are platform-only (ADR-0012, SECURITY.md §4).
  */
-export type PermissionKey =
-  | "organization.read" | "organization.write" | "organization.member.manage"
-  | "mosque.read" | "mosque.write" | "mosque.venue.write" | "mosque.share.grant"
-  | "speaker.read" | "speaker.write" | "speaker.verify"
-  | "program.read" | "program.write"
-  | "event.read" | "event.write" | "event.publish" | "event.cancel"
-  | "registration.read" | "registration.manage" | "registration.export"
-  | "checkin.validate" | "checkin.record" | "checkin.walkin" | "checkin.session.bind" | "checkin.correct"
-  | "attendance.read" | "attendance.correct" | "attendance.export"
-  | "audio.record" | "audio.read" | "audio.process" | "audio.publish" | "audio.withdraw"
-  | "transcript.request" | "transcript.read" | "transcript.edit" | "transcript.approve" | "transcript.publish"
-  | "content.read" | "content.publish" | "content.withdraw" | "content.material.manage"
-  | "feedback.submit" | "feedback.read" | "feedback.moderate"
-  | "notification.template.manage" | "notification.replay"
-  | "analytics.read"
-  | "audit.read" | "audit.export"
-  | "moderation.report" | "moderation.decide"
-  | "platform.operate" | "platform.config.manage";
+/**
+ * Every permission key, as data.
+ *
+ * The union type below is DERIVED from this list, so the runtime catalogue and the compile-time
+ * vocabulary cannot drift: `tests/integration/security/permissions.test.ts` walks this array against
+ * `AUTHORIZATION_MATRIX` and fails if a key is missing a row or a row has no key.
+ */
+export const PERMISSION_KEYS = [
+  "organization.read", "organization.write", "organization.member.manage",
+  "mosque.read", "mosque.write", "mosque.venue.write", "mosque.share.grant",
+  "speaker.read", "speaker.write", "speaker.verify",
+  "program.read", "program.write",
+  "event.read", "event.write", "event.publish", "event.cancel",
+  "registration.read", "registration.manage", "registration.export",
+  "checkin.validate", "checkin.record", "checkin.walkin", "checkin.session.bind", "checkin.correct",
+  "attendance.read", "attendance.correct", "attendance.export",
+  "audio.record", "audio.read", "audio.process", "audio.publish", "audio.withdraw",
+  "transcript.request", "transcript.read", "transcript.edit", "transcript.approve", "transcript.publish",
+  "content.read", "content.publish", "content.withdraw", "content.material.manage",
+  "feedback.submit", "feedback.read", "feedback.moderate",
+  "notification.template.manage", "notification.replay",
+  "analytics.read",
+  "audit.read", "audit.export",
+  "moderation.report", "moderation.decide",
+  "platform.operate", "platform.config.manage",
+] as const;
+
+export type PermissionKey = (typeof PERMISSION_KEYS)[number];
+
+/**
+ * Role catalogue - exactly the nine roles of `docs/security/AUTHZ-MATRIX.md` §1.
+ *
+ * Single source of truth: the membership CHECK constraint (`src/server/db/schema/tenancy.ts`) and the
+ * authorization matrix (`src/server/auth/permissions.ts`) both read this list, so a role can never
+ * exist in the database without existing in the matrix, or the reverse.
+ */
+export const ROLE_KEYS = [
+  "PARTICIPANT",
+  "SPEAKER",
+  "MOSQUE_ADMIN",
+  "ORGANIZER",
+  "VOLUNTEER",
+  "AUDIO_OPERATOR",
+  "TRANSCRIPT_REVIEWER",
+  "MODERATOR",
+  "PLATFORM_ADMIN",
+] as const;
+
+export type RoleKey = (typeof ROLE_KEYS)[number];
+
+export function isRoleKey(value: string): value is RoleKey {
+  return (ROLE_KEYS as readonly string[]).includes(value);
+}
 
 /** Keys that require a stored reason (matrix `✓*`). Length >= 8, audited (SECURITY.md §4). */
 export const REASON_REQUIRED_PERMISSIONS: readonly PermissionKey[] = [

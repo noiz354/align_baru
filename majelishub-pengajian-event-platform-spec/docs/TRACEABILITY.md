@@ -3,9 +3,11 @@
 The requirement → document → task → test chain for every stable requirement ID in `PRD.md`.
 Generated from the PRD tables; **requirement IDs are the primary key and never change**.
 
-Status legend: `SPEC` = specified in documents (this is the current state of the whole project —
-Phase 0 has no product implementation) · `SKELETON` = contracts/ports/tests exist · `IMPL` =
-implemented (no requirement is at this state yet).
+Status legend: `SPEC` = specified in documents (the state of almost the whole project) · `SKELETON` =
+contracts/ports/tests exist · `IMPL` = implemented. Since the Phase 0 freeze was lifted (2026-09-27) a
+handful of rows carry `IMPL (partial — …)`: the named mechanism exists and is tested, but the
+requirement is not yet satisfied end-to-end because the surfaces it speaks about do not exist yet. The
+qualifier is mandatory — an unqualified `IMPL` means the requirement can be demonstrated in the product.
 
 How to use: (1) find the requirement you are touching; (2) read the documents listed; (3) open the
 task block in `TASKS.md`; (4) satisfy the tests named in `TESTING.md` §3. If a row's mapping looks
@@ -64,8 +66,8 @@ Documents: docs/security/AUTHZ-MATRIX.md · SECURITY.md §4–5 · PRIVACY.md §
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
 | FR-ORG-001 | P0 | An organization (tenant) can be created with a name, type and default timezone; it owns all scoped data. | ARCHITECTURE.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
-| FR-ORG-002 | P0 | An organization can assign members to roles from the role catalogue; a member may hold several roles. | docs/security/AUTHZ-MATRIX.md | T-SEC-002 | SPEC |
-| FR-ORG-003 | P0 | No actor can read or mutate another organization's data through any API, page or export. | SECURITY.md | T-SEC-001 | SPEC |
+| FR-ORG-002 | P0 | An organization can assign members to roles from the role catalogue; a member may hold several roles. | docs/security/AUTHZ-MATRIX.md | T-SEC-002 | IMPL (partial — the nine-role catalogue is the single source of truth (`PERMISSION_KEYS`/`ROLE_KEYS`), the 53 × 9 matrix is data, and `assertCanGrantRoles` refuses self-grants, roles the actor does not hold and platform-trust roles, all proved by `tests/integration/security/permissions.test.ts`; the assignment UI/API is `T-ORG-002`) |
+| FR-ORG-003 | P0 | No actor can read or mutate another organization's data through any API, page or export. | SECURITY.md | T-SEC-001 | IMPL (partial — data layer: scope-first repositories + RLS proved by `tests/integration/security/isolation.test.ts`; no API/page/export exists yet to enumerate) |
 | FR-ORG-004 | P1 | An organization can set defaults used when creating events (timezone, registration mode, recording policy). | docs/product/EVENTS.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
 | FR-ORG-005 | P1 | Roles can be scoped to a subset of mosques/venues (a volunteer responsible for one mosque only). | docs/security/AUTHZ-MATRIX.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
 | FR-ORG-006 | P2 | Organization-level branding (logo, colour) applied to participant-facing pages. | docs/design/DESIGN-SYSTEM.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
@@ -335,16 +337,16 @@ Documents: SECURITY.md · THREAT_MODEL.md · docs/security/{AUTHZ-MATRIX,QR-SECU
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-SEC-001 | P0 | Every mutating API requires an authenticated principal unless it is an explicitly public operation (registration for an `OPEN` event). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
-| NFR-SEC-002 | P0 | Authorization is enforced **server-side** on every request, including Server Actions and route handlers; UI hiding is never a control. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
-| NFR-SEC-003 | P0 | Organization isolation is enforced on every scoped query; no endpoint accepts an unscoped id without an ownership check. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
+| NFR-SEC-001 | P0 | Every mutating API requires an authenticated principal unless it is an explicitly public operation (registration for an `OPEN` event). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — identity, sessions, the durable limiter and the sign-up → `getSession()` round trip are delivered by T-ORG-001; the public surfaces are enumerated in `src/server/auth/public-routes.ts`; no product route exists yet) |
+| NFR-SEC-002 | P0 | Authorization is enforced **server-side** on every request, including Server Actions and route handlers; UI hiding is never a control. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — `requirePermission` is the single server-side choke point and a static test proves no route acts without it or a listed public reason; no product route performs an action yet, so there is nothing more to enumerate) |
+| NFR-SEC-003 | P0 | Organization isolation is enforced on every scoped query; no endpoint accepts an unscoped id without an ownership check. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — every scoped repository requires a `TenantScope` and RLS is the proved second layer; enforcement across *every* endpoint arrives as endpoints are built) |
 | NFR-SEC-004 | P0 | Check-in tokens are opaque, high-entropy (≥128 bits), stored hashed, and compared in constant time. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-005 | P0 | QR payloads contain no PII and no raw database identifiers. | — | T-CHECKIN-003 | SPEC |
 | NFR-SEC-006 | P0 | All state-changing requests require CSRF protection (SameSite cookies + origin checks) and safe methods are idempotent. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-007 | P0 | All user-generated content is escaped/output-encoded; stored HTML is not permitted (Markdown subset only). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-008 | P0 | All database access uses parameterised queries; raw string concatenation into SQL is forbidden. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-009 | P0 | File/audio uploads are size-limited, content-type-verified by sniffing, and never executed or served from the app origin as active content. | — | T-SEC-005 | SPEC |
-| NFR-SEC-010 | P0 | Rate limits exist on registration, check-in, token validation, upload and auth endpoints; limits are durable across restarts. | — | T-REG-009 | SPEC |
+| NFR-SEC-010 | P0 | Rate limits exist on registration, check-in, token validation, upload and auth endpoints; limits are durable across restarts. | — | T-REG-009 | IMPL (partial — durable Postgres buckets with an atomic check-and-increment, shared by replicas and surviving restarts; registration/check-in/upload limits and the rejection metric arrive with their slices, T-SEC-010) |
 | NFR-SEC-011 | P0 | Secrets are supplied via environment/secret manager, never committed, and rotated by procedure (`OPERATIONS.md`). | — | T-SEC-008 | SPEC |
 | NFR-SEC-012 | P1 | A security advisory intake and patch SLA exists (critical ≤ 72h) and dependency review runs monthly. | — | T-SEC-011 | SPEC |
 
@@ -454,7 +456,7 @@ Documents: DEPLOYMENT.md · OPERATIONS.md · docs/operations/{SLO,BACKUP-RESTORE
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-OPS-001 | P0 | Single-command local development (compose: Postgres + storage + collector). | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |
+| NFR-OPS-001 | P0 | Single-command local development (compose: Postgres + storage + collector). | — | T-OPS-001…T-OPS-006, T-DOCS-001 | IMPL (partial — the verification commands all run and are green on Node 24: `typecheck`, `lint` with the project's own boundary and no-fake rules, `test`, `docs:lint` with 0 findings and `build`; the compose stack itself is `T-OPS-001`) |
 | NFR-OPS-002 | P0 | Production topology is documented, reproducible from the repository, and restorable from backup (`docs/operations/BACKUP-RESTORE.md`). | — | T-OPS-006 | SPEC |
 | NFR-OPS-003 | P0 | Rollback is possible within 10 minutes for the web tier and the worker. | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |
 | NFR-OPS-004 | P1 | All configuration is environment-driven and validated at boot with a fail-fast check. | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |

@@ -133,6 +133,13 @@ binding · — = not allowed · ⬤ = allowed for their own record only.
 5. **Reason-required actions** (`✓*`): attendance corrections, exports, moderation decisions,
    transcript approval overrides, unpublish, verification, role escalation. Reason ≥ 8 characters,
    stored in the audit event.
+   *Implementation note (T-SEC-002, 2026-09-27):* where a cell in §3 shows a plain `✓` for a key that
+   `REASON_REQUIRED_PERMISSIONS` in `src/shared/contracts/permissions.ts` lists (`event.cancel`,
+   `transcript.publish`, `attendance.correct`, `audit.export`, `platform.config.manage`), the stricter
+   rule wins — a reason is required for **every** role that holds the key, because the contract list and
+   the matrix must not disagree in the permissive direction. The matrix is transcribed into
+   `AUTHORIZATION_MATRIX` (53 rows) with a `doc` field naming its source row here; `speaker.claim` is
+   folded into `speaker.write`.
 6. **No self-escalation.** A member cannot grant themselves a role, cannot grant a role they do not
    hold, and cannot widen their own mosque scope.
 7. **Platform-admin actions are audited and enumerated.** There is no "superuser bypass" flag;
@@ -149,3 +156,12 @@ binding · — = not allowed · ⬤ = allowed for their own record only.
 | Escalation test | A member cannot grant a role beyond their authority |
 | Reason test | Every `✓*` action without a reason is rejected |
 | Public-surface test | Public endpoints expose only published content per policy |
+
+**Status (2026-09-27, T-SEC-002).** The matrix is data in `src/server/auth/permissions.ts` and the single
+choke point is `requirePermission`. `tests/integration/security/permissions.test.ts` walks all 53 × 9
+cells, asserts the reason rule for every `✓*` key, refuses self-approval and self-escalation, and
+statically proves that every route file under `src/app/api` either calls `requirePermission` or is listed
+with a reason in `src/server/auth/public-routes.ts` (the "one auditable place" ADR-0017 layer 5 asks for).
+Rules 1–3 and 6 are enforced inside `requirePermission`; rule 4 (policy gating) needs the event policy
+model (`T-EVENT-005`) and rule 7's durable audit store is `T-SEC-007` — until then these events go through
+the interim security-event sink.

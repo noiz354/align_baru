@@ -2,14 +2,17 @@
   "name": "majelishub",
   "private": true,
   "version": "0.0.0",
-  "description": "MajelisHub - lifecycle management for Pengajian/Kajian events (Phase 0: specification + skeleton only)",
-  "engines": { "node": ">=24 <25" },
+  "description": "MajelisHub - lifecycle management for Pengajian/Kajian events (VS-1: identity + tenant isolation delivered; everything else is specified skeleton)",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "packageManager": "npm@11",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "eslint .",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
@@ -20,7 +23,28 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
-  "comment": "PHASE 0 NOTE: dependencies are DECLARED here for classification purposes only (docs/research/STACK-2026.md) and are deliberately NOT installed. Installation happens when VS-1 starts. Do not add a dependency without a STACK-2026 classification and, if it is platform-level, an ADR.",
-  "dependencies": {},
-  "devDependencies": {}
+  "comment": "Dependencies are installed as of VS-1 (2026-09-27); every package is classified in docs/research/STACK-2026.md (§Installation record). Do not add a dependency without a STACK-2026 classification and, if it is platform-level, an ADR.",
+  "dependencies": {
+    "better-auth": "1.6.33",
+    "drizzle-orm": "0.45.3",
+    "next": "16.3.6",
+    "pg": "8.23.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@better-auth/memory-adapter": "1.6.33",
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "drizzle-kit": "0.31.11",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "4.1.11"
+  }
 }

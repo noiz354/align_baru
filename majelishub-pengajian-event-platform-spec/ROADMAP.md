@@ -3,7 +3,12 @@
 Delivery is organised as **vertical slices**: each slice ends with something a mosque can actually
 use, plus tests and operations. No slice is "90% done".
 
-**Current status: VS-0 (Phase 0) — specification and skeleton only. No slice has been executed.**
+**Current status: VS-1 in progress.** The Phase 0 freeze was lifted on 2026-09-27 after the VS-0 exit
+criteria were verified; `T-ORG-001` (identity + durable rate limiting), `T-SEC-001` (tenant isolation),
+`T-SEC-002` (authorization enforcement), `T-DOCS-001` (documentation gate) and `T-ARCH-002`/`T-ARCH-003`
+(the module-boundary and no-fake lint rules) are delivered, and `npm run build` runs. The VS-0 deliverables remain in place (36 root documents, 27 ADRs, 57 files
+under `docs/`, the skeleton under `src/`, the placeholder test suites, 9 ops skeleton files, a 167-task
+plan). See the Phase 0 state table under VS-0 below.
 The VS-0 deliverables are in place (36 root documents, 27 ADRs, 57 files under `docs/`, 165 skeleton
 files under `src/`, 98 placeholder test files, 9 ops skeleton files, a 167-task plan). See the Phase 0
 state table under VS-0 below.
@@ -45,16 +50,22 @@ consistent with the docs.
 Contents: research (`docs/research/STACK-2026.md`), PRD, design, architecture, security/privacy,
 testing/QA, roadmap, tasks, skeleton types/ports/routes/tests.
 
-Exit criteria (all must hold):
+Exit criteria (verified 2026-09-27):
 
-- [ ] Every P0/P1 requirement appears in `docs/TRACEABILITY.md`.
-- [ ] `npm run typecheck` passes on the skeleton (types are valid; nothing is implemented).
-- [ ] Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns exist.
-- [ ] All test files contain only `describe.todo`/`test.todo`.
-- [ ] `docs/architecture/FINAL-REVIEW.md` answers every challenge question with a concrete mechanism.
-- [ ] No provider SDK, ORM, auth library or test runner is installed (`package.json` reflects
-      SELECTED-only Phase 0 dependencies).
-- [ ] A reviewer who has never seen the project can explain the check-in path and the transcript gate
+- [x] Every P0/P1 requirement appears in `docs/TRACEABILITY.md` (229 IDs mapped).
+- [x] `npm run typecheck` passes on the skeleton. Verified: `npx tsc --noEmit` exits 0. Getting there
+      required installing the SELECTED toolchain and correcting 42 real defects in the Playwright
+      placeholder files — `test.fixme("title")` is not a valid Playwright signature and `test.todo`
+      does not exist in Playwright, so the declared-but-not-executed form is now
+      `test.fixme("title", async () => {})` (`TESTING.md` §1.4).
+- [x] Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns exist.
+- [x] Test files contained only placeholders at the freeze. The two delivered VS-1 tasks replaced their
+      own placeholders with real tests (31 passing); every other suite is still placeholder-only.
+- [x] `docs/architecture/FINAL-REVIEW.md` answers every challenge question with a concrete mechanism.
+- [x] *Superseded by the freeze lift:* no dependency was installed during Phase 0. Installation of the
+      SELECTED stack happened as the first act of VS-1, as `docs/research/STACK-2026.md` prescribes
+      ("Installation happens when VS-1 starts"), with every added package classified there.
+- [x] A reviewer who has never seen the project can explain the check-in path and the transcript gate
       after reading `README.md` + `ARCHITECTURE.md` + two ADRs.
 
 ### Phase 0 state (2026-09-26)
@@ -64,20 +75,30 @@ What exists now, in the order the exit criteria are listed above:
 | Criterion | State |
 |---|---|
 | Every requirement appears in `docs/TRACEABILITY.md` | **Met** — all 229 PRD IDs are mapped (156 FR / 73 NFR across 26 families). |
-| `npm run typecheck` passes | **Not yet verified** — dependencies are deliberately not installed in Phase 0 (`package.json` has empty `dependencies`/`devDependencies`), so no runner exists to verify with. This is the first item of VS-0 work if the freeze is lifted before VS-1. |
+| `npm run typecheck` passes | **Met — verified 2026-09-27.** `npx tsc --noEmit` exits 0 on TypeScript 5.9.3 with the SELECTED toolchain installed. The verification found and fixed 42 genuine skeleton defects in `tests/e2e/**` (invalid `test.fixme(title)` / non-existent `test.todo` in Playwright). `npm run lint` (ESLint 9 flat config with the TypeScript parser wired) and `npm run test:unit` / `npm run test:integration` also run. |
 | Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns | **Met by inspection** — 95 stubs under `src/` (+2 in `tests/support`), all carrying a task ID that exists in `TASKS.md` (57 distinct IDs); zero `return { success: true }`-style returns; the `T-ARCH-003` lint rule is specified to keep it that way. |
 | Test files contain only placeholders | **Met** — 98 test files, 380 placeholders (338 `test.todo` + 42 `test.fixme`), zero executable assertions (`expect(` does not appear in `tests/`). |
 | `docs/architecture/FINAL-REVIEW.md` answers every challenge question | **Met** — 10 challenges, 6 accepted risks, 6 falsifiers, plus the 14 product questions. |
-| No provider SDK, ORM, auth library or runner installed | **Met** — no dependency is installed at all; `docs/research/STACK-2026.md` classifies everything as SELECTED / PLANNED / OPTIONAL / REJECTED. |
+| No provider SDK, ORM, auth library or runner installed | **Met during Phase 0; intentionally superseded on 2026-09-27** when the freeze was lifted and the SELECTED stack was installed (`docs/research/STACK-2026.md` §Installation record). No REJECTED or unclassified dependency was added. |
 | A new reviewer can explain the check-in path and the transcript gate | **Met** — `README.md` (canonical 14-question list) + `ARCHITECTURE.md` + ADR-0006/0007/0026 (check-in) and ADR-0012/0023 (transcript gate). |
 
-**The freeze is still in force.** No slice has been executed, no business feature exists, and the first
-task after the freeze is VS-1 · `T-ORG-001` followed by `T-SEC-001` (`TASKS.md` §5).
+**The freeze was lifted on 2026-09-27.** VS-1 has begun: `T-ORG-001` (identity integration with a
+durable, Postgres-backed rate limiter, including the sign-up → `getSession()` round trip), `T-SEC-001`
+(tenant isolation — scope enforcement plus row-level security) and `T-SEC-002` (the authorization matrix
+and its single `requirePermission` choke point) are delivered with tests against a real PostgreSQL 18,
+together with the engineering gates `T-DOCS-001`, `T-ARCH-002` and `T-ARCH-003`. No participant-facing
+feature exists yet; the next tasks in VS-1 order are `T-ORG-002`, `T-MOSQUE-001` and `T-ORG-003`
+(`TASKS.md` §5).
 
-## VS-1 · Mosques + Speakers
+## VS-1 · Mosques + Speakers (in progress)
 
 Public pages, registries, facilities/accessibility data, speaker profiles and verification, search by
 name/area. **Must ship:** real form validation, tenancy scoping, RLS-ready schema, accessibility pass.
+
+Delivered so far (2026-09-27): the identity foundation (`T-ORG-001`), the tenancy/isolation layer
+(`T-SEC-001`) and the authorization layer (`T-SEC-002`) — the three tasks every later slice depends on —
+plus the gates that keep the rest honest (`T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`). Remaining in this
+slice: `T-ORG-002`, `T-ORG-003`, `T-MOSQUE-001…005`, `T-SPEAKER-001…004`.
 
 ## VS-2 · Kajian Events
 

@@ -11,27 +11,42 @@ It is designed for **many mosques, communities and organizers** — not one mosq
 
 ---
 
-## ⚠️ Repository status: PHASE 0 — SPECIFICATION + SKELETON
+## ⚠️ Repository status: VS-1 IN PROGRESS (Phase 0 specification + skeleton, six tasks delivered)
 
-**Nothing in this repository runs. There is no feature implementation, by design.**
+**The Phase 0 freeze was lifted on 2026-09-27.** The documentation set below is still the authority,
+the skeleton is still the shape of the product, and exactly six tasks are implemented.
 
-What is here (2026-09-26):
+What is here (updated 2026-09-27):
 
 | Area | Contents |
 |---|---|
 | Requirements | `PRD.md` — 229 stable IDs (156 functional across 16 families, 73 non-functional) |
 | Documents | 36 root documents + 57 under `docs/` (research, product, design, media, transcription, security, architecture, attendance, testing, operations, 27 ADRs, traceability) |
-| Contracts and skeletons | 165 files under `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 25 API route shells (+ not-found/error shells) |
-| Tests | 98 placeholder test files (338 `test.todo(...)` in Vitest layers, 42 `test.fixme(...)` in Playwright layers) — the acceptance checklists for future tasks |
-| Operations skeleton | `ops/`: compose stack, two Dockerfiles, smoke suite, docs lint gate, backup/restore, load harness notes |
-| Task plan | `TASKS.md` — 35 fully specified tasks (16 mandatory fields each) + 132 task rows for later slices |
+| Contracts and skeletons | `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 26 API route shells (+ not-found/error shells) |
+| **Implemented (VS-1)** | `T-ORG-001` — Better Auth identity with sessions in our PostgreSQL and a **durable, Postgres-backed rate limiter**, plus the sign-up → cookie → `getSession()` round trip (`src/server/auth/*`, `src/server/http/rate-limit.ts`, `src/server/http/auth-response.ts`, `src/server/config.ts`, `src/app/api/auth/[...all]/route.ts`) · `T-SEC-001` — tenant isolation: `TenantScope` guards, `deriveScope`, scope-first repositories, per-transaction RLS session variables and policies (`src/shared/contracts/scope.ts`, `src/server/db/**`, `drizzle/0001_row_level_security.sql`) · `T-SEC-002` — the authorization matrix as data and the single `requirePermission` choke point, with a public-route allow-list (`src/server/auth/permissions.ts`, `src/server/auth/public-routes.ts`) · `T-DOCS-001` — the documentation consistency gate (`ops/docs-lint.mjs`) · `T-ARCH-002`/`T-ARCH-003` — the module-boundary and no-fake-implementation lint rules (`ops/eslint/**`, `eslint.config.mjs`) · app shell so the project builds (`src/app/layout.tsx`, `next.config.ts`) |
+| Schema + migrations | `src/server/db/schema/**` (identity + tenancy) and two reviewed SQL migrations in `drizzle/` — applied by `npm run db:migrate`, never at boot (ADR-0020) |
+| Tests | **69 passing** (7 integration suites on a real PostgreSQL 18 + 4 unit suites) and 296 remaining placeholders in 81 files — the acceptance checklists for the tasks not yet built |
+| Operations | `ops/`: compose stack, two Dockerfiles, smoke suite, the working docs lint gate (`ops/docs-lint.mjs`, `T-DOCS-001`), the project's own ESLint rules (`ops/eslint/**`), backup/restore, load harness notes |
+| Task plan | `TASKS.md` — 36 fully specified tasks + 131 task rows for later slices |
 
-Every unimplemented function throws `Error("Not implemented: <TASK-ID>")`, where the task ID exists in
-`TASKS.md`. Prohibited in this phase: fake implementations, production UI, persistence, real
-authentication, QR generation/scanning, audio capture, transcription calls, notification delivery,
-payments, deployment. Route shells render `null`.
+Every function that is not part of those six tasks still throws `Error("Not implemented: <TASK-ID>")`,
+where the task ID exists in `TASKS.md` — the `majelishub/no-fake-implementation` lint rule checks all 53 of
+them on every run. Still prohibited everywhere: fake implementations, production UI,
+QR generation/scanning, audio capture, transcription calls, notification delivery, payments.
 
-Next step (not started): `ROADMAP.md` VS-0 exit verification, then VS-1 · `T-ORG-001` + `T-SEC-001`.
+```bash
+# These commands run (verified 2026-09-27, Node.js v24.21.0 / npm 11.20.0):
+npm run typecheck        # tsc --noEmit → exit 0
+npm run lint             # eslint 9 flat config + the project's own rules → exit 0
+npm run test:unit        # 4 real suites + placeholder suites
+npm run test:integration # 7 real suites against a real PostgreSQL (PGlite by default)
+npm run docs:lint        # ops/docs-lint.mjs → 0 findings
+npm run db:generate      # drizzle-kit generate → reviewed SQL in drizzle/
+npm run build            # next build → compiled, 49 pages + 26 API routes (all dynamic)
+```
+
+Next step: `TASKS.md` §5 — `T-ORG-002` (organizations + memberships), then `T-MOSQUE-001` (mosque
+create/edit) and `T-ORG-003` (role switching, invitation, offboarding).
 
 ---
 
