@@ -1,0 +1,68 @@
+# GitHub only discovers workflow files at the repository root.
+# This smoke matrix intentionally does NOT claim database/browser coverage.
+name: Project checks
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [parking-attendant-ops-app-spec, rsi-agent-recursive-self-improvement-prototype]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 -m unittest discover -s tests
+        working-directory: ${{ matrix.project }}
+  node:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [strangerlink-random-chat-webrtc-spec, homeops-household-manager-spec, yomi-manga-reader-arch-skeleton, majelishub-pengajian-event-platform-spec]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.project }}
+      - run: npm run typecheck
+        working-directory: ${{ matrix.project }}
+      - run: npm test
+        working-directory: ${{ matrix.project }}
+      - run: npm run build
+        working-directory: ${{ matrix.project }}
+  siomayops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Existing @playwright/test peer range conflicts with Next 15.4.2.
+      - run: npm install --legacy-peer-deps --no-package-lock
+        working-directory: siomayops-streetfood-stall-ops-spec
+      - run: npm run typecheck && npm test && npm run build
+        working-directory: siomayops-streetfood-stall-ops-spec
+  manga:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # Existing Next 15 peer requirement conflicts with pinned Playwright 1.50.
+      - run: npm ci --legacy-peer-deps
+        working-directory: manga-reader-spec-skeleton-minimal
+      - run: npm test && npx tsc --noEmit && npm run build
+        working-directory: manga-reader-spec-skeleton-minimal

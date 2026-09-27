@@ -1,119 +1,46 @@
-# COMPLETION MATRIX — 8 proyek di monorepo `align_baru`
+# WORKSPACE COMPLETION MATRIX — audit in progress
 
-> Diukur: 2026-09-27 · commit `9f10618` (merge PR #5) · branch kerja `arena/01a0e0ef-align-baru`
-> Lingkungan pengukuran: Node **v22.22.3**, Python **3.11.2**, tanpa Postgres, tanpa browser Playwright.
-> Semua angka di bawah **hasil jalankan nyata** di sandbox ini, bukan kutipan dari commit message.
+**Measured:** 2026-09-27 (Asia/Jakarta) · base `42c4621` · branch `arena/01a0e0ef-align-baru` · Node 22.22.3 / Python 3.11.2. This file describes the **working tree of this audit**; see `git log -1` for its final committed SHA. No project is currently certified **VERIFIED 100%** across all requested gates.
 
----
+The prior matrix treated executable-test pass rate and absence of `Not implemented` strings as completion. That is insufficient: several E2E specs are TODO or assert only constants; some source files render hardcoded data; "100%" against a narrower task register is not 100% against a broader PRD. Retain the combined-estimate formula (0.70 task + 0.15 test + 0.15 code) only as a *historical heuristic*, never as an authoritative completion status.
 
-## 1. Matrix utama
+| Project | Declared scope | Task baseline (not verified DONE) | Tests rerun this audit | Source marker scan (non-shell/files) | Typecheck | Build | E2E | Gate status |
+|---|---|---:|---|---:|---|---|---|---|
+| StrangerLink | Full spec | 33/33 **claimed** | 85 passed | 52/52 | PASS | PASS (fixed invalid page export) | 20 `test.todo`; not executable as coverage | **UNVERIFIED**: E2E absent; TURN production secret missing |
+| Parking | PRD §4.A MVP; §4.B later | 20/20 **register claimed**, not full PRD | **64 passed** (61 old + 3 QRIS/waiver regressions); demo passed | 31/32 (abstract OCR port) | n/a (Python) | n/a (Python) | CLI demo only, no UI | **PARTIAL**: PRD MVP UI and verified QRIS missing; watchlist stub |
+| RSI agent | Explicit offline prototype | 7-item deliverable audit: 5 VERIFIED_DONE, 2 IMPLEMENTED_BUT_UNVERIFIED | **11 passed** (10 old + step-budget regression); demo ran | 12/12 | n/a (Python) | n/a (Python) | offline demo | **UNVERIFIED**: artifact schema and real-provider paths not fully checked; see `DELIVERABLES.md` |
+| SiomayOps | Full spec | 68/70 **claimed**, not independently verified | **108 passed** (101 old + 7 HMAC/security cases) | 140/140 | PASS | PASS | 7 synthetic assertions across 3 Playwright specs; **not real E2E** | **PARTIAL**: QRIS adapter, real E2E, production configuration |
+| Minimal manga | Full `TASKS.md` register (scope not yet reconciled) | historical ~7/26; **not VERIFIED_DONE** | 15 passed; 2 Playwright browser tests authored, not run; 2 progress `describe.todo` | 30/30 by string scan, but in-memory/fake data | PASS (`npx tsc --noEmit`) | PASS | browser download failed | **PARTIAL**: authorization, durable progress, upload and most register tasks |
+| HomeOps | Full spec | historical 32/252 implemented, not all DoD-verified | 49 unit **passed**; 15 integration **passed on real PG18**; 11 product integration files are skeletons | 111/159 | PASS | PASS | skeleton specs | **PARTIAL**: VS-1…16 pending |
+| Yomi | Full spec | 12/145 foundation, not all DoD-verified | **283 passed** on PG18 (previously 251 pass/32 skip); 14 product test files still empty | 45/104 | PASS | PASS | not run | **PARTIAL**: VS-1…11 pending |
+| MajelisHub | Full spec | 10/169 delivered | 125 passed / **281 todo** (PGlite in-process integration included) | 51/185 | PASS | PASS | not run | **PARTIAL**: VS-1 onward pending |
 
-| Proyek | Milestone terakhir tercapai | Tugas selesai /total | **Tugas %** (acuan) | Uji dijalankan (lulus/total) | Uji % | Berkas kode non-shell /total | Kode % | Estimasi gabungan\* |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| `strangerlink-random-chat-webrtc-spec` | VS-0…VS-15 selesai | 33 / 33 | **100%** | 85 / 85 | 100% | 52 / 52 | 100% | **100%** |
-| `parking-attendant-ops-app-spec` | Epic 1–6 (register MVP) selesai | 20 / 20 | **100%** | 61 / 61 | 100% | 31 / 32 | 97% | **99%** |
-| `rsi-agent-recursive-self-improvement-prototype` | prototipe runnable (tanpa register tugas) | n/a | **100%\*\*** | 10 / 10 | 100% | 12 / 12 | 100% | **100%** |
-| `siomayops-streetfood-stall-ops-spec` | VS-0…VS-19, 2 tugas terblokir eksternal | 68 / 70 | **97%** | 101 / 101 | 100% | 140 / 140 | 100% | **98%** |
-| `manga-reader-spec-skeleton-minimal` | minimal reader + kontrak (subset T-READER) | 7 / 26 | **27%** | 15 / 15 | 100% | 30 / 30 | 100% | **49%** |
-| `homeops-household-manager-spec` | VS-0 selesai (VS-1 belum mulai) | 32 / 252 | **13%** | 49 / 64 | 77% | 111 / 159 | 70% | **31%** |
-| `yomi-manga-reader-arch-skeleton` | VS-0 selesai (12 tugas, VS-1…VS-11 belum) | 12 / 145 | **8%** | 251 / 283 | 89% | 45 / 104 | 43% | **26%** |
-| `majelishub-pengajian-event-platform-spec` | VS-0 exit gate lulus, VS-1 baru mulai | 10 / 169 | **6%** | 125 / 406 | 31% | 51 / 185 | 28% | **13%** |
+**Task counts are historical estimates**, not verified-DONE totals. A sum of "done" would be misleading; 715 registered task IDs excluding RSI remain the historical denominator, and 182/715 was only a previous implementation *claim*. This audit has not completed the task-by-task requirement → code → test → integration → E2E → traceability mapping, so **TOTAL VERIFIED DONE: unknown, not 715**. The listed executable test passes total **755** (=85+64+11+108+15+64+283+125), with **281 known Vitest todos** in MajelisHub, plus TODO suites and unrun browser tests elsewhere. This is not a claim of 755 fully qualifying acceptance tests.
 
-\* `Estimasi gabungan = 0.70 × Tugas% + 0.15 × Uji% + 0.15 × Kode%` — heuristik, bukan definisi resmi.
-Kolom **Tugas %** adalah yang paling bisa dipertanggungjawabkan: register tugas (`TASKS.md`) adalah kontrak kerja tiap proyek.
-\*\* RSI tidak punya `TASKS.md`; deliverable-nya adalah prototipe itu sendiri (README: "prototipe kerja"), jadi dihitung 100% terhadap lingkupnya.
+## Actual changes and reproducible evidence
 
-### Agregat monorepo
+- Parking: `python3 -m unittest discover -s tests` (64 pass); `python3 demo.py` (success). Unknown payment methods and QRIS cannot close a session as PAID without a verified provider callback. `IOcrEngine` is an abstract port, not a production OCR engine. Full PRD §4.A is not complete; see project README.
+- SiomayOps: `npm run typecheck && npm test && npm run lint && npm run build` (pass; 108 Vitest). Removed a public fake-signature payment action and fail-closed on missing/invalid HMAC, currency, state or amount. **This does not implement a production provider**: provider-specific signature/merchant contract and credentials are outstanding. The present Playwright files assert made-up JS objects rather than operating the app; they do not count as E2E.
+- StrangerLink: `npm run typecheck && npm test && npm run build` (pass; 85 Vitest). Next page's invalid `SAFETY_LIMITATIONS` export removed. `npm run lint` is **not runnable** because `eslint` is not in its manifest. 20 browser TODO calls remain, so the old 100% claim is withdrawn.
+- RSI: `python3 -m unittest discover -s tests` (11 pass); `python3 demo.py --waves 1 --drs-rounds 1 --holdout 4` (ran, outputs under ignored `runs/`). Exhaustion of the step budget now fails checks closed rather than inheriting a planner's cached success. See `DELIVERABLES.md` for declared offline-prototype scope vs non-goals.
+- Minimal manga: `npm ci --legacy-peer-deps && npm test && npm run typecheck && npm run build` (15 pass, type/build pass). Browser smoke specs now navigate to real routes; **not executed**. Two integration TODO suites remain. The in-memory database/sample manifest do not prove auth or production persistence.
+- HomeOps: scratch **PostgreSQL 18.4** from the `embedded-postgres` npm package (under `/tmp`, never in git), isolated `homeops_test` with worker-specific DBs. `DATABASE_URL=postgres://test:test@127.0.0.1:55432/homeops_test npm run test:integration` → **15 pass, 0 failed** after repairing the `ANY` SQL bug and stale fixture assertions (FK order, session `token` column, JS date binding and tenancy-expiry count). `npm run typecheck`, `npm run lint`, `npm run verify:docs`, `npm run build` pass. Product suite skeletons remain.
+- Yomi: separate `yomi_test` on the scratch PG18; `DATABASE_URL=postgres://test:test@127.0.0.1:55432/yomi_test npm test` → **283 pass**, 14 product feature test files without runnable tests. `npm run typecheck` and `npm run build` pass. README and task header corrected; product still pending.
+- MajelisHub: `npm test` → **125 pass, 281 todo**; `npm run typecheck`, `npm run docs:lint`, `npm run build` pass. Integration harness defaults to PGlite PostgreSQL; external-Postgres path has not been rerun here.
 
-| Metrik | Nilai | Catatan |
-|---|---:|---|
-| Tugas selesai / total (7 proyek ber-register) | **182 / 715 = 25%** | berbobot jumlah tugas, jadi proyek besar (majelishub 169, homeops 252) menekan angka |
-| Rata-rata sederhana `Estimasi gabungan` 8 proyek | **64%** | dua proyek ~100%, empat proyek < 50% → spread sangat lebar |
-| Proyek ≥ 90% selesai | **3 dari 8** (strangerlink, parking, rsi) + siomayops 98% | — |
-| Proyek tahap spesifikasi/fondasi (< 50%) | **4 dari 8** (manga, homeops, yomi, majelishub) | sesuai AGENTS.md: 6 folder `*-spec` sengaja stub |
+## Environment and CI status
 
----
+- `npx playwright install chromium` was attempted for SiomayOps and minimal manga, **failed ECONNRESET** to Playwright CDN. `sudo apt-get update && sudo apt-get install postgresql chromium` was also attempted; Debian mirrors were unreachable, and the packages had no local index. Browser execution therefore remains **not verified**. Browser binaries are not an external *product* blocker; implement real E2E and rerun on a host with browser access.
+- Provisioned real PG18.4 from npm without Docker/apt. Separate scratch databases ran HomeOps and Yomi; no production database was touched. This removed the former blanket "Postgres absent" excuse. HomeOps now has 15 foundation integration passes; Yomi's 32 formerly skipped assertions now pass.
+- Added root `.github/workflows/project-checks.yml` for install/typecheck/test/build smoke across eight projects. **Workflow has not run in GitHub yet**; it does not include Postgres/Playwright or security/production deployment gates. Per-project folder-local workflows remain inert; root smoke checks are not a substitute for production CI.
+- Shell count above is deliberately only the original string-marker scan. Parking's returning-`None` watchlist, SiomayOps's synthetic E2E and fake provider, and manga's in-memory store demonstrate why this metric cannot imply completion.
 
-## 2. Rincian bukti uji (perintah yang dijalankan)
+## Priority continuation
 
-| Proyek | Perintah | Hasil terukur | Tier yang **belum** terverifikasi |
-|---|---|---|---|
-| strangerlink | `npm ci` + `npx vitest run` | 10 file, **85 lulus, 0 gagal, 0 todo** | e2e Playwright (2 spec, 20 `test.todo`) |
-| parking-attendant | `python3 -m unittest discover -s tests` | **61 lulus, 0 gagal** | — |
-| rsi | `python3 -m unittest discover -s tests` | **10 lulus, 0 gagal** | — |
-| siomayops | `npm install --legacy-peer-deps` + `npx vitest run` | 19 file, **101 lulus** (51 unit + 37 integrasi + 13 browser) | e2e Playwright (7 tes, runner diblokir sandbox — lihat IMPLEMENTATION_STATUS.md) |
-| manga-reader | `npm test` | **15 lulus** (reader-core + kontrak API) | `describe.todo` progress (4), e2e Playwright, `next build` |
-| homeops | `npm ci` + `npx vitest run` | **49 lulus, 15 skip** (integrasi butuh Postgres) | tier integrasi (Postgres), e2e Playwright (10 spec skeleton), `next build` |
-| yomi | `npm ci` + `npx vitest run` | **251 lulus, 32 skip**; 15 file tes terdaftar tapi **0 tes** (fitur produk) | integrasi ber-DB, e2e Playwright, `next build` |
-| majelishub | `npm ci` + `npx vitest run` | **125 lulus, 281 todo**; 77 file skip (belum ada implementasi) | integrasi ber-DB, browser, e2e Playwright |
+1. Parking: map **every** PRD §4.A MVP requirement (including UI/search/QRIS/watchlist if required) to new/existing tasks; build and test missing flows; verify a real device/CLI journey. Keep §4.B clearly post-MVP.
+2. SiomayOps: replace the seven synthetic Playwright assertions with true browser journeys, complete the provider-specific production adapter contract behind external merchant credentials, fix manifests and rerun all gates.
+3. StrangerLink: implement the 20 E2E TODO scenarios and add the missing lint toolchain; audit live WebSocket/TURN cleanup before certifying.
+4. RSI: add artifact schema regression checks and finish evidence-backed prototype traceability; avoid claiming production candidate isolation/rollback (not declared scope).
+5. Minimal manga → HomeOps → Yomi → MajelisHub: proceed one ROADMAP slice at a time; convert task-owned TODO tests to meaningful assertions; keep all task IDs and original requirements. Avoid moving/deleting tasks to game percentages.
 
-Catatan penting: `npm test`/`vitest run` hanya menjalankan tier yang terpasang. Angka "lulus 100%" pada proyek yang sudah jadi berarti **seluruh tier yang bisa dijalankan lulus**, bukan "seluruh PRD teruji".
-
----
-
-## 3. Angka kunci per proyek
-
-### `strangerlink-random-chat-webrtc-spec` — 33/33 tugas, 85/85 tes
-- Commit `8324124`: VS-0…VS-15, seluruh register berstatus `DONE` di `TASKS.md` (33 baris, 0 `NOT_STARTED`).
-- Implementasi nyata: identity uuidv7, queue/matchmaking atomik, chat ephemeral, report/block, ban enforcement fail-closed, signaling Zod, media coordinator, TURN time-limited, rate-limit per identity, moderasi, retensi, a11y.
-- Sisa: e2e Playwright 20 `test.todo` (baru kerangka), stub `TURN_STATIC_AUTH_SECRET` produksi (didokumentasikan).
-
-### `parking-attendant-ops-app-spec` — 20/20 tugas register, 61/61 tes
-- Register `TASKS.md` hanya memuat 20 tiket (Epic 1–6) dan **semuanya ada di kode** (`src/core`, `src/infra`, `src/modules`), 61 tes stdlib lulus, ada `demo.py`.
-- Sisa: 1 `NotImplementedError` = adapter OCR mock (by design), dan **register-nya lebih sempit dari PRD** (UI/offline hardening tidak punya tiket) → 100% di sini berarti "register MVP selesai", bukan "PRD selesai".
-
-### `rsi-agent-recursive-self-improvement-prototype` — prototipe jalan, 10/10 tes
-- 14 berkas Python stdlib, tanpa dependensi, `rsi/` (curriculum, actor, verifier, jev, memory, routing) + `demo.py`, 10 tes lulus.
-- Tidak ada `TASKS.md`/`ROADMAP.md` → tidak ada register untuk dihitung.
-
-### `siomayops-streetfood-stall-ops-spec` — 68/70 tugas, 101/101 tes
-- `IMPLEMENTATION_STATUS.md`: 68 selesai, **2 terblokir eksternal**: (1) adapter QRIS produksi butuh kredensial merchant, (2) binary Playwright gagal diunduh di sandbox (tesnya sendiri sudah nyata).
-- 101 tes lulus (unit 51, integrasi 37, browser 13); `next build` dilaporkan hijau di commit `c925346` (tidak diulang di sini).
-
-### `manga-reader-spec-skeleton-minimal` — 7/26 tugas, 15/15 tes
-- Commit `5199a50` mengimplementasikan "minimal reader + kontrak": `reader-core.ts`, `ports.ts`, `ReaderView.tsx`, `sample-data.ts`, `server/db/{schema,store}.ts`, 4 route API, 13 halaman, 2 file tes (15 tes lulus).
-- **Register-nya basi**: 26 tugas masih bertanda `NOT PART OF CURRENT PHASE` padahal kodenya ada → numerator di sini berasal dari bukti commit (T-FOUND-001, T-CAT-001, T-READER-001/002/031, T-UPLOAD-014/015), jadi angkanya berkisar 6–9 tugas, dipakai 7.
-
-### `homeops-household-manager-spec` — 32/252 tugas, VS-0 selesai
-- Commit `ad7af82` (VS-0: T-PLAT-001…T-PLAT-028) + T-TIME-001…004 → 32 dari 252 tugas (status board sendiri masih menulis "0 of 252 started": **basi**).
-- 49 tes unit lulus; tier integrasi (15 tes) di-skip karena tidak ada Postgres; CI/deploy **tidak pernah jalan** di monorepo ini (dicatat di `DECISIONS.md` 2026-09-27).
-- Sisa 16 slice (VS-1…VS-16) berarti mayoritas produk belum ada: 48/159 berkas src masih stub.
-
-### `yomi-manga-reader-arch-skeleton` — 12/145 tugas, VS-0 selesai
-- 5 commit foundation: T-FOUND-001…T-FOUND-012 (toolchain + boundary lint, env bertipe, route shell, UI foundation, DB + migrasi `0000_initial_schema.sql`, `/healthz`, logging, error contract, compose, CI, seed harness).
-- 251 tes lulus / 32 skip; **15 file tes terdaftar tanpa satu pun tes** → fitur produk (catalog, reader, auth, library, search, upload) belum diimplementasi; 59/104 berkas src masih shell.
-- README masih menyebut "ARCHITECTURE PHASE … no product feature is implemented" — perlu diperbarui untuk mencerminkan VS-0 yang sudah selesai.
-
-### `majelishub-pengajian-event-platform-spec` — 10/169 tugas, VS-0 lulus
-- 10 tugas terkirim: T-ORG-001, T-SEC-001/002/004/007, T-OBS-002, T-DOCS-001/003, T-ARCH-002/003 + app shell. VS-0 exit gate lulus (`verify:vs0`: 6 pass / 1 warn / 0 fail).
-- 125 tes lulus; **281 todo** dan 134/185 berkas src masih stub → registrasi, check-in QR, audio, transkripsi, konten, feedback belum mulai.
-- Proyek paling belakang menurut ukuran register karena register-nya paling besar (169 tugas) dan baru menyelesaikan fondasi keamanan/dokumentasi.
-
----
-
-## 4. Cara mereproduksi
-
-```bash
-# TS/Next (butuh npm; Node di sandbox ini 22.x, proyek minta >=24 — tidak menghalangi tes)
-cd strangerlink-random-chat-webrtc-spec && npm ci && npx vitest run
-cd siomayops-streetfood-stall-ops-spec && npm install --legacy-peer-deps && npx vitest run
-cd manga-reader-spec-skeleton-minimal && npm test
-cd homeops-household-manager-spec && npm ci && npx vitest run
-cd yomi-manga-reader-arch-skeleton && npm ci && npx vitest run
-cd majelishub-pengajian-event-platform-spec && npm ci && npx vitest run
-
-# Python stdlib (tanpa dependensi)
-cd parking-attendant-ops-app-spec && python3 -m unittest discover -s tests
-cd rsi-agent-recursive-self-improvement-prototype && python3 -m unittest discover -s tests
-```
-
-Denominator tugas diambil dari register masing-masing: `parking` 20 (`TASK-1xx…6xx`), `strangerlink` 33, `siomayops` 70, `manga` 26, `homeops` 252 (status board), `majelishub` 169, `yomi` 145.
-
-## 5. Kaveat yang harus dibaca bersama angka ini
-
-1. **Tier integrasi ber-Postgres di-skip** (homeops, yomi, majelishub) → "lulus" tidak sama dengan "terverifikasi"; skip harus dibaca "belum diverifikasi".
-2. **Tier e2e Playwright tidak dijalankan** di sandbox ini (binary browser tidak bisa diunduh) untuk semua proyek.
-3. **Versi Node berbeda** (22 vs syarat 24 pada homeops/majelishub/yomi) — hasil bisa berbeda sedikit di CI Node 24.
-4. **GitHub Actions tidak aktif** untuk folder-folder proyek (workflow ada di dalam folder, bukan di root repo) → tidak ada tier yang pernah jalan otomatis; satu-satunya verifikasi adalah jalankan manual seperti di atas.
-5. **Dua register basi**: `manga-reader` (masih "NOT PART OF CURRENT PHASE") dan `homeops` (status board "0 of 252"), serta README `yomi` yang masih menyebut fase arsitektur.
-6. **Kolom Kode %** hanya mengukur berkas src yang memuat penanda stub (`Not implemented` / `NotImplementedError` / `TODO(`), bukan kualitas implementasi; berkas kecil non-stub tetap dihitung 100%.
+**Final verified completion of workspace: NOT 100%.** This audit improves testability, security and status accuracy but does not complete the hundreds of outstanding tasks.
