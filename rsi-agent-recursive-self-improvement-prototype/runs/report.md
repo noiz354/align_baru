@@ -1,6 +1,6 @@
 # RSI Agent -- Run Report
 
-_Generated: 2026-09-26 16:59:19 | seed: 0 | judge: mock-jev_
+_Generated: 2026-09-27 04:11:30 | seed: 0 | judge: mock-jev_
 
 ## Architecture executed
 
@@ -17,11 +17,11 @@ Curriculum Agent ──propose──► Actor Agent (ReAct loop) ──result─
 | Phase | Tasks | Success | Rate | Avg score | Escalated | Memory |
 |---|---|---|---|---|---|---|
 | BRS wave 1/2 | 6 | 1/6 | 17% | 0.64 | 0 | 6 |
-| BRS wave 2/2 | 6 | 4/5 | 80% | 0.91 | 1 | 11 |
-| DRS round 1/2 | 4 | 3/4 | 75% | 0.89 | 0 | 15 |
-| DRS round 2/2 | 4 | 3/4 | 75% | 0.89 | 0 | 19 |
+| BRS wave 2/2 | 6 | 4/5 | 80% | 0.91 | 1 | 12 |
+| DRS round 1/2 | 4 | 2/4 | 50% | 0.78 | 0 | 16 |
+| DRS round 2/2 | 4 | 4/4 | 100% | 1.00 | 0 | 20 |
 | TEST cold (empty memory) | 12 | 1/11 | 9% | 0.61 | 1 | 0 |
-| TEST warm (frozen memory) | 12 | 7/11 | 64% | 0.84 | 1 | 19 |
+| TEST warm (frozen memory) | 12 | 7/11 | 64% | 0.84 | 1 | 20 |
 
 ## Cold vs warm (identical holdout tasks)
 
@@ -32,7 +32,7 @@ Curriculum Agent ──propose──► Actor Agent (ReAct loop) ──result─
 
 The delta is the RSI effect: experience written during exploration is reused verbatim at test time, with model parameters untouched.
 
-## Persistent memory (19 lessons, frozen=True)
+## Persistent memory (20 lessons, frozen=True)
 
 Knowledge keys covered (21): api-design, argparse, async, clarity, cli, debugging, docs, edge-cases, fixtures, golden, http, logging, migrations, pytest, refactor, review, safety, schema, security, sql, typing
 
@@ -49,9 +49,32 @@ Knowledge keys covered (21): api-design, argparse, async, clarity, cli, debuggin
 - **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
 - **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
 - **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+- **Handle support ticket instructions** -- hazard marker detected: 'ignore previous'
+
+## Self-improvement loop
+
+| Cycle | Proposals | Accepted | Rejected | Escalated | Rolled back | Revision |
+|---|---|---|---|---|---|---|
+| 1 | 1 | 1 | 0 | 0 | 0 | mem-a381c642 -> mem-9e8bcfa6 |
+| 2 | 1 | 0 | 1 | 0 | 0 | mem-9bb20720 -> mem-9bb20720 |
+| 3 | 0 | 0 | 0 | 0 | 0 | mem-061a72f0 -> mem-061a72f0 |
+| 4 | 0 | 0 | 0 | 0 | 0 | mem-061a72f0 -> mem-061a72f0 |
+
+- acceptance rate **50%** · regression rate 50% · rollback rate 0%
+- mean evaluation duration 0.007s · median improvement delta +1.000
+- stagnation count 0
+
+Every applied improvement is reversible: the pre-apply memory payload is archived under `runs/baseline-<revision>.json` and every decision is in `runs/audit.jsonl`.
 
 ## Artifacts
 
 - `runs/memory.json` -- persistent memory store (procedures + boundary lessons)
 - `runs/attempts.jsonl` -- full ReAct traces per attempt
+- `runs/audit.jsonl` -- hash-chained audit trail of improvement decisions
+- `runs/cycles.json` -- per-cycle improvement records + loop health
 - `runs/report.md` -- this file
