@@ -4,7 +4,7 @@
 // importing `src/server/db` (a forbidden edge, MODULE-MAP.md §4).
 
 import { createHash } from 'node:crypto';
-import { and, eq, lt, lte, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { Id } from '../../../shared/types';
 import type { IdempotencyBeginResult, IdempotencyStore } from '../../../shared/contracts/idempotency';
 import type { OutboxMessageValue, OutboxStore } from '../../../shared/contracts/outbox';
@@ -200,8 +200,10 @@ export function createOutboxStore(db: DbOrTx): OutboxStore {
       await db
         .update(outboxMessage)
         .set({ state: 'PROCESSING', attempts: sql`${outboxMessage.attempts} + 1` })
-        .where(sql`${outboxMessage.id} = any(${ids})`);
-      return rows.map(toOutboxValue);
+        .where(inArray(outboxMessage.id, ids));
+      // The selected rows predate the UPDATE. Return the claimed state/attempt
+      // count so the worker's retry policy uses the persisted attempt number.
+      return rows.map((row) => toOutboxValue({ ...row, state: 'PROCESSING', attempts: row.attempts + 1 }));
     },
 
     async markProcessed(id, now) {

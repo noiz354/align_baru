@@ -21,6 +21,8 @@ describe.skipIf(!isDatabaseAvailable())('identity & tenancy constraints (T-PLAT-
       const sql = getSql();
       const householdId = FIXTURES.HH_MAIN.id;
       const userId = `dup-user-${newId()}`;
+      // Membership FK is part of the invariant; insert a real user first.
+      await sql`insert into "user" (id, name, email) values (${userId}, 'Duplicate Membership Test', ${`${userId}@homeops.test`})`;
       await sql`
         insert into household_member (household_id, user_id, display_name, role)
         values (${householdId}, ${userId}, 'First', 'MEMBER')
@@ -63,20 +65,21 @@ describe.skipIf(!isDatabaseAvailable())('identity & tenancy constraints (T-PLAT-
   it('T-PLAT-004: a household name is NOT unique across households (DECISIONS.md 2026-09-27)', async () => {
     await withScratchDatabase(async () => {
       const sql = getSql();
-      // Two households may share a name; a uniqueness violation would also leak which names exist.
-      await sql`insert into household (name, timezone, created_by) values ('Rumah Budi', 'Asia/Jakarta', 'u1')`;
-      await sql`insert into household (name, timezone, created_by) values ('Rumah Budi', 'Asia/Jakarta', 'u2')`;
+      // Two households may share a name; use a seeded creator so FK checks remain active.
+      const creator = 'seed-user-hh-main-sari';
+      await sql`insert into household (name, timezone, created_by) values ('Rumah Budi', 'Asia/Jakarta', ${creator})`;
+      await sql`insert into household (name, timezone, created_by) values ('Rumah Budi', 'Asia/Jakarta', ${creator})`;
       const rows = await sql`select count(*)::int as n from household where lower(name) = 'rumah budi'`;
       expect(rows[0]?.n).toBe(2);
       // Blank and over-long names are refused by CHECK constraints, not by application code alone.
       await expect(
-        sql`insert into household (name, timezone, created_by) values ('   ', 'UTC', 'u3')`,
+        sql`insert into household (name, timezone, created_by) values ('   ', 'UTC', ${creator})`,
       ).rejects.toThrow(/ck_household_name_not_blank|check/i);
       await expect(
-        sql`insert into household (name, timezone, created_by) values (${'x'.repeat(41)}, 'UTC', 'u4')`,
+        sql`insert into household (name, timezone, created_by) values (${'x'.repeat(41)}, 'UTC', ${creator})`,
       ).rejects.toThrow(/ck_household_name_length|check/i);
       await expect(
-        sql`insert into household (name, timezone, created_by) values ('Ok', '', 'u5')`,
+        sql`insert into household (name, timezone, created_by) values ('Ok', '', ${creator})`,
       ).rejects.toThrow(/ck_household_timezone_not_blank|check/i);
     });
   });
@@ -131,14 +134,14 @@ describe.skipIf(!isDatabaseAvailable())('identity & tenancy constraints (T-PLAT-
     });
   });
 
-  it('T-PLAT-004: session token hashes are unique and a membership requires an existing user', async () => {
+  it('T-PLAT-004: session tokens are unique and a membership requires an existing user', async () => {
     await withScratchDatabase(async () => {
       const sql = getSql();
       const userId = `session-user-${newId()}`;
       await sql`insert into "user" (id, name, email) values (${userId}, 'Session Test', ${`${userId}@homeops.test`})`;
-      await sql`insert into session (id, user_id, token_hash, expires_at) values (${newId()}, ${userId}, 'hash-a', ${new Date(Date.parse(testClock().now()) + 3_600_000)})`;
+      await sql`insert into session (id, user_id, token, expires_at) values (${newId()}, ${userId}, 'hash-a', ${new Date(Date.parse(testClock().now()) + 3_600_000).toISOString()})`;
       await expect(
-        sql`insert into session (id, user_id, token_hash, expires_at) values (${newId()}, ${userId}, 'hash-a', ${new Date(Date.parse(testClock().now()) + 3_600_000)})`,
+        sql`insert into session (id, user_id, token, expires_at) values (${newId()}, ${userId}, 'hash-a', ${new Date(Date.parse(testClock().now()) + 3_600_000).toISOString()})`,
       ).rejects.toThrow(/duplicate key|unique/i);
       // FK: a membership cannot point at a user that does not exist.
       await expect(
