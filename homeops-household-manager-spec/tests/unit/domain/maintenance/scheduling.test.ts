@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Date-based frequency math; DST is irrelevant here by design (I-MNT-002).
 

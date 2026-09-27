@@ -59,8 +59,10 @@ Exit criteria (verified 2026-09-27):
       does not exist in Playwright, so the declared-but-not-executed form is now
       `test.fixme("title", async () => {})` (`TESTING.md` §1.4).
 - [x] Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns exist.
-- [x] Test files contained only placeholders at the freeze. The two delivered VS-1 tasks replaced their
-      own placeholders with real tests (31 passing); every other suite is still placeholder-only.
+- [x] Test files contained only placeholders at the freeze. The delivered VS-1 tasks replaced their own
+      placeholders with real tests — **125 passing** across 20 suites (10 integration on a real
+      PostgreSQL 18, 10 unit) — while 281 placeholders in 77 files remain as the acceptance checklists
+      for the tasks not yet built.
 - [x] `docs/architecture/FINAL-REVIEW.md` answers every challenge question with a concrete mechanism.
 - [x] *Superseded by the freeze lift:* no dependency was installed during Phase 0. Installation of the
       SELECTED stack happened as the first act of VS-1, as `docs/research/STACK-2026.md` prescribes
@@ -81,6 +83,18 @@ What exists now, in the order the exit criteria are listed above:
 | `docs/architecture/FINAL-REVIEW.md` answers every challenge question | **Met** — 10 challenges, 6 accepted risks, 6 falsifiers, plus the 14 product questions. |
 | No provider SDK, ORM, auth library or runner installed | **Met during Phase 0; intentionally superseded on 2026-09-27** when the freeze was lifted and the SELECTED stack was installed (`docs/research/STACK-2026.md` §Installation record). No REJECTED or unclassified dependency was added. |
 | A new reviewer can explain the check-in path and the transcript gate | **Met** — `README.md` (canonical 14-question list) + `ARCHITECTURE.md` + ADR-0006/0007/0026 (check-in) and ADR-0012/0023 (transcript gate). |
+
+**Mechanical re-verification (`T-DOCS-003`, merged from `main`).** `ops/verify-vs0.mjs` re-checks these
+criteria read-only and exits non-zero on any failure; on the merged tree it reports 6 pass / 1 warn /
+0 fail. The verification that produced the table above raised and fixed four findings, kept here because
+they are the evidence the criteria were actually checked rather than asserted:
+
+| # | Finding | Resolution |
+|---|---|---|
+| F1 | 98 type errors, all in `tests/**`: the skeleton imported `vitest` and `@playwright/test` with no type declarations available. `src/**` was already clean. | Declared `typescript`, `@types/node`, `vitest` and `@playwright/test` as devDependencies (toolchain only). |
+| F2a | Nine Playwright files used `test.todo(title)` — **not a Playwright API** — and 33 used `test.fixme(title)`, which needs a body. The file headers documented the invalid form. | All 42 placeholders are now `test.fixme("<behaviour>", () => { /* Not implemented: T-XXX */ })`; headers corrected. `playwright test --list` reports 42 tests in 9 files. |
+| F2b | `docs/architecture/FINAL-REVIEW.md` §2.7 answered "is it simpler?" without citing anything. | Rewritten as a table naming the decision that records each cut (ADR-0005/0006, ADR-0007, ADR-0010/0015). |
+| F3 | `typescript`, `@types/node` and `@playwright/test` were not named in `docs/research/STACK-2026.md`, so they were unclassified dependencies. | Added package names and Phase 0 notes to `STACK-2026.md` §2 and §16. |
 
 **The freeze was lifted on 2026-09-27.** VS-1 has begun: `T-ORG-001` (identity integration with a
 durable, Postgres-backed rate limiter, including the sign-up → `getSession()` round trip), `T-SEC-001`

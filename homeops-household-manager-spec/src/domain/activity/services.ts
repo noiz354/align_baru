@@ -3,9 +3,10 @@
 import type { Clock } from '../../shared/time/clock';
 import type { Id } from '../../shared/types';
 import type { ActivityEvent, ActivityType } from './types';
+import type { ActivityRepository } from './ports';
 
 export type ActivityDeps = {
-  readonly activity: import('./ports').ActivityRepository;
+  readonly activity: ActivityRepository;
   readonly clock: Clock;
 };
 

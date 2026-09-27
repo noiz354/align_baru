@@ -1,6 +1,12 @@
 // HomeOps - domain skeleton (specification phase). Types and value objects only.
 
-import type { AlertPriority, AlertState, AlertType, Id, Instant, LocalDate, ResolutionReason } from '../../shared/types';
+import type { AlertPriority, AlertState, AlertType, Id, Instant, LocalDate } from '../../shared/types';
+import type { ResolutionReason } from '../../shared/errors/codes';
+import type { ChoreOccurrence } from '../chores/types';
+import type { TrashContainer } from '../trash/types';
+import type { Resource } from '../resources/types';
+import type { MaintenancePlan } from '../maintenance/types';
+import type { Issue } from '../issues/types';
 
 /**
  * An alert is the domain saying "someone needs to act, why, and who" - exactly once, to the right
@@ -74,11 +80,11 @@ export type AlertEvaluationInput = {
   readonly today: LocalDate;
   readonly householdTimezone: string;
   readonly nowInstant: string;
-  readonly openOccurrences: readonly import('../chores/types').ChoreOccurrence[];
-  readonly containers: readonly import('../trash/types').TrashContainer[];
-  readonly lowResources: readonly import('../resources/types').Resource[];
-  readonly duePlans: readonly import('../maintenance/types').MaintenancePlan[];
-  readonly openIssues: readonly import('../issues/types').Issue[];
+  readonly openOccurrences: readonly ChoreOccurrence[];
+  readonly containers: readonly TrashContainer[];
+  readonly lowResources: readonly Resource[];
+  readonly duePlans: readonly MaintenancePlan[];
+  readonly openIssues: readonly Issue[];
   readonly existingAlerts: readonly Alert[];
   readonly policy: {
     readonly snoozeMaxHours: number;

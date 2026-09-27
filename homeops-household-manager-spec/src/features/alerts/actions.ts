@@ -14,9 +14,9 @@ import type { ResolutionReason } from '../../shared/errors/codes';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ALERT-015 - requirements, ADR, design, and tests are listed there.
  */
-export async function acknowledgeAlertAction(
-  _input: { readonly alertId: string },
-): Promise<OperationResult<{ readonly alertId: string; readonly state: string }>> {
+export async function acknowledgeAlertAction(_input: {
+  readonly alertId: string;
+}): Promise<OperationResult<{ readonly alertId: string; readonly state: string }>> {
   throw new Error('Not implemented: T-ALERT-015');
 }
 
@@ -27,9 +27,10 @@ export async function acknowledgeAlertAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ALERT-016 - requirements, ADR, design, and tests are listed there.
  */
-export async function snoozeAlertAction(
-  _input: { readonly alertId: string; readonly snoozedUntil: string },
-): Promise<OperationResult<{ readonly alertId: string; readonly snoozedUntil: string }>> {
+export async function snoozeAlertAction(_input: {
+  readonly alertId: string;
+  readonly snoozedUntil: string;
+}): Promise<OperationResult<{ readonly alertId: string; readonly snoozedUntil: string }>> {
   throw new Error('Not implemented: T-ALERT-016');
 }
 
@@ -40,8 +41,10 @@ export async function snoozeAlertAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ALERT-017 - requirements, ADR, design, and tests are listed there.
  */
-export async function resolveAlertAction(
-  _input: { readonly alertId: string; readonly reason: ResolutionReason; readonly note?: string },
-): Promise<OperationResult<{ readonly alertId: string }>> {
+export async function resolveAlertAction(_input: {
+  readonly alertId: string;
+  readonly reason: ResolutionReason;
+  readonly note?: string;
+}): Promise<OperationResult<{ readonly alertId: string }>> {
   throw new Error('Not implemented: T-ALERT-017');
 }

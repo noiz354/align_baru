@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // T-SEC-002 - the release-blocking isolation sweep. One case per repository port using the
 // HH_MAIN / HH_CONTROL fixtures (docs/testing/TEST-DATA.md section 7). A new port must add rows here.

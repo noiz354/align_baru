@@ -48,6 +48,19 @@ export type DbTransaction = ScopedTx;
  */
 export type DbHandle = Db | ScopedTx;
 
+/**
+ * The narrowest database capability a repository can take: "run this SQL, give me the rows".
+ *
+ * Both drivers satisfy it, so a repository written against `SqlExecutor` runs on the production `pg`
+ * pool and on the PGlite test harness without a cast at the call site. It is deliberately not generic in
+ * the row type - the two drivers disagree on the exact result shape - so repositories narrow the rows
+ * they read with an explicit cast, keeping the SQL and the row contract next to each other.
+ * (Introduced with the T-ORG-001 session/counter repositories merged from `main`, 2026-09-27.)
+ */
+export interface SqlExecutor {
+  execute(query: SQL): Promise<{ rows: Record<string, unknown>[] }>;
+}
+
 /** Session variables the RLS policies read (drizzle/0001_row_level_security.sql). */
 export const RLS_VARIABLES = {
   organizationId: "app.organization_id",

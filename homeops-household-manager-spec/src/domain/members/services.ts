@@ -20,7 +20,12 @@ export type MemberDeps = {
  */
 export async function inviteMember(
   _deps: MemberDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly email?: string; readonly role: 'ADMIN' | 'MEMBER' | 'HELPER' },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly email?: string;
+    readonly role: 'ADMIN' | 'MEMBER' | 'HELPER';
+  },
 ): Promise<{ readonly invitationId: Id; readonly token: string; readonly expiresAt: string }> {
   throw new Error('Not implemented: T-MEM-002');
 }
@@ -37,7 +42,12 @@ export async function inviteMember(
  */
 export async function changeMemberRole(
   _deps: MemberDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly memberId: Id; readonly role: 'ADMIN' | 'MEMBER' | 'HELPER' },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly memberId: Id;
+    readonly role: 'ADMIN' | 'MEMBER' | 'HELPER';
+  },
 ): Promise<void> {
   throw new Error('Not implemented: T-MEM-003');
 }

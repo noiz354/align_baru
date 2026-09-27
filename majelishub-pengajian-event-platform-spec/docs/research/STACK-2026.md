@@ -175,6 +175,9 @@ records the 2026 technology validation performed before freezing the architectur
   `current_setting()` behave identically, which is what makes the `T-SEC-001` isolation proof valid
   (`TESTING.md` §1.3 forbids mocking the database for constraint behaviour). It never ships to
   production and never appears in `dependencies`.
+  Two harnesses currently drive it — `tests/support/db.ts` (identity, isolation, audit and HTTP
+  rate-limit suites) and `tests/support/database.ts`, merged in from `main` with the durable rate-limiter
+  and session-repository suites. Unifying them is `T-TEST-001`; both are dev-only and neither is a mock.
 
 ## 17. Containerisation & CI/CD
 

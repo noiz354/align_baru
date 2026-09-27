@@ -6,7 +6,8 @@ export type Asset = {
   readonly id: Id;
   readonly householdId: Id;
   readonly name: string;
-  readonly category: 'APPLIANCE' | 'HVAC' | 'PLUMBING' | 'ELECTRICAL' | 'SAFETY' | 'VEHICLE' | 'OUTDOOR' | 'OTHER';
+  readonly category:
+    'APPLIANCE' | 'HVAC' | 'PLUMBING' | 'ELECTRICAL' | 'SAFETY' | 'VEHICLE' | 'OUTDOOR' | 'OTHER';
   readonly roomId?: Id;
   readonly locationNote?: string;
   readonly installedOn?: LocalDate;
@@ -36,7 +37,12 @@ export type ServiceFrequency =
   | { readonly kind: 'EVERY_N_DAYS'; readonly interval: number }
   | { readonly kind: 'EVERY_N_WEEKS'; readonly interval: number }
   | { readonly kind: 'EVERY_N_MONTHS'; readonly interval: number; readonly dayOfMonth: number }
-  | { readonly kind: 'EVERY_N_YEARS'; readonly interval: number; readonly month: number; readonly dayOfMonth: number }
+  | {
+      readonly kind: 'EVERY_N_YEARS';
+      readonly interval: number;
+      readonly month: number;
+      readonly dayOfMonth: number;
+    }
   | { readonly kind: 'MONTHS_OF_YEAR'; readonly months: readonly number[]; readonly dayOfMonth: number };
 
 export type MaintenanceRecord = {

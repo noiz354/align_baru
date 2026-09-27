@@ -39,7 +39,11 @@ export async function createHousehold(
  */
 export async function updateHouseholdSettings(
   _deps: HouseholdDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly patch: Partial<HouseholdSettings> },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly patch: Partial<HouseholdSettings>;
+  },
 ): Promise<HouseholdSettings> {
   throw new Error('Not implemented: T-HH-002');
 }

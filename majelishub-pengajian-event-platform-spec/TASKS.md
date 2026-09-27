@@ -6,11 +6,12 @@ write, and what "done" means.
 
 Read `AGENTS.md` first — the ten-step pre-change checklist applies to every task here.
 
-**Status: VS-1 in progress (Phase 0 freeze lifted 2026-09-27).** Six tasks are delivered — `T-ORG-001`
+**Status: VS-1 in progress (Phase 0 freeze lifted 2026-09-27).** Ten tasks are delivered — `T-ORG-001`
 (identity integration with durable rate limiting), `T-SEC-001` (tenant isolation), `T-SEC-002`
-(authorization enforcement), `T-DOCS-001` (documentation gate), `T-ARCH-002` (module-boundary lint rule)
-and `T-ARCH-003` (no-fake-implementation lint rule) — each with a `Delivered:` line recording what was and
-was not built. The app shell also builds (`src/app/layout.tsx`, `next.config.ts`). Everything else is
+(authorization enforcement), `T-SEC-004` (the token-logging ban as a lint rule), `T-SEC-007`
+(tamper-evident audit chain), `T-OBS-002` (logging and metric allow-lists), `T-DOCS-001` (documentation
+gate), `T-DOCS-003` (VS-0 exit gate), `T-ARCH-002` (module-boundary lint rule) and `T-ARCH-003`
+(no-fake-implementation lint rule) — each with a `Delivered:` line recording what was and was not built. The app shell also builds (`src/app/layout.tsx`, `next.config.ts`). Everything else is
 still specified only: contracts, ports, route shells and `describe.todo()` tests.
 
 ---
@@ -100,6 +101,28 @@ mitigation or enforcement rule. They must exist with these exact IDs.
   a check-in requirement id cited by the authorization matrix that `PRD.md` does not define (that row now
   cites `FR-ATTEND-004`), a skill-manifest file name cited by `SKILLS.md` that is not in this repository, and
   a placeholder document name cited by this gate's own header comment.
+
+---
+
+### T-DOCS-003 — VS-0 exit verification gate
+
+- **Requirement IDs:** NFR-OPS-001, NFR-REL-001 (reproducible verification)
+- **Goal:** Make the claim "the repository is a truthful specification" mechanically checkable, so the VS-0 exit criteria cannot silently rot as soon as the first slice lands.
+- **ADR:** ADR-0001 (record architecture decisions), ADR-0021 (testing stack)
+- **Product documents:** `ROADMAP.md` §VS-0 (the seven exit criteria), `README.md` §Repository status, `AGENTS.md` §4/§5 (skeleton honesty)
+- **Expected modules:** `ops/verify-vs0.mjs` (script), `package.json` (`verify:vs0`), `docs/research/STACK-2026.md` (dependency classification)
+- **Dependencies:** none (Phase 0 deliverable)
+- **Expected behavior:** `node ops/verify-vs0.mjs` checks the seven VS-0 exit criteria and exits non-zero on any failure; `--json` emits machine-readable output for CI. It is read-only: it never rewrites a document or a source file, and a finding is fixed in the offending document rather than by widening an exclusion list.
+- **Invariants:** the gate reports honestly — a criterion it cannot prove is reported as `ATTEST` (criterion 7), never as `PASS`.
+- **Security:** none (no data access); it does read `package.json` to check dependency discipline.
+- **Privacy:** none.
+- **Concurrency:** not applicable (CI-only).
+- **Failure cases:** a false positive must be fixed by correcting the document, or — if the check itself is too narrow — by making the check more precise, with the reason recorded.
+- **Tests:** the gate is exercised by `npm run verify:vs0`; a deliberate violation (a stub naming an unknown task, a `test.todo` in a Playwright file) must make it fail.
+- **Manual QA:** run the gate, then introduce each violation in a scratch tree and confirm it is reported.
+- **Definition of Done:** the gate exists, is wired into `package.json`, and the repository passes it as of the Phase 0 freeze (2026-09-27: 7/7, with criterion 7 attested by hand).
+- **Delivered:** 2026-09-27 — VS-0 exit verification, `ops/verify-vs0.mjs`. Findings fixed in the same change: the Playwright placeholder form (`test.fixme(title)` → `test.fixme(title, () => {})`, `test.todo` does not exist in Playwright), `docs/architecture/FINAL-REVIEW.md` §2.7 (no cited mechanism), `docs/research/STACK-2026.md` §2/§16 (package names and Phase 0 notes).
+- **Post-merge state (2026-09-27):** the gate runs on the merged tree and reports **6 pass / 1 warn / 0 fail** — 211 of 229 P0/P1 requirements traced, `tsc --noEmit` 0 errors, 53 stubs all naming a task in `TASKS.md` with 0 constant-success returns, 86 placeholder-only files versus 20 files carrying real assertions, 10 answered challenges. The single warn is criterion 6 (dependency freeze), which VS-1 supersedes on purpose. Two adjustments were needed to keep the gate honest on this tree: its `console.*` report now writes to `process.stdout` (`OBSERVABILITY.md` §5 bans `console.*` under `ops/`), and its criterion-3 heuristic now matches the `majelishub/no-fake-implementation` rule by requiring *every* value in the returned object to be a literal — otherwise `return { ok: true, entries: rows.length }` in `src/server/audit/verify.ts` reads as a fabricated success and trains people to ignore the gate.
 
 ---
 
@@ -235,6 +258,45 @@ mitigation or enforcement rule. They must exist with these exact IDs.
   T-ORG-002/T-ORG-003; the rejection metric and bucket cleanup job are T-SEC-010. Deviation recorded:
   `users.id` is a text identifier issued by Better Auth, while domain aggregates keep UUIDv7
   (`DATA_MODEL.md` global conventions) — the identity tables are owned by the library (ADR-0005).
+
+  **Two implementations of this task met on `main` (2026-09-27).** An independent T-ORG-001 landed on
+  `main` (`7ba87e9`) while this branch built the first (`3babec3`). The merge keeps one implementation per
+  concern and states plainly what was superseded:
+  - **Identity schema — this branch survived** (`drizzle/0000_identity_and_tenancy.sql` +
+    `src/server/db/schema/identity.ts`), because Better Auth, the row-level-security migration and the
+    audit chain are all built on `text` identity ids. `main`'s `drizzle/0000_complete_veda.sql` and
+    `drizzle/meta/0000_snapshot.json` were **deleted**: two `users`/`sessions`/`verifications` table sets
+    cannot coexist, and that snapshot described a drizzle journal entry this repository deliberately
+    does not keep (`ops/db-migrate.mjs` owns history). For the same reason the `::uuid` casts in `main`'s
+    raw-SQL session repository are now `::text`.
+  - **Auth factory — `main`'s `src/server/auth/better-auth.ts` was deleted**; its `uuidV7` generator moved
+    verbatim into `src/server/crypto/uuid.ts` (still tested, 4 cases) and Better Auth is created by
+    `createAuth` in `src/server/auth/auth.ts`. `main`'s `src/server/crypto/subject-hash.ts` survived and is
+    used by its repositories.
+  - **Rate limiting — both stores are kept on purpose**, because both are durable (ADR-0013/0014) and both
+    are tested: `rate_limit_buckets` (this branch, `src/server/auth/rate-limit.ts`, used by the HTTP
+    middleware) and `auth_rate_limit_counters` (`main`, now `src/server/auth/rate-limit-counters.ts` +
+    `drizzle/0003_auth_rate_limit_counters.sql`, used by the sign-in and passkey endpoints). Their policy
+    numbers are identical (5/900, 20/300, 10/600). Consolidating them onto one table is **T-SEC-010**, not
+    this task — the duplication is recorded here rather than hidden.
+  - **Environment reading — `main`'s `src/server/bootstrap/env.ts` survived** and is used by its
+    repositories; `src/server/config.ts` stays the typed contract for application code.
+  - **No test delivered by `main` was dropped.** `tests/integration/auth/rate-limit-durable.test.ts` (10),
+    `tests/integration/auth/session-repository.test.ts` (8), `tests/unit/auth/subject-hash.test.ts` (7) and
+    `tests/unit/auth/uuid-v7.test.ts` (4) all run against the merged tree. Exactly two assertions changed,
+    both labels rather than behaviour: the block-without-reason CHECK is named
+    `users_blocked_reason_required` in the surviving schema (the test expected `..._present`), and identity
+    ids are compared as `::text`. `tests/e2e/**` took `main`'s bodies, which carry the task id inside every
+    `test.fixme`. The VS-0 gate's criterion-3 heuristic was tightened to the `no-fake-implementation`
+    rule's semantics (every value in the returned object must be a literal) so a real result that reports
+    `ok: true` is not flagged as fabricated — `T-DOCS-003`.
+  - **Harness — `vitest.config.mts` (`main`) replaced `vitest.config.ts` (this branch)** and now declares
+    both projects; `tests/support/database.ts` (`main`, PGlite) and `tests/support/db.ts` (this branch)
+    both remain until **T-TEST-001** unifies them. `ops/verify-vs0.mjs` (`main`, `T-DOCS-003`) is kept and
+    wired as `verify:vs0`.
+  Also open, unchanged: the sign-in and session-management UI (`/masuk`, `/sesi-saya`) is **T-ORG-004** —
+  magic links need the email channel (VS-12) and passkeys are T-SEC-009, so no untested auth form ships.
+
 
 ---
 
@@ -1011,6 +1073,7 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 | T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | **Delivered 2026-09-27** — full block in A.1 |
 | T-ORG-002 | Organization + membership model and role assignment | FR-ORG-001, FR-ORG-002 | Planned / VS-1 |
 | T-ORG-003 | Role switching, invitation and offboarding flows | FR-ORG-004, FR-ORG-005 | Planned / VS-1 |
+| T-ORG-004 | Organizer sign-in and session-management UI (`/masuk`, `/sesi-saya`) | NFR-SEC-001, NFR-A11Y-002 | Planned / VS-1 (deferred from T-ORG-001) |
 | T-MOSQUE-001 | Mosque create/edit with address, coordinates, timezone | FR-MOSQUE-001 | Planned / VS-1 |
 | T-MOSQUE-002 | Venue, hall, entrance and facility model (accessibility data) | FR-MOSQUE-003, FR-MOSQUE-004 | Planned / VS-1 |
 | T-MOSQUE-003 | Public mosque page and discovery search (name, area, facilities) | FR-MOSQUE-006, FR-MOSQUE-007 | Planned / VS-1 |
@@ -1168,22 +1231,22 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 ## 3. Task status summary
 
 The Phase 0 freeze was lifted on 2026-09-27 after the VS-0 exit criteria were verified
-(`ROADMAP.md`). Six tasks are delivered (`T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-DOCS-001`,
-`T-ARCH-002`, `T-ARCH-003`); every other task in this file is still **specified only**, and each Part B row
+(`ROADMAP.md`). Ten tasks are delivered (`T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-SEC-004`,
+`T-SEC-007`, `T-OBS-002`, `T-DOCS-001`, `T-DOCS-003`, `T-ARCH-002`, `T-ARCH-003`); every other task in this file is still **specified only**, and each Part B row
 must be expanded into a full sixteen-field block before its slice begins.
 
 | Section | Part A — full sixteen-field blocks | Part B — planned inventory rows |
 |---|---|---|
-| A.1 / B.1 Foundation, architecture, testing | 4 (incl. `T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`, delivered) | 7 |
-| A.1 / B.1 Security, observability, operations | 13 (incl. `T-ORG-001`, `T-SEC-001`, `T-SEC-002`, delivered) | 5 |
+| A.1 / B.1 Foundation, architecture, testing | 4 (all four delivered: `T-DOCS-001`, `T-DOCS-003`, `T-ARCH-002`, `T-ARCH-003`) | 7 |
+| A.1 / B.1 Security, observability, operations | 13 (six delivered: `T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-SEC-004`, `T-SEC-007`, `T-OBS-002`) | 6 |
 | A.2 / B.4 Registration | 2 | 10 |
 | A.2 / B.5 Check-in and attendance | 8 | 18 |
 | A.2 / B.6 Audio | 3 | 13 |
 | A.3 / B.7 Transcription and content | 4 | 19 |
 | A.3 / B.8 Feedback and notifications | 3 | 14 |
-| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 0 | 26 |
+| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 0 | 27 |
 | B.9 Dashboards, moderation, audit, hardening | 0 | 19 |
-| **Total** | **36** | **131** |
+| **Total** | **37** | **133** |
 
 Part A tasks are the ones other documents already point at by ID (see the "Task ownership" lines in the
 skeleton files, `THREAT_MODEL.md` mitigations, and the ADRs). Part B rows are the remaining inventory;

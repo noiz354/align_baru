@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Upload hardening: the file is judged by content, and metadata never survives (SECURITY.md section 9).
 

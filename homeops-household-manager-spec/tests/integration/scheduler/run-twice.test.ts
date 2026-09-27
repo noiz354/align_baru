@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Every job must be safe to run twice; this suite is the evidence (ADR-013).
 

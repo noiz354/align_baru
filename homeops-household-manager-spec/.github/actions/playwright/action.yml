@@ -1,0 +1,23 @@
+# HomeOps — Playwright browser install with a cache keyed on the lockfile (T-PLAT-009, T-PLAT-016).
+name: playwright
+description: Install Playwright browsers from cache when possible
+runs:
+  using: composite
+  steps:
+    - name: Resolve the installed Playwright version
+      id: version
+      shell: bash
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v4
+      id: cache
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}
+    - name: Install chromium (+ deps) on cache miss
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install --with-deps chromium
+    - name: Install OS deps on cache hit
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: npx playwright install-deps chromium

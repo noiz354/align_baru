@@ -34,19 +34,40 @@ export const ALERT_STATE = ['OPEN', 'ACKNOWLEDGED', 'SNOOZED', 'RESOLVED', 'EXPI
 export type AlertState = (typeof ALERT_STATE)[number];
 
 export const ALERT_TYPE = [
-  'CHORE_DUE', 'CHORE_OVERDUE', 'TRASH_FULL', 'TRASH_COLLECTION_DUE',
-  'RESOURCE_LOW', 'RESOURCE_CRITICAL', 'MAINTENANCE_DUE', 'MAINTENANCE_OVERDUE',
-  'ISSUE_REQUIRES_ATTENTION', 'HOUSEHOLD_REMINDER',
+  'CHORE_DUE',
+  'CHORE_OVERDUE',
+  'TRASH_FULL',
+  'TRASH_COLLECTION_DUE',
+  'RESOURCE_LOW',
+  'RESOURCE_CRITICAL',
+  'MAINTENANCE_DUE',
+  'MAINTENANCE_OVERDUE',
+  'ISSUE_REQUIRES_ATTENTION',
+  'HOUSEHOLD_REMINDER',
 ] as const;
 export type AlertType = (typeof ALERT_TYPE)[number]; // docs/product/ALERTS.md
 
-export const OCCURRENCE_STATUS = ['SCHEDULED', 'IN_PROGRESS', 'DONE', 'SKIPPED', 'SNOOZED', 'CANCELLED'] as const;
+export const OCCURRENCE_STATUS = [
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'DONE',
+  'SKIPPED',
+  'SNOOZED',
+  'CANCELLED',
+] as const;
 export type OccurrenceStatus = (typeof OCCURRENCE_STATUS)[number];
 
 export const CHORE_PRIORITY = ['LOW', 'NORMAL', 'HIGH'] as const;
 export type ChorePriority = (typeof CHORE_PRIORITY)[number];
 
-export const ISSUE_STATUS = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'WONT_FIX'] as const;
+export const ISSUE_STATUS = [
+  'OPEN',
+  'ACKNOWLEDGED',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+  'WONT_FIX',
+] as const;
 export type IssueStatus = (typeof ISSUE_STATUS)[number];
 
 export const ISSUE_SEVERITY = ['LOW', 'NORMAL', 'HIGH', 'SAFETY'] as const;
@@ -61,6 +82,6 @@ export type Channel = (typeof CHANNEL)[number];
 /** An all-day value. Always interpreted in the household timezone (I-XA-006). */
 export type LocalDate = string; // 'YYYY-MM-DD'
 /** An instant. Always stored as UTC with an offset (ADR-007). */
-export type Instant = string;   // ISO-8601
+export type Instant = string; // ISO-8601
 /** Opaque, UUIDv7, never sequential (FR-HH-012). */
 export type Id = string;

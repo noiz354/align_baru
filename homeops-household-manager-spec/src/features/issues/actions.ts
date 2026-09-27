@@ -14,16 +14,14 @@ import type { IssueSeverity, IssueStatus } from '../../shared/types';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ISSUE-002 - requirements, ADR, design, and tests are listed there.
  */
-export async function reportIssueAction(
-  _input: {
-    readonly title: string;
-    readonly description?: string;
-    readonly roomId?: string;
-    readonly assetId?: string;
-    readonly severity?: IssueSeverity;
-    readonly clientRequestId: string;
-  },
-): Promise<OperationResult<{ readonly issueId: string }>> {
+export async function reportIssueAction(_input: {
+  readonly title: string;
+  readonly description?: string;
+  readonly roomId?: string;
+  readonly assetId?: string;
+  readonly severity?: IssueSeverity;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly issueId: string }>> {
   throw new Error('Not implemented: T-ISSUE-002');
 }
 
@@ -34,8 +32,10 @@ export async function reportIssueAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-ISSUE-001 - requirements, ADR, design, and tests are listed there.
  */
-export async function transitionIssueAction(
-  _input: { readonly issueId: string; readonly to: IssueStatus; readonly reason?: string },
-): Promise<OperationResult<{ readonly issueId: string; readonly status: IssueStatus }>> {
+export async function transitionIssueAction(_input: {
+  readonly issueId: string;
+  readonly to: IssueStatus;
+  readonly reason?: string;
+}): Promise<OperationResult<{ readonly issueId: string; readonly status: IssueStatus }>> {
   throw new Error('Not implemented: T-ISSUE-001');
 }

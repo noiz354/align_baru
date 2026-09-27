@@ -3,9 +3,10 @@
 import type { Clock } from '../../shared/time/clock';
 import type { Id, LocalDate } from '../../shared/types';
 import type { MaintenancePlan, MaintenanceRecord } from './types';
+import type { MaintenanceRepository } from './ports';
 
 export type MaintenanceDeps = {
-  readonly plans: import('./ports').MaintenanceRepository;
+  readonly plans: MaintenanceRepository;
   readonly clock: Clock;
 };
 
@@ -47,7 +48,12 @@ export async function recordService(
  */
 export async function setPlanLifecycle(
   _deps: MaintenanceDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly planId: Id; readonly action: 'PAUSE' | 'RESUME' },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly planId: Id;
+    readonly action: 'PAUSE' | 'RESUME';
+  },
 ): Promise<MaintenancePlan> {
   throw new Error('Not implemented: T-MNT-009');
 }
@@ -61,7 +67,13 @@ export async function setPlanLifecycle(
  */
 export async function linkIssueToMaintenance(
   _deps: MaintenanceDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly issueId: Id; readonly planId?: Id; readonly recordId?: Id },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly issueId: Id;
+    readonly planId?: Id;
+    readonly recordId?: Id;
+  },
 ): Promise<void> {
   throw new Error('Not implemented: T-MNT-014');
 }

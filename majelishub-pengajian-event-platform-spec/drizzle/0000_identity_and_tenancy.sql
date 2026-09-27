@@ -26,9 +26,9 @@ CREATE TABLE "users" (
   "blocked_reason" text,
   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT "users_email_shape" CHECK ("email" ~* '^[^@]+@[^@]+$'),
+  CONSTRAINT "users_email_shape" CHECK ("email" ~* '^[^@]+@[^@]+\.[^@]+$'),
   CONSTRAINT "users_email_lowercase" CHECK ("email" = lower("email")),
-  CONSTRAINT "users_blocked_reason_required" CHECK ("blocked_until" IS NULL OR "blocked_reason" IS NOT NULL)
+  CONSTRAINT "users_blocked_reason_required" CHECK ("blocked_until" IS NULL OR ("blocked_reason" IS NOT NULL AND length("blocked_reason") >= 3))
 );
 CREATE UNIQUE INDEX "users_email_unique" ON "users" ("email");
 CREATE UNIQUE INDEX "users_phone_e164_unique" ON "users" ("phone_e164");

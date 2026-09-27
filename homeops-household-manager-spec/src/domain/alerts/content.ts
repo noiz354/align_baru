@@ -1,6 +1,6 @@
 // HomeOps - domain skeleton (specification phase). Pure functions only.
 
-import type { AlertContent, DetectedCondition, Alert } from './types';
+import type { AlertContent, DetectedCondition } from './types';
 
 /**
  * Build the five answers every alert must provide (FR-ALERT-004):

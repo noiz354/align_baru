@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The load-bearing anti-spam guarantee (I-ALERT-001).
 

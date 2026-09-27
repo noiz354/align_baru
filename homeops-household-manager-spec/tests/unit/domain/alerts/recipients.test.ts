@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Recipient resolution: assigned -> role -> owner, never a broadcast (I-ALERT-006, ADR-009).
 

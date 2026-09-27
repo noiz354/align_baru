@@ -45,9 +45,14 @@ export const users = pgTable(
     uniqueIndex("users_email_unique").on(t.email),
     uniqueIndex("users_phone_e164_unique").on(t.phoneE164),
     index("users_last_seen_at_idx").on(t.lastSeenAt),
-    check("users_email_shape", sql`${t.email} ~* '^[^@]+@[^@]+$'`),
+    // A dot in the domain part: the stricter of the two shapes this table was specified with (the
+    // 2026-09-27 merge of `main` tightened it; the migration and this schema must agree).
+    check("users_email_shape", sql`${t.email} ~* '^[^@]+@[^@]+\.[^@]+$'`),
     check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
-    check("users_blocked_reason_required", sql`${t.blockedUntil} IS NULL OR ${t.blockedReason} IS NOT NULL`),
+    check(
+      "users_blocked_reason_required",
+      sql`${t.blockedUntil} IS NULL OR (${t.blockedReason} IS NOT NULL AND length(${t.blockedReason}) >= 3)`,
+    ),
   ],
 );
 

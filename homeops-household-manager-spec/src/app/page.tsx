@@ -1,14 +1,11 @@
-// HomeOps - route skeleton (specification phase). No page is implemented.
+// HomeOps — root page (T-PLAT-002, docs/design/PAGES.md).
+//
+// VS-0 ships no product feature and no session, so the only honest destination is the sign-in
+// shell. T-HH-003 (VS-1) replaces this redirect with session/membership-aware routing:
+// member → /today, signed-in without household → /onboarding, anonymous → /sign-in.
 
-/**
- * / - Root redirect
- *
- * Sends a visitor to /today when a session with a membership exists, otherwise to /sign-in.
- * The redirect is server-side: no client flash of the wrong page.
- *
- * Contract: docs/design/PAGES.md. Owning task: T-PLAT-002.
- * Returns null by design: no production UI exists in this phase (AGENTS.md section 1).
- */
-export default function Page() {
-  return null;
+import { redirect } from 'next/navigation';
+
+export default function RootPage(): never {
+  redirect('/sign-in');
 }

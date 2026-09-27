@@ -27,7 +27,8 @@ export type TrashStateEvent = {
   readonly containerId: Id;
   readonly from: TrashState;
   readonly to: TrashState;
-  readonly reason: 'MARKED_ALMOST_FULL' | 'MARKED_FULL' | 'COLLECTED' | 'RESET' | 'COLLECTION_MISSED' | 'ARCHIVED';
+  readonly reason:
+    'MARKED_ALMOST_FULL' | 'MARKED_FULL' | 'COLLECTED' | 'RESET' | 'COLLECTION_MISSED' | 'ARCHIVED';
   readonly actorMemberId?: Id; // undefined for job-driven transitions
   readonly note?: string;
   readonly occurredAt: Instant;

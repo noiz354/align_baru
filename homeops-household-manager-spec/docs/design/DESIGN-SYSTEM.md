@@ -19,20 +19,24 @@
 All tokens are CSS custom properties declared in `@theme` and consumed as Tailwind utilities. Nothing may hard-code a hex value outside this file's token block.
 
 ```css
-/* colour: semantic, not decorative */
+/* colour: semantic, not decorative
+   Values below are the ones that pass `npm run verify:contrast` (T-PLAT-015). The original sketch
+   values failed WCAG AA for status borders on white (attention 1.9:1, warning 2.4:1); each status
+   colour was darkened to ≥3:1 and the dark theme lightens the same names to hold ≥3:1 there.
+   See DECISIONS.md 2026-09-27 "design tokens adjusted to meet the contrast gate". */
 --color-bg            oklch(0.99 0.005 250)   /* app background */
 --color-surface       oklch(1    0    0)      /* cards, sheets */
---color-border        oklch(0.90 0.01 250)
+--color-border        oklch(0.86 0.012 250)
 --color-text          oklch(0.22 0.02 250)
---color-text-muted    oklch(0.50 0.02 250)
---color-primary       oklch(0.55 0.14 250)    /* actions the member takes */
+--color-text-muted    oklch(0.45 0.02 250)
+--color-primary       oklch(0.48 0.14 250)    /* actions the member takes */
 --color-primary-fg    oklch(0.99 0 0)
---color-neutral       oklch(0.60 0.02 250)    /* unknown / inactive */
---color-success       oklch(0.60 0.14 150)    /* clean, done, available */
---color-attention     oklch(0.72 0.15 85)     /* needs attention, low */
---color-warning       oklch(0.66 0.17 55)     /* overdue, full, critical-ish */
---color-critical      oklch(0.55 0.20 25)     /* safety, unavailable, urgent */
---color-focus         oklch(0.50 0.16 250)    /* focus ring, ≥3:1 against surfaces */
+--color-neutral       oklch(0.55 0.02 250)    /* unknown / inactive */
+--color-success       oklch(0.52 0.13 150)    /* clean, done, available */
+--color-attention     oklch(0.55 0.13 75)     /* needs attention, low */
+--color-warning       oklch(0.53 0.15 55)     /* overdue, full, critical-ish */
+--color-critical      oklch(0.50 0.20 25)     /* safety, unavailable, urgent */
+--color-focus         oklch(0.45 0.16 250)    /* focus ring, ≥3:1 against surfaces */
 
 /* spacing scale: 4px base */
 --space-1 .25rem … --space-10 2.5rem

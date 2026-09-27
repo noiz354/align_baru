@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The ADR-010 precedence rules. Derivation must be pure and total (I-ROOM-003).
 

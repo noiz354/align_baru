@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // One tap must mean one completion, even with retries, double taps, and stale tabs (I-CHORE-002).
 

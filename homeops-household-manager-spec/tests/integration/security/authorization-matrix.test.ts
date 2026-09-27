@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // T-SEC-001/T-SEC-003 - the matrix in docs/security/AUTHZ-MATRIX.md is executed, not merely agreed.
 

@@ -11,10 +11,12 @@ It is designed for **many mosques, communities and organizers** — not one mosq
 
 ---
 
-## ⚠️ Repository status: VS-1 IN PROGRESS (Phase 0 specification + skeleton, six tasks delivered)
+## ⚠️ Repository status: VS-1 IN PROGRESS (Phase 0 specification + skeleton, ten tasks delivered)
 
 **The Phase 0 freeze was lifted on 2026-09-27.** The documentation set below is still the authority,
-the skeleton is still the shape of the product, and exactly six tasks are implemented.
+the skeleton is still the shape of the product, and exactly ten tasks are implemented
+(`T-ARCH-002`, `T-ARCH-003`, `T-DOCS-001`, `T-DOCS-003`, `T-OBS-002`, `T-ORG-001`, `T-SEC-001`,
+`T-SEC-002`, `T-SEC-004`, `T-SEC-007`).
 
 What is here (updated 2026-09-27):
 
@@ -24,15 +26,21 @@ What is here (updated 2026-09-27):
 | Documents | 36 root documents + 57 under `docs/` (research, product, design, media, transcription, security, architecture, attendance, testing, operations, 27 ADRs, traceability) |
 | Contracts and skeletons | `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 26 API route shells (+ not-found/error shells) |
 | **Implemented (VS-1)** | `T-OBS-002`/`T-SEC-004` — one logging interface with a privacy allow-list, the OBSERVABILITY.md §4 metric catalogue as typed constants, and a token/code ban list enforced twice (runtime drop + `majelishub/no-token-logging`) from one data file (`src/shared/observability/**`, `ops/eslint/no-token-logging.mjs`) · `T-SEC-007` — append-only, tamper-evident audit: hash-chained `audit_events` with SELECT/INSERT-only grants, an anti-mutation trigger, a linear-time verifier and a per-request buffer wired into `requirePermission` (`src/server/audit/**`, `drizzle/0002_audit_events.sql`, `ops/db-migrate.mjs`) · `T-ORG-001` — Better Auth identity with sessions in our PostgreSQL and a **durable, Postgres-backed rate limiter**, plus the sign-up → cookie → `getSession()` round trip (`src/server/auth/*`, `src/server/http/rate-limit.ts`, `src/server/http/auth-response.ts`, `src/server/config.ts`, `src/app/api/auth/[...all]/route.ts`) · `T-SEC-001` — tenant isolation: `TenantScope` guards, `deriveScope`, scope-first repositories, per-transaction RLS session variables and policies (`src/shared/contracts/scope.ts`, `src/server/db/**`, `drizzle/0001_row_level_security.sql`) · `T-SEC-002` — the authorization matrix as data and the single `requirePermission` choke point, with a public-route allow-list (`src/server/auth/permissions.ts`, `src/server/auth/public-routes.ts`) · `T-DOCS-001` — the documentation consistency gate (`ops/docs-lint.mjs`) · `T-ARCH-002`/`T-ARCH-003` — the module-boundary and no-fake-implementation lint rules (`ops/eslint/**`, `eslint.config.mjs`) · app shell so the project builds (`src/app/layout.tsx`, `next.config.ts`) |
-| Schema + migrations | `src/server/db/schema/**` (identity, tenancy, audit) and three reviewed SQL migrations in `drizzle/` — applied by `npm run db:migrate` (`ops/db-migrate.mjs`: filename order, `schema_migrations` bookkeeping, refuses a changed checksum), never at boot (ADR-0020) |
-| Tests | **96 passing** (8 integration suites on a real PostgreSQL 18 + 8 unit suites) and 281 remaining placeholders in 77 files — the acceptance checklists for the tasks not yet built |
-| Operations | `ops/`: compose stack, two Dockerfiles, smoke suite, the working docs lint gate (`ops/docs-lint.mjs`, `T-DOCS-001`), the project's own ESLint rules (`ops/eslint/**`), backup/restore, load harness notes |
-| Task plan | `TASKS.md` — 36 fully specified tasks + 131 task rows for later slices |
+| Schema + migrations | `src/server/db/schema/**` (identity, tenancy, audit) and four reviewed SQL migrations in `drizzle/` — applied by `npm run db:migrate` (`ops/db-migrate.mjs`: filename order, `schema_migrations` bookkeeping, refuses a changed checksum), never at boot (ADR-0020) |
+| Tests | **125 passing** (10 integration suites on a real PostgreSQL 18 + 10 unit suites) and 281 remaining placeholders in 77 files — the acceptance checklists for the tasks not yet built |
+| Operations | `ops/`: compose stack, two Dockerfiles, smoke suite, the working docs lint gate (`ops/docs-lint.mjs`, `T-DOCS-001`), the project's own ESLint rules (`ops/eslint/**`), the VS-0 exit gate (`ops/verify-vs0.mjs`, `T-DOCS-003`), backup/restore, load harness notes |
+| Task plan | `TASKS.md` — 37 fully specified tasks + 133 task rows for later slices |
 
-Every function that is not part of those nine tasks still throws `Error("Not implemented: <TASK-ID>")`,
+Every function that is not part of those ten tasks still throws `Error("Not implemented: <TASK-ID>")`,
 where the task ID exists in `TASKS.md` — the `majelishub/no-fake-implementation` lint rule checks all 53 of
 them on every run. Still prohibited everywhere: fake implementations, production UI,
 QR generation/scanning, audio capture, transcription calls, notification delivery, payments.
+
+**Gates that run on every change:** `npm run typecheck` · `npm run lint` (including the project's own
+`majelishub/*` rules) · `npm run test` · `npm run docs:lint` (`T-DOCS-001`) · `npm run verify:vs0`
+(`T-DOCS-003`, which re-checks the seven VS-0 exit criteria read-only — 6 pass / 1 warn / 0 fail, with
+criterion 7 attested by a human rather than faked as a PASS). The findings that verification raised, and
+how each was resolved, are recorded in `ROADMAP.md` §Phase 0 state.
 
 ```bash
 # These commands run (verified 2026-09-27, Node.js v24.21.0 / npm 11.20.0):
