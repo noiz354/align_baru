@@ -1,38 +1,43 @@
 /**
  * INTEGRATION TEST - identity/auth-round-trip.test.ts
  * Layer: integration · Owning task: T-ORG-001 · Requirement(s): NFR-SEC-001, FR-ORG-001, NFR-SEC-011
- * Specification: ADR-0005 (Better Auth, in-app), SECURITY.md §2 (session cookies) and §13 (no
- *   in-memory rate limiting), API.md (auth endpoints), FR-ORG-001 (sign-in for organizers)
+ * Specification: ADR-0005 (Better Auth, sessions in OUR PostgreSQL), ADR-0006, SECURITY.md §2 (session
+ *   cookies, revocation) and §9 (no plaintext credentials at rest), §13 (no in-memory rate limiting),
+ *   API.md (auth endpoints), DATA_MODEL.md §1 (identity tables)
  *
- * What this proves, through the same `createAuth` configuration production uses and through the same
- * `handler(request)` call the mounted route makes:
- *   1. `POST /api/auth/sign-up/email` creates an account and answers with a session cookie carrying the
- *      documented attributes (HttpOnly, SameSite=Lax; Secure in production only - SECURITY.md §2).
- *   2. `getSession()` with that cookie returns the same session: the sign-in -> session round trip.
- *   3. A wrong password is refused with 401 and issues no session cookie.
- *   4. Sign-out ends the session: `getSession()` returns null afterwards.
- *   5. OUR durable rate-limit storage (Postgres, `rate_limit_buckets`) is the one being written to, and
- *      after the configured number of attempts the library answers 429 with `Retry-After` - the
- *      library's in-memory limiter is never used (SECURITY.md §13).
+ * Everything here runs against a REAL PostgreSQL 18 with the project's own migrations applied (PGlite
+ * in-process by default, or `INTEGRATION_DATABASE_URL` in CI), through the production `createAuth`
+ * configuration and the same `handler(request)` call the mounted route makes.
  *
- * What it does NOT cover, stated plainly: the identity rows themselves are written to Postgres in
- * production (`database: getPool()` in `src/server/auth/auth.ts`). This suite injects the library's
- * memory adapter because `@better-auth/drizzle-adapter` resolves Better Auth's mapped field names
- * against Drizzle table *properties*, which conflicts with the snake_case column mappings the `pg` pool
- * adapter requires; wiring the two together is a recorded follow-up in TASKS.md T-ORG-001. Session and
- * user rows in Postgres - including revocation by deleting the row - are covered by
- * tests/integration/security/session-revocation.test.ts and session-scope.test.ts.
+ * Proven:
+ *   1. `POST /api/auth/sign-up/email` writes real `users`, `accounts` and `sessions` rows in our schema
+ *      and answers with a session cookie carrying the documented attributes.
+ *   2. The password is stored as a salted hash, never as the submitted value (SECURITY.md §9).
+ *   3. `getSession()` with that cookie reads the session back: the sign-in -> session round trip.
+ *   4. A wrong password is refused with 401 and creates no session row.
+ *   5. Sign-out deletes the session row - revocation is durable state, not a library-side flag.
+ *   6. OUR durable rate-limit storage (`rate_limit_buckets`) is what the library writes to, and it
+ *      answers 429; the mount adds the standard `Retry-After` header (src/server/http/auth-response.ts).
+ *   7. The adapter's table mirror has exactly the columns of the migrated schema, so the field mappings
+ *      in `createAuth` cannot drift away from the database.
+ *
+ * The identity store is injected as a Drizzle adapter (ARCHITECTURE.md §5: the store is a port) because
+ * the production path hands Better Auth a `pg` pool; both go through the same configuration, the same
+ * model/field mappings and the same SQL dialect.
  *
  * Failure cases exercised: wrong password (401) · unknown cookie (null) · rate limit reached (429).
  */
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { memoryAdapter } from "@better-auth/memory-adapter";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { getTableColumns } from "drizzle-orm";
 import "../../support/env";
 import { createTestDatabase, type TestDatabase } from "../../support/db";
+import { identityAdapterSchema } from "../../support/identity-adapter-schema";
 import { createAuth } from "@/server/auth/auth";
 import { createDurableAuthRateLimitStorage } from "@/server/auth/rate-limit";
 import { config } from "@/server/config";
 import { withStandardRateLimitHeader } from "@/server/http/auth-response";
+import { accounts, sessions, users, verifications } from "@/server/db/schema";
 
 const BASE_URL = "http://localhost:3000";
 const EMAIL = "pengurus@masjid-contoh.test";
@@ -45,9 +50,13 @@ beforeAll(async () => {
   harness = await createTestDatabase();
   authInstance = createAuth({
     config: config(),
-    // Identity store: see the file header. Everything else is the production configuration.
-    database: memoryAdapter({ users: [], sessions: [], accounts: [], verifications: [] }),
-    // Rate limiting always goes to the real database, exactly as in production.
+    // Real PostgreSQL, real migrations, real rows - through Drizzle instead of a raw `pg` pool.
+    database: drizzleAdapter(harness.db, {
+      provider: "pg",
+      // The mirror's property names already equal the column names, so no casing option is needed.
+      schema: identityAdapterSchema,
+    }),
+    // Rate limiting uses the same durable store production uses.
     rateLimitStorage: createDurableAuthRateLimitStorage(harness.db),
   });
 });
@@ -74,10 +83,40 @@ function sessionCookie(response: Response): string {
   return pair as string;
 }
 
+interface UserRow {
+  id: string;
+  email: string;
+  email_verified: boolean;
+  created_at: Date;
+}
+interface SessionRow {
+  id: string;
+  user_id: string;
+  token: string;
+  expires_at: Date;
+}
+interface AccountRow {
+  id: string;
+  user_id: string;
+  provider_id: string;
+  password: string | null;
+}
+
 describe("identity round trip", () => {
   let cookie: string;
 
-  test("sign-up through the mounted handler answers with a documented session cookie", async () => {
+  test("the adapter mirror has exactly the columns of the migrated identity schema", () => {
+    const columnsOf = (table: unknown): string[] =>
+      Object.values(getTableColumns(table as Parameters<typeof getTableColumns>[0]))
+        .map((column) => column.name)
+        .sort();
+    expect(columnsOf(identityAdapterSchema.users)).toEqual(columnsOf(users));
+    expect(columnsOf(identityAdapterSchema.sessions)).toEqual(columnsOf(sessions));
+    expect(columnsOf(identityAdapterSchema.accounts)).toEqual(columnsOf(accounts));
+    expect(columnsOf(identityAdapterSchema.verifications)).toEqual(columnsOf(verifications));
+  });
+
+  test("sign-up writes real user, account and session rows and returns a documented cookie", async () => {
     const response = await call("/sign-up/email", {
       body: { email: EMAIL, password: PASSWORD, name: "Pengurus Masjid" },
     });
@@ -88,35 +127,70 @@ describe("identity round trip", () => {
     // SECURITY.md §2: the cookie is never readable by scripts and never sent cross-site.
     expect(raw).toMatch(/HttpOnly/i);
     expect(raw).toMatch(/SameSite=Lax/i);
-    // `Secure` is tied to the environment (src/server/auth/auth.ts): this suite runs with NODE_ENV=test.
+    // `Secure` is tied to the environment (src/server/auth/auth.ts); this suite runs with NODE_ENV=test.
     expect(config().nodeEnv).toBe("test");
     expect(/Secure/i.test(raw)).toBe(false);
 
-    const body = (await response.json()) as { user?: { email?: string }; token?: string };
-    expect(body.user?.email).toBe(EMAIL);
-    expect(body.token).toBeDefined();
+    // The rows are in OUR database, with OUR columns (DATA_MODEL.md §1).
+    const rows = await harness.query<UserRow>("SELECT id, email, email_verified, created_at FROM users");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.email).toBe(EMAIL);
+    // The schema forces lowercase addresses; the value that arrived was already lowercase.
+    expect(rows[0]?.email).toBe(rows[0]?.email.toLowerCase());
+    expect(rows[0]?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(rows[0]?.created_at).toBeInstanceOf(Date);
+
+    const accountRows = await harness.query<AccountRow>(
+      "SELECT id, user_id, provider_id, password FROM accounts",
+    );
+    expect(accountRows).toHaveLength(1);
+    expect(accountRows[0]?.provider_id).toBe("credential");
+    expect(accountRows[0]?.user_id).toBe(rows[0]?.id);
+    // SECURITY.md §9: never the submitted password, and salted (salt:hash).
+    expect(accountRows[0]?.password).not.toBeNull();
+    expect(accountRows[0]?.password).not.toContain(PASSWORD);
+    expect(accountRows[0]?.password).toMatch(/^[0-9a-f]+:[0-9a-f]+$/);
+
+    const sessionRows = await harness.query<SessionRow>(
+      "SELECT id, user_id, token, expires_at FROM sessions",
+    );
+    expect(sessionRows).toHaveLength(1);
+    expect(sessionRows[0]?.user_id).toBe(rows[0]?.id);
+    // The cookie carries `<token>.<signature>`; only the token part is stored (ADR-0005).
+    expect(cookie.startsWith(`better-auth.session_token=${sessionRows[0]?.token}.`)).toBe(true);
+    // SECURITY.md §2: participants hold long-lived sessions (30 days), organizers are re-authenticated
+    // after the shorter idle window; the stored expiry is the long one.
+    const lifetimeDays = ((sessionRows[0]?.expires_at.getTime() ?? Date.now()) - Date.now()) / 86_400_000;
+    expect(lifetimeDays).toBeGreaterThan(25);
   });
 
   test("getSession() with that cookie returns the same session", async () => {
     const session = await authInstance.api.getSession({ headers: { cookie } });
     expect(session).not.toBeNull();
     expect(session?.user.email).toBe(EMAIL);
-    expect(session?.session.userId).toBeDefined();
+    const rows = await harness.query<UserRow>("SELECT id, email, email_verified, created_at FROM users");
+    expect(session?.session.userId).toBe(rows[0]?.id);
     // No credential material is echoed back (SECURITY.md §11).
     expect(JSON.stringify(session)).not.toContain(PASSWORD);
   });
 
-  test("a wrong password is refused and issues no session cookie", async () => {
+  test("a wrong password is refused with 401 and creates no session row", async () => {
+    const before = await harness.query<{ n: string }>("SELECT count(*)::text AS n FROM sessions");
     const response = await call("/sign-in/email", { body: { email: EMAIL, password: "salah-sekali-2026" } });
     expect(response.status).toBe(401);
     expect(response.headers.getSetCookie().some((entry) => entry.startsWith("better-auth.session_token="))).toBe(false);
+    const after = await harness.query<{ n: string }>("SELECT count(*)::text AS n FROM sessions");
+    expect(after[0]?.n).toBe(before[0]?.n);
+    // The existing session is untouched by a failed attempt.
     expect(await authInstance.api.getSession({ headers: { cookie } })).not.toBeNull();
   });
 
-  test("sign-out ends the session", async () => {
+  test("sign-out deletes the session row (durable revocation)", async () => {
     const response = await call("/sign-out", { method: "POST", cookie });
     expect(response.status, await response.clone().text()).toBe(200);
     expect(await authInstance.api.getSession({ headers: { cookie } })).toBeNull();
+    const rows = await harness.query<{ n: string }>("SELECT count(*)::text AS n FROM sessions");
+    expect(rows[0]?.n).toBe("0");
   });
 
   test("an unknown session cookie yields no session, never a default identity", async () => {

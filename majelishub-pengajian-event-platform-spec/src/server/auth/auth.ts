@@ -29,6 +29,7 @@
  * Task ownership: T-ORG-001. Passkeys/2FA for administrative roles are T-SEC-009; the organization
  * plugin / membership CRUD is T-ORG-002.
  */
+import { randomUUID } from "node:crypto";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { config, type AppConfig } from "@/server/config";
 import { getDb, getPool } from "@/server/db/client";
@@ -86,8 +87,11 @@ export function createAuth(deps: AuthDependencies) {
         deviceLabel: { type: "string", required: false, returned: true, input: true, fieldName: "device_label" },
       },
       // SECURITY.md §2: sessions live in the database; idle timeout for organizer surfaces is 8 hours.
-      expiresIn: 60 * 24 * 30, // absolute lifetime (days) - revocation is what actually ends a session
-      updateAge: 60 * 24, // refresh the expiry at most once a day
+      // All three values are SECONDS - a bare number is not days. Verified 2026-09-27 by
+      // tests/integration/identity/auth-round-trip.test.ts, which reads `sessions.expires_at` back and
+      // fails if the stored lifetime is not ~30 days.
+      expiresIn: 60 * 60 * 24 * 30, // 30 days absolute lifetime; revocation is what actually ends a session
+      updateAge: 60 * 60 * 24, // refresh the stored expiry at most once a day
       freshAge: cfg.sessionIdleMinutesOrganizer * 60, // re-authenticate for sensitive actions after 8h
       cookieCache: { enabled: false },
     },
@@ -139,7 +143,22 @@ export function createAuth(deps: AuthDependencies) {
     advanced: {
       // SECURITY.md §2 + .env.example TRUSTED_PROXY_HOPS: the client address comes from the proxy chain.
       ipAddress: { ipAddressHeaders: ["x-forwarded-for", "x-client-ip"] },
-      database: { generateId: "uuid" },
+      database: {
+        /**
+         * Identity ids are generated HERE, not by the database, and this is not a stylistic choice.
+         *
+         * `generateId: "uuid"` tells Better Auth "the database produces the UUID": every Postgres
+         * adapter reports `supportsUUIDs: true` (both the `pg`/kysely path used in production and the
+         * Drizzle adapter), and the library then omits `id` from the INSERT and lets a column default
+         * fill it. Our identity id columns are `text` with no server default — the deviation recorded in
+         * TASKS.md T-ORG-001 / DATA_MODEL.md, because the library issues its own identifiers while
+         * domain aggregates keep UUIDv7 — so that INSERT arrives as `values (default, …)` and the
+         * not-null constraint refuses it (`null value in column "id" of relation "users"`).
+         *
+         * Verified 2026-09-27 against PostgreSQL 18 by tests/integration/identity/auth-round-trip.test.ts.
+         */
+        generateId: (): string => randomUUID(),
+      },
       defaultCookieAttributes: {
         httpOnly: true,
         secure: cfg.nodeEnv === "production",

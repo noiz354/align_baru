@@ -200,21 +200,41 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/rate-limits.test.ts` (documented thresholds, shared durable counters, 200 scans/min/event not throttled, `RATE_LIMITED` shape, no raw IP stored) · `tests/integration/security/session-revocation.test.ts` (revocation deletes the row, event without the token, reason length, `NOT_FOUND`).
 - **Manual QA:** sign in with two organizer accounts on one deployment, list and revoke one session, and confirm the revoked browser is signed out on its next request while the other is unaffected. Record the outcome in the PR.
 - **Definition of Done:** the identity handler is mounted and sessions are database-backed; no code path uses an in-memory rate limiter; the listed tests pass against a real PostgreSQL; `npm run typecheck`, `npm run lint` and both test layers are green.
-- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru`. **Round trip closed 2026-09-27:**
-  `tests/integration/identity/auth-round-trip.test.ts` (7 tests) drives `POST /api/auth/sign-up/email`
-  through the same `handler(request)` call the mounted route makes, asserts the session cookie attributes
-  (`HttpOnly`, `SameSite=Lax`, `Secure` only in production), reads the session back with `getSession()`,
-  refuses a wrong password with 401, ends the session on sign-out, returns null for an unknown cookie, and
-  proves the durable Postgres limiter refuses with 429. Two findings from that work are now part of the code:
-  `createAuth` takes the identity store as an injected dependency (`AuthDependencies.database`) because the
-  store is a port, and `src/server/http/auth-response.ts` adds the standard `Retry-After` header to the
-  library's 429 (Better Auth sends the non-standard `x-retry-after`; API.md §1 promises `Retry-After`).
-  Explicitly **not** delivered here: the round trip injects Better Auth's memory adapter, because
-  `@better-auth/drizzle-adapter` resolves the snake_case field mappings that the production `pg` pool needs
-  against Drizzle table *properties* instead of column names, and the insert then sends `NULL` for `id`;
-  running the identity store on PostgreSQL through Drizzle is a follow-up for this task (production keeps
-  `database: getPool()`, and session/user rows in PostgreSQL are covered by `session-revocation` and
-  `session-scope`). Passkeys/2FA are T-SEC-009; membership CRUD and invitations are T-ORG-002/T-ORG-003; the rejection metric and bucket cleanup job are T-SEC-010. Deviation recorded: `users.id` is a text identifier issued by Better Auth, while domain aggregates keep UUIDv7 (`DATA_MODEL.md` global conventions) — the identity tables are owned by the library (ADR-0005).
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru`. **Round trip closed on PostgreSQL
+  2026-09-27:** `tests/integration/identity/auth-round-trip.test.ts` (8 tests) drives
+  `POST /api/auth/sign-up/email` through the same `handler(request)` call the mounted route makes, against
+  Better Auth's **Drizzle adapter** over a real PostgreSQL 18 with the project's own migrations applied —
+  so `users`, `accounts` and `sessions` rows are read back from the database, not from a memory adapter. It
+  asserts the session cookie attributes (`HttpOnly`, `SameSite=Lax`, `Secure` only in production), the stored
+  password shape (`<salt-hex>:<hash-hex>`, never plaintext), reads the session back with `getSession()`,
+  refuses a wrong password with 401 **and no new session row**, ends the session on sign-out (**the row is
+  deleted**), returns null for an unknown cookie, proves the durable Postgres limiter refuses with 429 and
+  leaves `rl:auth-lib:` buckets behind, and compares the test mirror's columns against
+  `src/server/db/schema/identity.ts` so the two cannot drift.
+  Three findings from that work are now part of the code:
+  1. `advanced.database.generateId` is a **function**, not `"uuid"`. With `"uuid"` Better Auth asks the
+     database to produce the id — every Postgres adapter reports `supportsUUIDs: true`
+     (`@better-auth/drizzle-adapter` on `provider: "pg"`, `@better-auth/kysely-adapter` on `postgres`, which
+     is what production's `database: getPool()` uses) — and the INSERT is then rendered as
+     `values (default, …)`. Our identity id columns are `text` with no server default, so sign-up failed with
+     `null value in column "id"` (HTTP 422 `FAILED_TO_CREATE_USER`, zero rows). This was a production bug, not
+     a test-only problem; `src/server/auth/auth.ts` now passes `generateId: (): string => randomUUID()`.
+  2. Better Auth reads a bare number in the session config as **seconds**. `expiresIn: 60 * 24 * 30` was a
+     **12-hour** session, not 30 days (observed `expires_at` 12 h ahead), and `updateAge: 60 * 24` was 24
+     minutes. Now `60 * 60 * 24 * 30` and `60 * 60 * 24` — SECURITY.md §2's 30-day participant session and the
+     8-hour organizer idle window (`freshAge`) are what the code now does.
+  3. `createAuth` takes the identity store as an injected dependency (`AuthDependencies.database`) because the
+     store is a port, and `src/server/http/auth-response.ts` adds the standard `Retry-After` header to the
+     library's 429 (Better Auth sends the non-standard `x-retry-after`; API.md §1 promises `Retry-After`).
+  The adapter's table mirror lives in `tests/support/identity-adapter-schema.ts`: `drizzleAdapter` resolves
+  the snake_case field mappings against Drizzle table *properties*, not column names, and renders `DEFAULT`
+  for any column it treats as auto-generated, so the mirror declares `id` without `.primaryKey()` — the real
+  primary key comes from the migration, and the drift test above is what keeps the mirror honest.
+  `@better-auth/drizzle-adapter` is now an explicit devDependency and `@better-auth/memory-adapter` is
+  removed. Still open for this task: passkeys/2FA are T-SEC-009; membership CRUD and invitations are
+  T-ORG-002/T-ORG-003; the rejection metric and bucket cleanup job are T-SEC-010. Deviation recorded:
+  `users.id` is a text identifier issued by Better Auth, while domain aggregates keep UUIDv7
+  (`DATA_MODEL.md` global conventions) — the identity tables are owned by the library (ADR-0005).
 
 ---
 
@@ -235,7 +255,7 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/isolation.test.ts` — for each tenant-scoped table and each role, attempt cross-org read/write/delete by id, slug and list query; assert 404/empty and zero rows returned; a dedicated test asserts an unscoped repository call is impossible to express.
 - **Manual QA:** QA-07 row 1 (contact harvesting attempt) executed against a staging deployment with two organizations.
 - **Definition of Done:** isolation suite green across every route and Server Action touching tenant data; RLS enabled with documented policies; audit events emitted for attempted cross-org access.
-- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — scope contract (`src/shared/contracts/scope.ts`), `deriveScope` (`src/server/auth/permissions.ts`), scoped repositories (`src/server/db/repositories/{organizations,mosques}.ts`), the scoped transaction that sets the RLS session variables and switches to the application role (`src/server/db/client.ts`), and RLS policies (`drizzle/0001_row_level_security.sql`). Tests: `tests/integration/security/isolation.test.ts` (both layers proved independently), `tests/integration/security/session-scope.test.ts`, `tests/unit/security/scope-guards.test.ts`. Explicitly **not** delivered at the time: `requirePermission`/`permissionsForRole` — since delivered by T-SEC-002 on 2026-09-27; the audit event is emitted through an interim stdout sink until T-SEC-007 provides the durable hash-chained table; the isolation suite enumerates the repositories that exist today and must grow with every new scoped endpoint (route-manifest enumeration arrives with the first API routes in VS-2).
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — scope contract (`src/shared/contracts/scope.ts`), `deriveScope` (`src/server/auth/permissions.ts`), scoped repositories (`src/server/db/repositories/{organizations,mosques}.ts`), the scoped transaction that sets the RLS session variables and switches to the application role (`src/server/db/client.ts`), and RLS policies (`drizzle/0001_row_level_security.sql`). Tests: `tests/integration/security/isolation.test.ts` (both layers proved independently), `tests/integration/security/session-scope.test.ts`, `tests/unit/security/scope-guards.test.ts`. Explicitly **not** delivered at the time: `requirePermission`/`permissionsForRole` — since delivered by T-SEC-002 on 2026-09-27; the audit event is emitted through the stdout telemetry sink, and since T-SEC-007 (2026-09-27) can also be buffered into the durable hash-chained `audit_events` table when the caller passes an audit sink; the isolation suite enumerates the repositories that exist today and must grow with every new scoped endpoint (route-manifest enumeration arrives with the first API routes in VS-2).
 
 ---
 
@@ -276,8 +296,10 @@ mitigation or enforcement rule. They must exist with these exact IDs.
   handler is a bare `Not implemented: <real task id>` throw with no data access imported. Two deviations,
   recorded in `docs/security/AUTHZ-MATRIX.md` §4.5: where the matrix shows a plain ✓ for a key that
   `REASON_REQUIRED_PERMISSIONS` lists, the stricter rule wins; and `speaker.claim` is folded into
-  `speaker.write`. Still open: durable audit storage for these events (T-SEC-007) — they go through the
-  interim stdout sink — and the per-route `requirePermission` calls, which arrive with each route's own task.
+  `speaker.write`. Still open: the per-route `requirePermission` calls, which arrive with each route's own
+  task. Durable audit storage for these events is no longer open — T-SEC-007 (2026-09-27) added
+  `audit_events` plus `createAuditEventBuffer`, and `requirePermission` takes an explicit `audit` sink; the
+  stdout sink remains for telemetry.
 
 ---
 
@@ -338,6 +360,46 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/audit/chain.test.ts` — verify a chain, tamper with a row directly in the database, assert detection; concurrent-append test asserts no fork; `tests/integration/audit/coverage.test.ts` asserts every reason-required action writes an entry.
 - **Manual QA:** export an audit slice for one event and confirm it answers "who approved this transcript and why" without referencing any other system.
 - **Definition of Done:** hash chain implemented and verified, append-only grants proven by a test that attempts an update and fails, verification job scheduled.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` —
+  - **Table + grants:** `src/server/db/schema/audit.ts` and `drizzle/0002_audit_events.sql`. Per-organization
+    chain (`UNIQUE (organization_id, chain_position)`), sha256 `hash` over a canonical rendering of the whole
+    entry including `prev_hash`, checks on hash shape, position > 0 and reason ≥ 8 chars. The application role
+    gets `SELECT, INSERT` only; a `BEFORE UPDATE/DELETE/TRUNCATE` trigger refuses mutation for any other role
+    unless the session sets `majelishub.allow_audit_rewrite = 'on'` (the documented repair switch, which
+    `majelishub_app` cannot reach because it holds no UPDATE grant). RLS: an organization reads and appends only
+    its own chain, PLATFORM scope excepted (AUTHZ-MATRIX §4.7).
+  - **Writer:** `src/server/audit/writer.ts` — `writeAuditEntry(input, handle)` takes a transaction-scoped
+    advisory lock per organization, reads the chain head `FOR UPDATE`, and inserts; callers pass the
+    transaction that owns the audited change, so a failed audit write rolls the change back (fail closed).
+  - **Verifier + job:** `src/server/audit/verify.ts` (`verifyAuditChain`, linear time, reports the first broken
+    position and why) and `src/server/audit/verification-job.ts` (`runAuditVerification`, sweeps every
+    organization or a named subset; a break is a result, an unreadable store still throws).
+  - **Bridge:** `src/server/audit/sink.ts` maps security events onto audit entries and buffers them per request
+    (`createAuditEventBuffer`); `requirePermission` accepts an explicit `audit` sink, so denials and
+    reason-required grants are written by the caller's transaction instead of a module-level global (which
+    would leak one request's events into another's). The security events now carry `actorRole`, because a
+    role-based matrix cannot be explained later without the role that decided.
+  - **Migration runner:** `ops/db-migrate.mjs` (`npm run db:migrate`, `npm run db:migrate:status`) applies the
+    reviewed SQL in filename order with `schema_migrations` bookkeeping and refuses to re-apply a file whose
+    checksum changed. `drizzle-kit migrate` cannot be used here: these migrations are hand-reviewed SQL and are
+    not in `drizzle/meta/_journal.json` (drizzle-kit is used to generate and diff, not to own the history).
+  - **Tests:** `tests/integration/audit/chain.test.ts` (6 — verify + first-broken-position, a row edited and
+    re-hashed directly in the database, UPDATE/DELETE/TRUNCATE refused for `majelishub_app` on the grant,
+    mutation refused for the owner without the repair switch, contiguous positions with the advisory lock
+    demonstrably held plus the unique-index backstop and gap detection, sweep reports only the broken
+    partition), `tests/integration/audit/coverage.test.ts` (4 — every reason-required permission writes an
+    entry with its reason, actor/scope/target recorded with no foreign-tenant identifier anywhere in the row,
+    a failed audit write rolls back the role grant it belongs to, and a guard that the coverage loop cannot
+    shrink silently), `tests/unit/ops/db-migrate.test.ts` (4 — ordering, pending set, changed-checksum refusal,
+    and that the audit migration grants no UPDATE/DELETE). All green against a real PostgreSQL 18.
+  - **Still open, honestly:** the *trigger* for the verification job is not wired — the delivered stack has no
+    scheduler (STACK-2026 §5 rejected Redis/BullMQ and `ops/` has no cron service), so nothing calls
+    `runAuditVerification` on a timer yet; T-OPS-002 owns that wiring and until it exists the "verification job
+    scheduled" clause of the DoD is **not** met. Also not delivered here: the audit query/export surface and its
+    indexes (T-AUDIT-001/T-AUDIT-002, FR-AUDIT-004), the `context jsonb` / `source_ip_hash` columns
+    (DATA_MODEL §10 "Deviations recorded"), and the per-route audit writes, which arrive with each route's own
+    task. Manual QA of an exported slice is therefore recorded as **not testable here** — no audit export
+    endpoint exists yet (T-AUDIT-001).
 
 ---
 

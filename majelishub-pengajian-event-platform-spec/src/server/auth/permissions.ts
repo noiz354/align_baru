@@ -43,6 +43,7 @@ import {
   recordAuthorizationEvent,
   recordSecurityEvent,
   type AuthorizationOutcome,
+  type SecurityEvent,
 } from "@/server/auth/authorization-events";
 
 export interface AuthorizationContext {
@@ -60,6 +61,13 @@ export interface AuthorizationContext {
   readonly requestedRoles?: readonly string[];
   /** Device binding for entrance operations (FR-CHECKIN-002, AUTHZ-MATRIX §4.3). */
   readonly deviceBinding?: { readonly eventId: string; readonly entranceId?: string };
+  /**
+   * Durable audit sink for this request's transaction (T-SEC-007). When present, every denial and every
+   * reason-required grant is buffered here so it commits or rolls back with the audited change. It is
+   * passed in explicitly rather than taken from a module-level sink: a global mutable sink would leak
+   * one request's events into another request's transaction.
+   */
+  readonly audit?: { push(event: SecurityEvent): void };
 }
 
 /** Outcome of one matrix cell. `DENY` is the default for every cell that is not listed. */
@@ -214,8 +222,12 @@ export function requirePermission(context: AuthorizationContext): void {
     throw AppError.forbidden();
   }
 
-  // 1. Role grant (the strongest grant the actor's roles give them).
-  const grants = actor.roles.map((role) => grantForRole(role, permission)).filter((g): g is Grant => g !== undefined);
+  // 1. Role grant (the strongest grant the actor's roles give them). The deciding role is kept, because
+  // the audit record has to say by which grant the action was allowed (SECURITY.md §12).
+  const held = actor.roles
+    .map((role) => ({ role, grant: grantForRole(role, permission) }))
+    .filter((entry): entry is { role: string; grant: Grant } => entry.grant !== undefined);
+  const grants = held.map((entry) => entry.grant);
   if (grants.length === 0) {
     // A role that does not hold the key at all. If the resource belongs to another organization the
     // answer must not disclose that it exists.
@@ -228,6 +240,7 @@ export function requirePermission(context: AuthorizationContext): void {
   }
 
   const grant = pickStrongest(grants);
+  const decidingRole = held.find((entry) => entry.grant === grant)?.role;
 
   // 2. Ownership for `OWN` grants (AUTHZ-MATRIX §4.2).
   if (grant === OWN) {
@@ -278,16 +291,17 @@ export function requirePermission(context: AuthorizationContext): void {
 
   // Allowed. Reason-required grants are recorded as authorization changes (SECURITY.md §12).
   if (requiresReason(permission, grant)) {
-    recordSecurityEvent(
-      buildReasonRecordedEvent({
-        permission,
-        actorUserId: actor.userId,
-        organizationId: actor.scope.organizationId,
-        scopeKind: actor.scope.kind,
-        reason: context.reason?.trim() ?? "",
-        now: new Date(),
-      }),
-    );
+    const granted = buildReasonRecordedEvent({
+      permission,
+      actorUserId: actor.userId,
+      actorRole: decidingRole,
+      organizationId: actor.scope.organizationId,
+      scopeKind: actor.scope.kind,
+      reason: context.reason?.trim() ?? "",
+      now: new Date(),
+    });
+    context.audit?.push(granted);
+    recordSecurityEvent(granted);
   }
 }
 
@@ -346,17 +360,19 @@ function pickStrongest(grants: readonly Grant[]): Grant {
 }
 
 function deny(context: AuthorizationContext, outcome: AuthorizationOutcome): void {
-  recordAuthorizationEvent(
-    buildAuthorizationEvent({
-      outcome,
-      actorUserId: context.actor?.userId,
-      organizationId: context.actor?.scope.organizationId ?? "",
-      scopeKind: context.actor?.scope.kind ?? "ORG",
-      targetType: "action",
-      permission: context.permission,
-      now: new Date(),
-    }),
-  );
+  const event = buildAuthorizationEvent({
+    outcome,
+    actorUserId: context.actor?.userId,
+    // For a denial no role granted the action, so the record names the role that was evaluated.
+    actorRole: context.actor?.roles[0],
+    organizationId: context.actor?.scope.organizationId ?? "",
+    scopeKind: context.actor?.scope.kind ?? "ORG",
+    targetType: "action",
+    permission: context.permission,
+    now: new Date(),
+  });
+  context.audit?.push(event);
+  recordAuthorizationEvent(event);
 }
 
 /* -------------------------------------------------------------------------------------------- */

@@ -21,9 +21,10 @@
     "test:a11y": "playwright test tests/e2e/a11y",
     "docs:lint": "node ops/docs-lint.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "node ops/db-migrate.mjs",
+    "db:migrate:status": "node ops/db-migrate.mjs --status"
   },
-  "comment": "Dependencies are installed as of VS-1 (2026-09-27); every package is classified in docs/research/STACK-2026.md (§Installation record). Do not add a dependency without a STACK-2026 classification and, if it is platform-level, an ADR.",
+  "comment": "Dependencies are installed as of VS-1 (2026-09-27); every package is classified in docs/research/STACK-2026.md (\u00a7Installation record). Do not add a dependency without a STACK-2026 classification and, if it is platform-level, an ADR.",
   "dependencies": {
     "better-auth": "1.6.33",
     "drizzle-orm": "0.45.3",
@@ -34,7 +35,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@better-auth/memory-adapter": "1.6.33",
+    "@better-auth/drizzle-adapter": "1.6.33",
     "@electric-sql/pglite": "0.5.8",
     "@playwright/test": "1.63.0",
     "@types/node": "24.19.0",

@@ -41,6 +41,11 @@ export interface AuthorizationDeniedEvent {
   readonly event: "authorization_denied";
   readonly outcome: AuthorizationOutcome;
   readonly actorUserId: string | undefined;
+  /**
+   * Role under evaluation. The matrix is role-based, so an authorization record that omits the role
+   * cannot answer "who was allowed to do this, and by which grant" (SECURITY.md §12, T-SEC-007).
+   */
+  readonly actorRole: string | undefined;
   readonly organizationId: string;
   readonly scopeKind: string;
   /** Entity type only (e.g. "mosque"). Never an identifier of the refused object, never content. */
@@ -55,6 +60,8 @@ export interface AuthorizationReasonRecordedEvent {
   readonly event: "authorization_reason_recorded";
   readonly permission: string;
   readonly actorUserId: string;
+  /** The role whose grant allowed the action. */
+  readonly actorRole: string | undefined;
   readonly organizationId: string;
   readonly scopeKind: string;
   readonly reason: string;
@@ -92,6 +99,7 @@ export function setSecurityEventSink(next: SecurityEventSink): SecurityEventSink
 export function buildAuthorizationEvent(input: {
   outcome: AuthorizationOutcome;
   actorUserId?: string | undefined;
+  actorRole?: string | undefined;
   organizationId: string;
   scopeKind: string;
   targetType: string;
@@ -102,6 +110,7 @@ export function buildAuthorizationEvent(input: {
     event: "authorization_denied",
     outcome: input.outcome,
     actorUserId: input.actorUserId,
+    actorRole: input.actorRole,
     organizationId: input.organizationId,
     scopeKind: input.scopeKind,
     targetType: input.targetType,
@@ -113,6 +122,7 @@ export function buildAuthorizationEvent(input: {
 export function buildReasonRecordedEvent(input: {
   permission: string;
   actorUserId: string;
+  actorRole?: string | undefined;
   organizationId: string;
   scopeKind: string;
   reason: string;
@@ -122,6 +132,7 @@ export function buildReasonRecordedEvent(input: {
     event: "authorization_reason_recorded",
     permission: input.permission,
     actorUserId: input.actorUserId,
+    actorRole: input.actorRole,
     organizationId: input.organizationId,
     scopeKind: input.scopeKind,
     reason: input.reason,

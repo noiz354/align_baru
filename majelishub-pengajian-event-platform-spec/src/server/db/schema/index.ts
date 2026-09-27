@@ -6,15 +6,17 @@
  * forbidden).
  *
  * Task ownership: T-ARCH-001 (contract registry / schema scaffolding), T-SEC-001 (tenancy),
- * T-ORG-001 (identity).
+ * T-ORG-001 (identity), T-SEC-007 (audit).
  */
+export * from "./audit";
 export * from "./identity";
 export * from "./tenancy";
 
+import * as audit from "./audit";
 import * as identity from "./identity";
 import * as tenancy from "./tenancy";
 
 /** Passed to `drizzle(pool, { schema })` so relational queries are typed. */
-export const schema = { ...identity, ...tenancy };
+export const schema = { ...audit, ...identity, ...tenancy };
 
 export type Schema = typeof schema;
