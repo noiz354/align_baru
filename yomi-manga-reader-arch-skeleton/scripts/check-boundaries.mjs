@@ -23,7 +23,11 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 
 
-/** Run ESLint on one fixture file; return the combined output + exit code. */
+/**
+ * Run ESLint on one fixture file; return the combined output + exit code.
+ * @param {string} file
+ * @returns {{ code: number, out: string }}
+ */
 function lint(file) {
   try {
     const stdout = execFileSync(

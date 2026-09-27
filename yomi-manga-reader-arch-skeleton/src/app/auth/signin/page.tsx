@@ -8,12 +8,26 @@
  * errors (aria-describedby + role=alert), `?next=` sanitized to
  * same-origin relative paths only (open-redirect rule, T-AUTH-012),
  * success redirect. Uniform "invalid email or password" message.
- * No feature code in this phase.
+ * No feature code.
+ *
+ * Task: T-FOUND-003. API_CONTRACT §5 row 5: features/auth; handlers
+ * `src/app/api/v1/auth/*`.
+ *
+ * `metadata.robots` is not set here: a sign-in page has nothing to gain from
+ * indexing, but nothing harmful either, and the rule belongs to whoever owns
+ * the deployment's robots policy. Recorded rather than decided.
  */
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Sign in',
+};
+
 export default function SignInPage() {
   return (
-    <main>
+    <>
+      <h1>Sign in</h1>
       {/* TODO(T-AUTH-012): sign-in form (labeled, error-linked, a11y) */}
-    </main>
+    </>
   );
 }

@@ -134,7 +134,11 @@ function expandCodeCell(codeCell) {
   };
 }
 
-/** The quoted literal of a V cell, or null when the row is per-field prose. */
+/**
+ * The quoted literal of a V cell, or null when the row is per-field prose.
+ * @param {string} cell
+ * @returns {string | null}
+ */
 function visibleLiteral(cell) {
   const match = /^"([^"]+)"(?:\s*\(.*\))?$/.exec(cell);
   return match ? /** @type {string} */ (match[1]) : null;

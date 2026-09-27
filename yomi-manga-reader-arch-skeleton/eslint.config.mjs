@@ -223,7 +223,13 @@ export default tseslint.config(
   // type-aware rules cannot resolve them. They are linted with the syntactic
   // rules only — a build config does not benefit from type-aware linting.
   {
-    files: ['eslint.config.mjs', 'vitest.config.ts', 'playwright.config.ts', 'drizzle.config.ts'],
+    files: [
+      'eslint.config.mjs',
+      'vitest.config.ts',
+      'playwright.config.ts',
+      'drizzle.config.ts',
+      'next-env.d.ts',
+    ],
     extends: [tseslint.configs.disableTypeChecked],
     rules: { 'no-console': 'off' },
   },

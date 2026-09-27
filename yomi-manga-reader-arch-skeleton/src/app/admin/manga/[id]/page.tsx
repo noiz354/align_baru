@@ -9,11 +9,25 @@
  * tags; slug immutable after first publish — EC-ADM-07), cover upload,
  * publish/unpublish toggle, soft-delete/restore (confirm dialog).
  * Every mutation ⇒ audit event (server-side). No feature code.
+ *
+ * Task: T-FOUND-003. API_CONTRACT §5 row 7: features/admin orchestrates,
+ * features/manga owns the aggregate rules (slug immutability after first
+ * publish — EC-ADM-07); handler `src/app/api/v1/admin/manga/[id]`.
+ *
+ * The heading is the surface name: the manga title is data, and a fixture
+ * title in a shell would be the fake product data AGENTS.md §4.3 forbids.
  */
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Manga',
+};
+
 export default function AdminMangaEditPage(/* { params } */) {
   return (
-    <main>
+    <>
+      <h1>Manga</h1>
       {/* TODO(T-ADMIN-002…005): metadata form + cover + publish + delete */}
-    </main>
+    </>
   );
 }
