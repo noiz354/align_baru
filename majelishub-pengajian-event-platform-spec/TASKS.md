@@ -6,8 +6,13 @@ write, and what "done" means.
 
 Read `AGENTS.md` first — the ten-step pre-change checklist applies to every task here.
 
-**Status: Phase 0.** Nothing below the "Part A" tasks that are marked *Phase 0* is implemented. The
-skeleton repository contains contracts, ports, route shells and `describe.todo()` tests only.
+**Status: VS-1 in progress (Phase 0 freeze lifted 2026-09-27).** Ten tasks are delivered — `T-ORG-001`
+(identity integration with durable rate limiting), `T-SEC-001` (tenant isolation), `T-SEC-002`
+(authorization enforcement), `T-SEC-004` (the token-logging ban as a lint rule), `T-SEC-007`
+(tamper-evident audit chain), `T-OBS-002` (logging and metric allow-lists), `T-DOCS-001` (documentation
+gate), `T-DOCS-003` (VS-0 exit gate), `T-ARCH-002` (module-boundary lint rule) and `T-ARCH-003`
+(no-fake-implementation lint rule) — each with a `Delivered:` line recording what was and was not built. The app shell also builds (`src/app/layout.tsx`, `next.config.ts`). Everything else is
+still specified only: contracts, ports, route shells and `describe.todo()` tests.
 
 ---
 
@@ -84,6 +89,18 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/docs/references.test.ts` — the checker itself is unit-tested against fixture document trees (missing ADR index entry, dangling requirement ID, empty doc).
 - **Manual QA:** run the gate against the current repository; expect zero findings. Then introduce a deliberate dangling reference and confirm it fails.
 - **Definition of Done:** the script exists, is wired into CI, is unit-tested, and the repository passes it as of the Phase 0 freeze.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/docs-lint.mjs` implements all five
+  checks (`adr-index`, `requirement-id`, `doc-path`, `task-id`, `empty-doc`) plus a `structure` check for a
+  missing catalogue, exports `collectFindings`/`formatFindings`/`run` so it is unit-testable, and exits 1 on
+  any finding (`npm run docs:lint`). `tests/unit/docs/references.test.ts` (10 tests) runs it against fixture
+  trees for every rule and against this repository, which must yield zero findings. Two deviations, both
+  recorded here rather than hidden: the ADR index is `ADR.md` at the repository root (`docs/adr/README.md` is
+  accepted as a fallback), and `REFERENCE_EXEMPTIONS` lists the two test files whose fixtures deliberately
+  contain invalid identifiers — the exemption covers only the three reference rules, is asserted narrow by a
+  test, and turning it off is proven to surface findings. Its first run found three real defects, all fixed:
+  a check-in requirement id cited by the authorization matrix that `PRD.md` does not define (that row now
+  cites `FR-ATTEND-004`), a skill-manifest file name cited by `SKILLS.md` that is not in this repository, and
+  a placeholder document name cited by this gate's own header comment.
 
 ---
 
@@ -105,6 +122,7 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Manual QA:** run the gate, then introduce each violation in a scratch tree and confirm it is reported.
 - **Definition of Done:** the gate exists, is wired into `package.json`, and the repository passes it as of the Phase 0 freeze (2026-09-27: 7/7, with criterion 7 attested by hand).
 - **Delivered:** 2026-09-27 — VS-0 exit verification, `ops/verify-vs0.mjs`. Findings fixed in the same change: the Playwright placeholder form (`test.fixme(title)` → `test.fixme(title, () => {})`, `test.todo` does not exist in Playwright), `docs/architecture/FINAL-REVIEW.md` §2.7 (no cited mechanism), `docs/research/STACK-2026.md` §2/§16 (package names and Phase 0 notes).
+- **Post-merge state (2026-09-27):** the gate runs on the merged tree and reports **6 pass / 1 warn / 0 fail** — 211 of 229 P0/P1 requirements traced, `tsc --noEmit` 0 errors, 53 stubs all naming a task in `TASKS.md` with 0 constant-success returns, 86 placeholder-only files versus 20 files carrying real assertions, 10 answered challenges. The single warn is criterion 6 (dependency freeze), which VS-1 supersedes on purpose. Two adjustments were needed to keep the gate honest on this tree: its `console.*` report now writes to `process.stdout` (`OBSERVABILITY.md` §5 bans `console.*` under `ops/`), and its criterion-3 heuristic now matches the `majelishub/no-fake-implementation` rule by requiring *every* value in the returned object to be a literal — otherwise `return { ok: true, entries: rows.length }` in `src/server/audit/verify.ts` reads as a fabricated success and trains people to ignore the gate.
 
 ---
 
@@ -125,6 +143,15 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/lint/boundaries.test.ts` — runs ESLint programmatically over violating fixtures and asserts each is reported.
 - **Manual QA:** introduce a `domain → server` import in a scratch branch; confirm CI fails with an explanatory message.
 - **Definition of Done:** rule active on `src/**` and `tests/**`, fixture tests pass, no unexplained disables exist in the codebase.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/eslint/module-boundaries.mjs`
+  (`majelishub/module-boundaries`), wired in `eslint.config.mjs` for `src/**`. It understands the `@/` alias
+  and enforces the allowed-import map from `ARCHITECTURE.md` §5 (`app → features → domain → shared`; `domain`
+  may import `shared` only, and may not import `next`, `react`, `pg`, `drizzle-orm`, `better-auth` or
+  `node:fs|net|http`), plus cross-feature imports through the published surface only, no `src/server/**` from
+  a `"use client"` component, and the Drizzle schema only inside `src/server/**`. An inline disable without a
+  written reason (`-- why`) is itself an error. `tests/unit/lint/boundaries.test.ts` (8 tests) lints fixtures
+  with the shipped config. Note: `tests/**` is exempt from the layer rule (tests legitimately reach every
+  layer) but not from `no-fake-implementation`.
 
 ---
 
@@ -145,6 +172,17 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/unit/lint/no-fake.test.ts` — positive and negative fixtures, including a stub naming a non-existent task ID.
 - **Manual QA:** add a fake `return { success: true }` in a scratch branch and confirm the rule reports it.
 - **Definition of Done:** rule active, fixtures tested, CI green on the Phase 0 skeleton with zero unexplained exceptions.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `ops/eslint/no-fake-implementation.mjs`
+  (`majelishub/no-fake-implementation`) reports (a) constant `success: true`/`ok: true` object returns in
+  `src/**` (only when every property is a constant — a computed value is not a lie), (b) a
+  `throw new Error("Not implemented: …")` without a task id, (c) one whose id is absent from `TASKS.md` (all
+  53 ids in `src/**` are validated on every lint run), and (d) a `test.todo`/`describe.todo`/`test.fixme`
+  title that states no behaviour (< 12 characters or a placeholder word). If `TASKS.md` cannot be read the
+  rule reports `catalogue-unreadable` instead of passing silently. `tests/unit/lint/no-fake.test.ts` (4 tests)
+  covers positive and negative fixtures. Also delivered with it, under the same plugin
+  (`ops/eslint/index.mjs`): the `no-console` ban of T-OBS-002 with the `src/server/bootstrap/**` exemption,
+  tested by `tests/unit/lint/console-ban.test.ts` (3 tests); the runtime logger half of T-OBS-002 remains
+  open, as does the T-SEC-004 field-name ban.
 
 ---
 
@@ -168,6 +206,100 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 
 ---
 
+### T-ORG-001 — Identity integration (Better Auth) with durable rate limiting
+
+- **Requirement IDs:** NFR-SEC-001 (every mutating API requires an authenticated principal), NFR-SEC-010 (rate limits survive restarts and are shared), FR-ORG-001/002 (identity behind the tenant), NFR-PRIV-006 (no credentials in telemetry)
+- **Goal:** An organizer, volunteer, reviewer or platform administrator can sign in and hold a session that lives in our database, and every authentication attempt is limited by a counter that survives a deploy and is shared by every replica.
+- **ADR:** ADR-0005 (Better Auth, sessions in our Postgres, in-memory limiter forbidden), ADR-0017 (identity is global while roles stay scoped), ADR-0020 (migrations are an explicit deploy step)
+- **Product documents:** `SECURITY.md` §2/§9/§13, `docs/security/AUTHZ-MATRIX.md` §1, `DATA_MODEL.md` §1 (`users`, `sessions`), `docs/research/STACK-2026.md` §6
+- **Expected modules:** `src/server/auth/auth.ts`, `src/server/auth/session.ts`, `src/server/auth/rate-limit.ts`, `src/server/http/rate-limit.ts`, `src/server/config.ts`, `src/server/db/schema/identity.ts`, `drizzle/0000_identity_and_tenancy.sql`, `src/app/api/auth/[...all]/route.ts`
+- **Dependencies:** Phase 0 dependency freeze lifted (VS-0 exit verification); Drizzle + `pg` schema scaffolding
+- **Expected behavior:** the identity handler is mounted at `/api/auth/*`; users, sessions, accounts and verifications are stored in our PostgreSQL with the column names `DATA_MODEL.md` specifies; the session cookie is `HttpOnly`, `Secure` (production) and `SameSite=Lax`; `getSession()` reads the session row and the user's ACTIVE memberships (never a cached cookie); `revokeSession()` deletes the row and records the action with actor and reason; every authentication path is rate limited through a Postgres bucket table using a single atomic statement per attempt.
+- **Invariants:** sessions live in the database, so a restart logs nobody out; the library's in-memory rate limiter is never used (`RATE_LIMIT_STORE=memory` is refused in production); roles are read from memberships on every request, so a role change takes effect on the next request; no token value or raw IP address is written to a row, a log line or an error message; a rate limiter that cannot count fails closed rather than allowing.
+- **Security:** this task removes the single largest operational risk recorded in ADR-0005 (an in-memory limiter that resets on deploy); secrets are validated at boot; cookies carry no authorization decisions; revocation is immediate at the next request.
+- **Privacy:** identity data stays in our database (exportable and deletable under UU PDP); rate-limit keys are HMAC-hashed with a rotating salt, so no client IP is stored; no participant account is created by any path in this task (participants hold capability tokens, ADR-0006).
+- **Concurrency:** the check and the increment are one `INSERT … ON CONFLICT DO UPDATE … RETURNING`, so N simultaneous attempts cannot all pass a stale read; the window start is derived from the clock, so replicas compute the same bucket without coordinating.
+- **Failure cases:** database unreachable → the sign-in fails (never a local fallback session) · missing or short `BETTER_AUTH_SECRET` → boot failure · expired or revoked session → `getSession()` returns null and the caller answers 401 · limit reached → `RATE_LIMITED` with `Retry-After` · unknown session id on revocation → `NOT_FOUND`.
+- **Tests:** `tests/integration/security/rate-limits.test.ts` (documented thresholds, shared durable counters, 200 scans/min/event not throttled, `RATE_LIMITED` shape, no raw IP stored) · `tests/integration/security/session-revocation.test.ts` (revocation deletes the row, event without the token, reason length, `NOT_FOUND`).
+- **Manual QA:** sign in with two organizer accounts on one deployment, list and revoke one session, and confirm the revoked browser is signed out on its next request while the other is unaffected. Record the outcome in the PR.
+- **Definition of Done:** the identity handler is mounted and sessions are database-backed; no code path uses an in-memory rate limiter; the listed tests pass against a real PostgreSQL; `npm run typecheck`, `npm run lint` and both test layers are green.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru`. **Round trip closed on PostgreSQL
+  2026-09-27:** `tests/integration/identity/auth-round-trip.test.ts` (8 tests) drives
+  `POST /api/auth/sign-up/email` through the same `handler(request)` call the mounted route makes, against
+  Better Auth's **Drizzle adapter** over a real PostgreSQL 18 with the project's own migrations applied —
+  so `users`, `accounts` and `sessions` rows are read back from the database, not from a memory adapter. It
+  asserts the session cookie attributes (`HttpOnly`, `SameSite=Lax`, `Secure` only in production), the stored
+  password shape (`<salt-hex>:<hash-hex>`, never plaintext), reads the session back with `getSession()`,
+  refuses a wrong password with 401 **and no new session row**, ends the session on sign-out (**the row is
+  deleted**), returns null for an unknown cookie, proves the durable Postgres limiter refuses with 429 and
+  leaves `rl:auth-lib:` buckets behind, and compares the test mirror's columns against
+  `src/server/db/schema/identity.ts` so the two cannot drift.
+  Three findings from that work are now part of the code:
+  1. `advanced.database.generateId` is a **function**, not `"uuid"`. With `"uuid"` Better Auth asks the
+     database to produce the id — every Postgres adapter reports `supportsUUIDs: true`
+     (`@better-auth/drizzle-adapter` on `provider: "pg"`, `@better-auth/kysely-adapter` on `postgres`, which
+     is what production's `database: getPool()` uses) — and the INSERT is then rendered as
+     `values (default, …)`. Our identity id columns are `text` with no server default, so sign-up failed with
+     `null value in column "id"` (HTTP 422 `FAILED_TO_CREATE_USER`, zero rows). This was a production bug, not
+     a test-only problem; `src/server/auth/auth.ts` now passes `generateId: (): string => randomUUID()`.
+  2. Better Auth reads a bare number in the session config as **seconds**. `expiresIn: 60 * 24 * 30` was a
+     **12-hour** session, not 30 days (observed `expires_at` 12 h ahead), and `updateAge: 60 * 24` was 24
+     minutes. Now `60 * 60 * 24 * 30` and `60 * 60 * 24` — SECURITY.md §2's 30-day participant session and the
+     8-hour organizer idle window (`freshAge`) are what the code now does.
+  3. `createAuth` takes the identity store as an injected dependency (`AuthDependencies.database`) because the
+     store is a port, and `src/server/http/auth-response.ts` adds the standard `Retry-After` header to the
+     library's 429 (Better Auth sends the non-standard `x-retry-after`; API.md §1 promises `Retry-After`).
+  The adapter's table mirror lives in `tests/support/identity-adapter-schema.ts`: `drizzleAdapter` resolves
+  the snake_case field mappings against Drizzle table *properties*, not column names, and renders `DEFAULT`
+  for any column it treats as auto-generated, so the mirror declares `id` without `.primaryKey()` — the real
+  primary key comes from the migration, and the drift test above is what keeps the mirror honest.
+  `@better-auth/drizzle-adapter` is now an explicit devDependency and `@better-auth/memory-adapter` is
+  removed. Still open for this task: passkeys/2FA are T-SEC-009; membership CRUD and invitations are
+  T-ORG-002/T-ORG-003; the rejection metric and bucket cleanup job are T-SEC-010. Deviation recorded:
+  `users.id` is a text identifier issued by Better Auth, while domain aggregates keep UUIDv7
+  (`DATA_MODEL.md` global conventions) — the identity tables are owned by the library (ADR-0005).
+
+  **Two implementations of this task met on `main` (2026-09-27).** An independent T-ORG-001 landed on
+  `main` (`7ba87e9`) while this branch built the first (`3babec3`). The merge keeps one implementation per
+  concern and states plainly what was superseded:
+  - **Identity schema — this branch survived** (`drizzle/0000_identity_and_tenancy.sql` +
+    `src/server/db/schema/identity.ts`), because Better Auth, the row-level-security migration and the
+    audit chain are all built on `text` identity ids. `main`'s `drizzle/0000_complete_veda.sql` and
+    `drizzle/meta/0000_snapshot.json` were **deleted**: two `users`/`sessions`/`verifications` table sets
+    cannot coexist, and that snapshot described a drizzle journal entry this repository deliberately
+    does not keep (`ops/db-migrate.mjs` owns history). For the same reason the `::uuid` casts in `main`'s
+    raw-SQL session repository are now `::text`.
+  - **Auth factory — `main`'s `src/server/auth/better-auth.ts` was deleted**; its `uuidV7` generator moved
+    verbatim into `src/server/crypto/uuid.ts` (still tested, 4 cases) and Better Auth is created by
+    `createAuth` in `src/server/auth/auth.ts`. `main`'s `src/server/crypto/subject-hash.ts` survived and is
+    used by its repositories.
+  - **Rate limiting — both stores are kept on purpose**, because both are durable (ADR-0013/0014) and both
+    are tested: `rate_limit_buckets` (this branch, `src/server/auth/rate-limit.ts`, used by the HTTP
+    middleware) and `auth_rate_limit_counters` (`main`, now `src/server/auth/rate-limit-counters.ts` +
+    `drizzle/0003_auth_rate_limit_counters.sql`, used by the sign-in and passkey endpoints). Their policy
+    numbers are identical (5/900, 20/300, 10/600). Consolidating them onto one table is **T-SEC-010**, not
+    this task — the duplication is recorded here rather than hidden.
+  - **Environment reading — `main`'s `src/server/bootstrap/env.ts` survived** and is used by its
+    repositories; `src/server/config.ts` stays the typed contract for application code.
+  - **No test delivered by `main` was dropped.** `tests/integration/auth/rate-limit-durable.test.ts` (10),
+    `tests/integration/auth/session-repository.test.ts` (8), `tests/unit/auth/subject-hash.test.ts` (7) and
+    `tests/unit/auth/uuid-v7.test.ts` (4) all run against the merged tree. Exactly two assertions changed,
+    both labels rather than behaviour: the block-without-reason CHECK is named
+    `users_blocked_reason_required` in the surviving schema (the test expected `..._present`), and identity
+    ids are compared as `::text`. `tests/e2e/**` took `main`'s bodies, which carry the task id inside every
+    `test.fixme`. The VS-0 gate's criterion-3 heuristic was tightened to the `no-fake-implementation`
+    rule's semantics (every value in the returned object must be a literal) so a real result that reports
+    `ok: true` is not flagged as fabricated — `T-DOCS-003`.
+  - **Harness — `vitest.config.mts` (`main`) replaced `vitest.config.ts` (this branch)** and now declares
+    both projects; `tests/support/database.ts` (`main`, PGlite) and `tests/support/db.ts` (this branch)
+    both remain until **T-TEST-001** unifies them. `ops/verify-vs0.mjs` (`main`, `T-DOCS-003`) is kept and
+    wired as `verify:vs0`.
+  Also open, unchanged: the sign-in and session-management UI (`/masuk`, `/sesi-saya`) is **T-ORG-004** —
+  magic links need the email channel (VS-12) and passkeys are T-SEC-009, so no untested auth form ships.
+
+
+---
+
 ### T-SEC-001 — Tenant isolation (scope enforcement + RLS)
 
 - **Requirement IDs:** FR-ORG-003, NFR-SEC-003, NFR-SEC-001
@@ -185,6 +317,7 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/isolation.test.ts` — for each tenant-scoped table and each role, attempt cross-org read/write/delete by id, slug and list query; assert 404/empty and zero rows returned; a dedicated test asserts an unscoped repository call is impossible to express.
 - **Manual QA:** QA-07 row 1 (contact harvesting attempt) executed against a staging deployment with two organizations.
 - **Definition of Done:** isolation suite green across every route and Server Action touching tenant data; RLS enabled with documented policies; audit events emitted for attempted cross-org access.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — scope contract (`src/shared/contracts/scope.ts`), `deriveScope` (`src/server/auth/permissions.ts`), scoped repositories (`src/server/db/repositories/{organizations,mosques}.ts`), the scoped transaction that sets the RLS session variables and switches to the application role (`src/server/db/client.ts`), and RLS policies (`drizzle/0001_row_level_security.sql`). Tests: `tests/integration/security/isolation.test.ts` (both layers proved independently), `tests/integration/security/session-scope.test.ts`, `tests/unit/security/scope-guards.test.ts`. Explicitly **not** delivered at the time: `requirePermission`/`permissionsForRole` — since delivered by T-SEC-002 on 2026-09-27; the audit event is emitted through the stdout telemetry sink, and since T-SEC-007 (2026-09-27) can also be buffered into the durable hash-chained `audit_events` table when the caller passes an audit sink; the isolation suite enumerates the repositories that exist today and must grow with every new scoped endpoint (route-manifest enumeration arrives with the first API routes in VS-2).
 
 ---
 
@@ -205,6 +338,30 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/security/permissions.test.ts` — a generated matrix test that calls every protected action with every role and asserts the documented outcome (✓ allowed, — denied, ✓* reason required), plus a test that no protected action executes without a `requirePermission` call (static analysis).
 - **Manual QA:** attempt a role-escalation flow with a mosque administrator account and confirm refusal plus audit entry.
 - **Definition of Done:** the generated test covers 100% of the matrix rows; the static check proves no unprotected action exists; audit records verified.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — `src/server/auth/permissions.ts` holds the
+  matrix as data (`AUTHORIZATION_MATRIX`: 53 rows × 9 roles, each row citing where it comes from in
+  `docs/security/AUTHZ-MATRIX.md`), `grantForRole`, `permissionsForRole` (unknown role → empty list, never a
+  default), `allPermissionKeys`, `requiresReason` and the single choke point `requirePermission`, plus
+  `assertCanGrantRoles` for the escalation guard and `PLATFORM_ONLY_PERMISSIONS` /
+  `SEPARATION_OF_DUTIES_PERMISSIONS` / `NON_DELEGABLE_ROLES`. `PERMISSION_KEYS` is now the single source of
+  truth for the vocabulary in `src/shared/contracts/permissions.ts` (the union type is derived from it).
+  Order of evaluation: identity → key validity (unknown key fails closed with an event) → role grant →
+  ownership for `⬤` grants → device binding for entrance scanning → reason ≥ 8 characters → separation of
+  duties → no self-escalation → scope chain. Cross-organization access answers **404**, a permission the role
+  does not hold answers **403**, and every denial emits an `authorization_denied` event with actor, scope and
+  permission key but no resource identifiers; reason-required grants emit `authorization_reason_recorded`
+  carrying the reason (SECURITY.md §12). `tests/integration/security/permissions.test.ts` (6 tests) walks all
+  477 matrix cells, proves the reason rule for every reason-required key, refuses self-approval and
+  self-escalation, and statically proves that every one of the 26 route files either calls
+  `requirePermission` or is listed with a reason in the new `src/server/auth/public-routes.ts` (today:
+  `/api/v1/health`, `/api/auth/[...all]`); the 24 remaining shells are recognised as stubs only while every
+  handler is a bare `Not implemented: <real task id>` throw with no data access imported. Two deviations,
+  recorded in `docs/security/AUTHZ-MATRIX.md` §4.5: where the matrix shows a plain ✓ for a key that
+  `REASON_REQUIRED_PERMISSIONS` lists, the stricter rule wins; and `speaker.claim` is folded into
+  `speaker.write`. Still open: the per-route `requirePermission` calls, which arrive with each route's own
+  task. Durable audit storage for these events is no longer open — T-SEC-007 (2026-09-27) added
+  `audit_events` plus `createAuditEventBuffer`, and `requirePermission` takes an explicit `audit` sink; the
+  stdout sink remains for telemetry.
 
 ---
 
@@ -223,8 +380,30 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Concurrency:** not applicable.
 - **Failure cases:** a rejected attribute increments `telemetry_dropped_attribute_total` and is reported, never silently dropped.
 - **Tests:** `tests/unit/observability/token-logging.test.ts` — fixtures logging a token field are reported by the rule and stripped by the logger; a runtime test asserts the error serializer omits token fields.
-- **Manual QA:** QA-07 telemetry leak check with a token-shaped string in a request; confirm zero occurrences in logs and a dropped-attribute metric.
+- **Manual QA:** QA-07 telemetry leak check with a token-shaped string in a request; confirm zero occurrences in logs and a dropped-attribute metric. **Not testable here — reason:** no request path accepts a token yet (T-CHECKIN-001 is a stub). The equivalent is verified without a request: a token value passed to the logger under an allowed key is dropped, counted as `kind=banned` and absent from the serialised line, and a token-named property on an error object is stripped (`tests/unit/observability/token-logging.test.ts`).
 - **Definition of Done:** rule + runtime guard active, tests green, the shared ban list exported as the single source of truth.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` —
+  - **One ban list, two enforcers.** `src/shared/observability/banned-attributes.json` holds 31 word
+    patterns with the reason each is banned; `src/shared/observability/attributes.ts` (runtime) and
+    `ops/eslint/no-token-logging.mjs` (build gate) both read that file. Matching splits an identifier into
+    words on camelCase/snake_case/kebab boundaries and compares whole words: substring matching was tried
+    first and rejected, because `uri` matches `favourite` and `security` — a rule people must disable
+    protects nothing. The allow-list is checked first, which is why `errorCode` and `transcriptId` pass.
+  - **Lint rule** `majelishub/no-token-logging` (enabled for `src/**` and `tests/**` in
+    `eslint.config.mjs`) reports `bannedField` (`{ token: … }`), `bannedValue` (`{ result: checkinToken }` —
+    an allowed key does not launder a banned value), `interpolatedMessage` and `nonLiteralMessage`, and
+    reports `banListUnreadable` rather than passing silently when the ban list cannot be read.
+  - **Runtime guard** in the logger (T-OBS-002) plus `serializeErrorForTelemetry`, which drops the error
+    `message` and any own property whose name is banned, so a hand-rolled error cannot smuggle a token.
+  - **Tests** `tests/unit/observability/token-logging.test.ts` (6): the seven violation shapes are flagged,
+    the allow-listed lookalikes are not, token-named attributes are stripped at runtime with the counter
+    incremented, token fields and values are absent from serialised errors, and — the invariant that
+    matters — both enforcers classify the same 25-name fixture list identically and every allow-listed name
+    survives the ban list.
+  - **Still open:** the shared `logger` ban list covers field *names*; the metric **label values** are
+    protected only by the catalogue's declared low-cardinality label keys, and a value-level scan (e.g. a
+    token-shaped string under an allowed name) is not implemented — it belongs with the check-in routes
+    (T-CHECKIN-003) that would have such a value to leak.
 
 ---
 
@@ -265,6 +444,46 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Tests:** `tests/integration/audit/chain.test.ts` — verify a chain, tamper with a row directly in the database, assert detection; concurrent-append test asserts no fork; `tests/integration/audit/coverage.test.ts` asserts every reason-required action writes an entry.
 - **Manual QA:** export an audit slice for one event and confirm it answers "who approved this transcript and why" without referencing any other system.
 - **Definition of Done:** hash chain implemented and verified, append-only grants proven by a test that attempts an update and fails, verification job scheduled.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` —
+  - **Table + grants:** `src/server/db/schema/audit.ts` and `drizzle/0002_audit_events.sql`. Per-organization
+    chain (`UNIQUE (organization_id, chain_position)`), sha256 `hash` over a canonical rendering of the whole
+    entry including `prev_hash`, checks on hash shape, position > 0 and reason ≥ 8 chars. The application role
+    gets `SELECT, INSERT` only; a `BEFORE UPDATE/DELETE/TRUNCATE` trigger refuses mutation for any other role
+    unless the session sets `majelishub.allow_audit_rewrite = 'on'` (the documented repair switch, which
+    `majelishub_app` cannot reach because it holds no UPDATE grant). RLS: an organization reads and appends only
+    its own chain, PLATFORM scope excepted (AUTHZ-MATRIX §4.7).
+  - **Writer:** `src/server/audit/writer.ts` — `writeAuditEntry(input, handle)` takes a transaction-scoped
+    advisory lock per organization, reads the chain head `FOR UPDATE`, and inserts; callers pass the
+    transaction that owns the audited change, so a failed audit write rolls the change back (fail closed).
+  - **Verifier + job:** `src/server/audit/verify.ts` (`verifyAuditChain`, linear time, reports the first broken
+    position and why) and `src/server/audit/verification-job.ts` (`runAuditVerification`, sweeps every
+    organization or a named subset; a break is a result, an unreadable store still throws).
+  - **Bridge:** `src/server/audit/sink.ts` maps security events onto audit entries and buffers them per request
+    (`createAuditEventBuffer`); `requirePermission` accepts an explicit `audit` sink, so denials and
+    reason-required grants are written by the caller's transaction instead of a module-level global (which
+    would leak one request's events into another's). The security events now carry `actorRole`, because a
+    role-based matrix cannot be explained later without the role that decided.
+  - **Migration runner:** `ops/db-migrate.mjs` (`npm run db:migrate`, `npm run db:migrate:status`) applies the
+    reviewed SQL in filename order with `schema_migrations` bookkeeping and refuses to re-apply a file whose
+    checksum changed. `drizzle-kit migrate` cannot be used here: these migrations are hand-reviewed SQL and are
+    not in `drizzle/meta/_journal.json` (drizzle-kit is used to generate and diff, not to own the history).
+  - **Tests:** `tests/integration/audit/chain.test.ts` (6 — verify + first-broken-position, a row edited and
+    re-hashed directly in the database, UPDATE/DELETE/TRUNCATE refused for `majelishub_app` on the grant,
+    mutation refused for the owner without the repair switch, contiguous positions with the advisory lock
+    demonstrably held plus the unique-index backstop and gap detection, sweep reports only the broken
+    partition), `tests/integration/audit/coverage.test.ts` (4 — every reason-required permission writes an
+    entry with its reason, actor/scope/target recorded with no foreign-tenant identifier anywhere in the row,
+    a failed audit write rolls back the role grant it belongs to, and a guard that the coverage loop cannot
+    shrink silently), `tests/unit/ops/db-migrate.test.ts` (4 — ordering, pending set, changed-checksum refusal,
+    and that the audit migration grants no UPDATE/DELETE). All green against a real PostgreSQL 18.
+  - **Still open, honestly:** the *trigger* for the verification job is not wired — the delivered stack has no
+    scheduler (STACK-2026 §5 rejected Redis/BullMQ and `ops/` has no cron service), so nothing calls
+    `runAuditVerification` on a timer yet; T-OPS-002 owns that wiring and until it exists the "verification job
+    scheduled" clause of the DoD is **not** met. Also not delivered here: the audit query/export surface and its
+    indexes (T-AUDIT-001/T-AUDIT-002, FR-AUDIT-004), the `context jsonb` / `source_ip_hash` columns
+    (DATA_MODEL §10 "Deviations recorded"), and the per-route audit writes, which arrive with each route's own
+    task. Manual QA of an exported slice is therefore recorded as **not testable here** — no audit export
+    endpoint exists yet (T-AUDIT-001).
 
 ---
 
@@ -283,8 +502,35 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Concurrency:** logger is safe under concurrent job execution; trace/span context does not bleed between requests.
 - **Failure cases:** exporter unreachable → the app continues (telemetry never breaks the product); malformed payload → dropped and counted; missing config → logged once at boot with a clear message.
 - **Tests:** `tests/unit/observability/logger.test.ts` (allow-list, drop counting, no content fields), `tests/integration/observability/tracing.test.ts` (spans exist for a request→job chain), `tests/unit/lint/console-ban.test.ts`.
-- **Manual QA:** run one registration and one check-in locally; inspect the log output and confirm every line contains only allow-listed attributes and that a correlation id is present.
+- **Manual QA:** run one registration and one check-in locally; inspect the log output and confirm every line contains only allow-listed attributes and that a correlation id is present. **Not testable here — reason:** no registration or check-in route exists yet (they are T-REG-*/T-CHECKIN-* stubs), so there is no end-to-end line to inspect. What is verified instead: the documented check-in line shape from OBSERVABILITY.md §5 is asserted field by field in `tests/unit/observability/logger.test.ts`, and the security events that do flow today go through this logger.
 - **Definition of Done:** the three APIs exist with tests; the metric catalogue is implemented as typed constants; `telemetry_dropped_attribute_total` is emitted and asserted to be zero in normal flows.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — **two of the three APIs** (logger,
+  metrics), with tracing still open:
+  - `src/shared/observability/logger.ts` — one JSON-line interface (`debug/info/warn/error/child`), an
+    injectable sink, and four structural refusals: attribute names outside `ALLOWED_ATTRIBUTES` are
+    dropped, values that are not string/number/boolean are dropped, string values containing whitespace or
+    longer than 128 characters are dropped (identifiers and enums only), and an event name that is not a
+    dotted lowercase identifier is refused — so a message built by interpolation cannot carry a value.
+    A log call never throws; a failing sink is reported once and swallowed. `error()` logs `errorName`,
+    `errorCode` and — server-side only — a stack, and **never** the error's `message`, which is where the
+    invalid input value usually is.
+  - `src/shared/observability/metrics.ts` — the whole OBSERVABILITY.md §4 catalogue as typed constants
+    (`METRIC_CATALOGUE`, 44 metrics) with each metric's declared label keys, so an undeclared label or an
+    unknown metric name is a compile error and a runtime throw. `telemetry_dropped_attribute_total{kind}`
+    is the guardrail counter, and the logger asserts it is **zero** in a normal flow.
+  - `src/server/auth/authorization-events.ts` now writes through this logger instead of raw
+    `process.stdout.write`, so the events that exist today obey the same allow-list. The operator's
+    `reason` stays out of telemetry (free text; it lives in the audit record).
+  - `tests/unit/observability/logger.test.ts` (6 tests): unknown/banned attributes dropped and counted with
+    the `kind` distinguishing the two, free text and payloads refused, the documented check-in line emitted
+    field by field, child bindings not leaking into the parent, a throwing sink not breaking the caller,
+    and the error message never logged.
+  - **Still open, honestly:** `tracing.ts` and the OTel `--import` instrumentation are **not** delivered —
+    `@opentelemetry/api` is classified in STACK-2026/ADR-0019 but not installed, and `spans exist for a
+    request→job chain` cannot be asserted without a collector or the container harness (T-TEST-001). The
+    metrics module likewise holds counters in-process (`metricsSnapshot()`) with no OTLP exporter; wiring
+    both is the remainder of this task. Sampling per route class is also not implemented, because there are
+    no routes yet.
 
 ---
 
@@ -796,34 +1042,6 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 
 ---
 
-## A.4 Identity and organizations (VS-1)
-
-### T-ORG-001 — Identity integration (Better Auth) with durable rate limiting
-
-- **Requirement IDs:** NFR-SEC-001, NFR-SEC-002, NFR-SEC-010, NFR-SEC-011, NFR-PRIV-006, FR-ORG-002, FR-ORG-005
-- **Goal:** An organizer, volunteer, reviewer or platform operator can be authenticated as a durable principal whose session survives a restart and can be revoked immediately — and the endpoints that authenticate them cannot be brute-forced, because the counter that limits them lives in Postgres rather than in the process.
-- **ADR:** ADR-0005 (Better Auth; its default limiter is in-memory and unacceptable in production), ADR-0017 (scope is derived from the principal, never from client input), ADR-0018 (time is injected), ADR-0020 (migrations are an explicit deploy step)
-- **Product documents:** `SECURITY.md` §2/§13, `API.md` §1 (actors, rate limits), `docs/security/AUTHZ-MATRIX.md`, `DATA_MODEL.md` §1, `docs/research/STACK-2026.md` §2/§5/§6/§16, `RETENTION.md`
-- **Expected modules:** `src/server/db/schema/identity.ts`, `src/server/db/client.ts`, `src/server/bootstrap/env.ts`, `src/server/db/repositories/auth-rate-limit-counters.ts`, `src/server/db/repositories/sessions.ts`, `src/server/crypto/subject-hash.ts`, `src/server/auth/**`, `src/app/api/auth/[...all]/route.ts`, `drizzle/` (migration)
-- **Dependencies:** VS-0 exit verification (the skeleton must typecheck before behaviour is added to it)
-- **Expected behavior:** Better Auth is configured against our Postgres through the Drizzle adapter; sessions, accounts and verifications are rows in our database; the identity library's rate limiter is replaced by a durable counter store; `getSession()` resolves the caller from request cookies and `revokeSession()` removes a session row immediately; a missing `APP_URL`, `BETTER_AUTH_SECRET` or `DATABASE_URL` fails the boot rather than a request.
-- **Invariants:** the in-memory limiter is never enabled, in any environment; a limiter that cannot decide refuses rather than allows; a bucket key never contains a raw email, device id or IP; revocation deletes the row (a revoked session must not keep authenticating); the cookie cache is off, so revocation is immediate; sign-up on the public surface stays off until invitations exist.
-- **Security:** `HttpOnly`/`Secure`/`SameSite=Lax` cookies; 8-hour idle timeout for organizer/admin surfaces (SECURITY.md §2); the secret is read only from the environment through one module; rate-limit counters are keyed with a deployment secret so the table cannot be turned back into a list of emails. `revokeSession` deliberately performs **no** authorization of its own — T-SEC-002 invariant 1 forbids scattered role checks, and no route or Server Action calls it yet.
-- **Privacy:** the counter table holds a keyed digest, never a subject; `sessions.ip_address` and `user_agent` are personal data covered by the session's 30-day retention and are never emitted to telemetry (OBSERVABILITY.md §7); no participant row is created here — participants have no account (ADR-0005).
-- **Concurrency:** the counter is a single `INSERT … ON CONFLICT DO UPDATE … RETURNING`, so N concurrent requests consume N distinct counts instead of all reading the same stale value; the counter saturates at `limit + 1` so a flood cannot grow the row without bound. No C-case in `docs/testing/CONCURRENCY-TESTS.md` is named for this path — the entrance cases begin at registration.
-- **Failure cases:** database unavailable (a privileged surface fails closed; the limiter refuses, it does not wave traffic through) · malformed configuration (boot fails, naming only the variable) · expired session (treated as anonymous on public surfaces, refused on privileged ones) · revoking an already-revoked session (reports `false`, not an error) · rotating `BETTER_AUTH_SECRET` (bucket keys change with it, which is acceptable: the worst case is one fresh window).
-- **Tests:** `tests/integration/auth/rate-limit-durable.test.ts` (limit boundary, retry delay, remaining, window reset, saturation, durability across a new storage instance, refusal when the store is unreachable, N-concurrent, no raw subject stored, retention sweep), `tests/integration/auth/session-repository.test.ts` (lookup, per-user listing, revocation, cascade from `users`, and the two `CHECK` constraints), `tests/unit/auth/uuid-v7.test.ts`, `tests/unit/auth/subject-hash.test.ts`.
-- **Manual QA:** **not executed** — no deployment, no PostgreSQL instance and no browser in the environment this was delivered from, and the sign-in surface it would be exercised through does not exist yet. The scenarios to run when it can be executed: sign in on a cold browser and confirm the cookie is `HttpOnly; Secure; SameSite=Lax`; restart the app process and confirm the session survives; revoke the session from a second device and confirm the first is signed out on its next request; fire 20 sign-in attempts in a minute against one account and confirm a `429` with `Retry-After`; `psql` the counter table after the burst and confirm no email appears in `bucket_key`.
-- **Definition of Done:** the identity schema, its reviewed migration, the pooled client, the durable limiter, the session service and the `/api/auth/*` route exist and typecheck; the four test files are implemented and pass; `npm run verify:vs0` stays green; every dependency is classified in `docs/research/STACK-2026.md`.
-  Explicit, justified deferrals recorded against this task:
-  1. **Sign-in and session-management UI (`/masuk`, `/sesi-saya`) — `T-ORG-004`.** Magic link needs the email channel (VS-12) and passkeys are T-SEC-009; shipping an untested auth form against a database that cannot be started here would be the exact "looks finished, is not" failure this repository forbids.
-  2. **Organization membership and roles — `T-ORG-002`.** `SessionSummary.roles` is therefore always empty today; that is the truth, not a placeholder permission.
-  3. **The revocation reason is validated but not yet persisted** — the audit trail is T-SEC-007, and inventing a second audit path here would conflict with it. The parameter is already in the signature so call sites do not change.
-  4. **The retention sweep has no scheduled caller** — `deleteExpiredCounters` / `deleteExpiredSessions` are tested and ready for T-PRIV-003.
-- **Delivered:** 2026-09-27 — VS-1 slice start, after the VS-0 exit verification (`T-DOCS-003`) passed 7/7.
-
----
-
 # PART B — PLANNED TASK INVENTORY (compact)
 
 These tasks complete the roadmap. They use the same sixteen fields when they are picked up (expand them
@@ -852,9 +1070,10 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 
 | ID | Task | Requirements | Slice |
 |---|---|---|---|
-| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | **In progress / VS-1** — full block in §A.4 |
+| T-ORG-001 | Identity integration (Better Auth) with durable rate limiting | NFR-SEC-001 | **Delivered 2026-09-27** — full block in A.1 |
 | T-ORG-002 | Organization + membership model and role assignment | FR-ORG-001, FR-ORG-002 | Planned / VS-1 |
 | T-ORG-003 | Role switching, invitation and offboarding flows | FR-ORG-004, FR-ORG-005 | Planned / VS-1 |
+| T-ORG-004 | Organizer sign-in and session-management UI (`/masuk`, `/sesi-saya`) | NFR-SEC-001, NFR-A11Y-002 | Planned / VS-1 (deferred from T-ORG-001) |
 | T-MOSQUE-001 | Mosque create/edit with address, coordinates, timezone | FR-MOSQUE-001 | Planned / VS-1 |
 | T-MOSQUE-002 | Venue, hall, entrance and facility model (accessibility data) | FR-MOSQUE-003, FR-MOSQUE-004 | Planned / VS-1 |
 | T-MOSQUE-003 | Public mosque page and discovery search (name, area, facilities) | FR-MOSQUE-006, FR-MOSQUE-007 | Planned / VS-1 |
@@ -864,7 +1083,6 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 | T-SPEAKER-002 | Speaker verification and profile claim | FR-SPEAKER-003 | Planned / VS-1 |
 | T-SPEAKER-003 | Public speaker page (no ranking, no scores anywhere) | FR-SPEAKER-005, ADR-0014 | Planned / VS-1 |
 | T-SPEAKER-004 | Anti-ranking regression suite (assert no ordering by popularity exists) | NFR-ETH-001, ADR-0024 | Planned / VS-1 |
-| T-ORG-004 | Organizer sign-in and session-management UI (`/masuk`, `/sesi-saya`) | NFR-SEC-001, NFR-A11Y-002 | Planned / VS-1 (deferred from T-ORG-001) |
 
 ## B.3 Programs and events (VS-2)
 
@@ -1010,23 +1228,25 @@ exists · **Planned** = not started · slice = the roadmap slice that delivers i
 
 ---
 
-## 3. Task status summary (Phase 0)
+## 3. Task status summary
 
-Every task in this file is **specified only**. Nothing here is implemented, and nothing may be until the
-Phase 0 freeze is lifted (`ROADMAP.md` VS-0 exit criteria).
+The Phase 0 freeze was lifted on 2026-09-27 after the VS-0 exit criteria were verified
+(`ROADMAP.md`). Ten tasks are delivered (`T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-SEC-004`,
+`T-SEC-007`, `T-OBS-002`, `T-DOCS-001`, `T-DOCS-003`, `T-ARCH-002`, `T-ARCH-003`); every other task in this file is still **specified only**, and each Part B row
+must be expanded into a full sixteen-field block before its slice begins.
 
 | Section | Part A — full sixteen-field blocks | Part B — planned inventory rows |
 |---|---|---|
-| A.1 / B.1 Foundation, architecture, testing | 5 | 7 |
-| A.1 / B.1 Security, observability, operations | 12 | 6 |
+| A.1 / B.1 Foundation, architecture, testing | 4 (all four delivered: `T-DOCS-001`, `T-DOCS-003`, `T-ARCH-002`, `T-ARCH-003`) | 7 |
+| A.1 / B.1 Security, observability, operations | 13 (six delivered: `T-ORG-001`, `T-SEC-001`, `T-SEC-002`, `T-SEC-004`, `T-SEC-007`, `T-OBS-002`) | 6 |
 | A.2 / B.4 Registration | 2 | 10 |
 | A.2 / B.5 Check-in and attendance | 8 | 18 |
 | A.2 / B.6 Audio | 3 | 13 |
 | A.3 / B.7 Transcription and content | 4 | 19 |
 | A.3 / B.8 Feedback and notifications | 3 | 14 |
-| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 1 | 26 |
+| B.2 / B.3 Identity, organizations, mosques, speakers, programs, events | 0 | 27 |
 | B.9 Dashboards, moderation, audit, hardening | 0 | 19 |
-| **Total** | **36** | **132** |
+| **Total** | **37** | **133** |
 
 Part A tasks are the ones other documents already point at by ID (see the "Task ownership" lines in the
 skeleton files, `THREAT_MODEL.md` mitigations, and the ADRs). Part B rows are the remaining inventory;
@@ -1044,7 +1264,7 @@ Counts by module, for cross-checking against other documents:
 | PROGRAM | 5 | NOTIF | 9 |
 | MOSQUE | 5 | ANALYTICS | 4 |
 | SPEAKER | 4 | MOD | 4 |
-| ORG | 4 | AUDIT | 2 |
+| ORG | 3 | AUDIT | 2 |
 | SEC | 11 | PRIV | 3 |
 | OBS | 3 | PERF | 3 |
 | OPS | 6 | ARCH | 6 |
@@ -1064,14 +1284,14 @@ Counts by module, for cross-checking against other documents:
 
 ## 5. First implementation task
 
-The Phase 0 freeze was lifted on 2026-09-27 for VS-1 after `ROADMAP.md` §Phase 0 state recorded the
-VS-0 exit verification as passing. The first task to execute is **VS-1 · T-ORG-001** (identity
-integration with a durable rate limiter), followed immediately by **T-SEC-001** (tenant isolation) — see
+The first tasks after the Phase 0 freeze were **VS-1 · T-ORG-001** (identity integration with a durable
+rate limiter) followed immediately by **T-SEC-001** (tenant isolation) — see
 `docs/architecture/FINAL-REVIEW.md` and the VS-0 exit criteria in `ROADMAP.md`. Everything else depends
 on those two being correct, because every later slice adds rows that must never be visible across
 organizations.
 
-**T-ORG-001 status: delivered (platform only).** Its full block is in §A.4, including the four
-explicit deferrals — the sign-in UI (`T-ORG-004`), membership and roles (`T-ORG-002`), the audit record
-for a revocation (`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`). `T-ORG-002` must land
-before `T-SEC-001` can derive a `TenantScope`, because a scope is built from membership.
+**Executed 2026-09-27.** Both tasks carry a `Delivered:` line above, as do the four tasks delivered
+after them the same day (`T-SEC-002`, `T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`). The next task in VS-1
+order is `T-ORG-002` (organization + membership model and role assignment) — it is the first task that can
+use the delivered `organization_members` schema and `assertCanGrantRoles` escalation guard — followed by
+`T-MOSQUE-001` (mosque create/edit) and `T-ORG-003` (role switching, invitation, offboarding).

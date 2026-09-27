@@ -21,7 +21,7 @@ import {
   createAuthRateLimitStorage,
   authRateLimitBucketKey,
   AUTH_POLICIES,
-} from "@/server/auth/rate-limit";
+} from "@/server/auth/rate-limit-counters";
 import {
   consumeCounter,
   deleteExpiredCounters,

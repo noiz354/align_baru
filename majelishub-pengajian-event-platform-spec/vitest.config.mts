@@ -9,10 +9,12 @@
  *
  * e2e is handled by Playwright itself (playwright.config.ts), not by Vitest.
  *
- * What is real now (T-ORG-001) and what is still to come (T-TEST-001):
+ * What is real now (T-ORG-001, T-SEC-001/002/007, T-OBS-002) and what is still to come (T-TEST-001):
  *   done   the `@/` path alias, so a test can import the module it exercises
- *   done   migration-backed fixtures: `tests/support/database.ts` builds an embedded PostgreSQL from
- *          the committed SQL in `drizzle/`, so an integration suite runs with no Docker
+ *   done   migration-backed fixtures, two harnesses over the same committed SQL in `drizzle/`:
+ *          `tests/support/db.ts` (identity + tenancy + audit suites, RLS-aware) and
+ *          `tests/support/database.ts` (auth suites). Both run with no Docker; both honour
+ *          `INTEGRATION_DATABASE_URL` for a real server.
  *   TODO   fixed clock and seeded ids, a no-network guard, isolated schema per suite, and the
  *          browser-mode provider
  */
@@ -36,7 +38,7 @@ const alias = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
  * (NFR-SEC-011 — a real secret must never enter the repository).
  */
 const env = {
-  NODE_ENV: "test",
+  NODE_ENV: "test" as const,
   APP_URL: "http://localhost:3000",
   BETTER_AUTH_SECRET: "test-only-value-never-a-deployment-secret",
 };
@@ -63,8 +65,8 @@ export default defineConfig({
           include: ["tests/integration/**/*.test.ts"],
           environment: "node",
           pool: "forks",
-          // Each suite builds its own embedded database (tests/support/database.ts), so suites are
-          // isolated by construction. TODO(T-TEST-001): offer containerised PostgreSQL 18 for CI.
+          // Each suite builds its own embedded database (tests/support/db.ts or database.ts), so suites
+          // are isolated by construction. TODO(T-TEST-001): offer containerised PostgreSQL 18 for CI.
         },
       },
       {

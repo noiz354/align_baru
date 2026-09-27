@@ -1,190 +1,136 @@
 /**
- * Identity schema — the persistence contract for organizer/volunteer/reviewer/admin accounts.
+ * Identity schema - the tables Better Auth owns (ADR-0005) plus the durable rate-limit store.
  *
- * Where this belongs: server/db/schema. Only `src/server/db` and repository adapters may import the
- * Drizzle schema (ARCHITECTURE.md §5); feature code speaks in domain types.
+ * Where this belongs: `server/db/schema` - the only place persistence shape is declared. DATA_MODEL.md
+ * §1 is the contract; this file is the Drizzle expression of it and the migrations in `drizzle/` are
+ * generated from it and reviewed as SQL (ADR-0020: migrations are an explicit deploy step).
  *
- * Specification:
- *   DATA_MODEL.md §1 (users) and §Global conventions (UUIDv7 PKs, timestamptz UTC, no soft delete)
- *   ADR-0005 (Better Auth owns identity; sessions live in our Postgres)
- *   ADR-0003 (Drizzle), ADR-0020 (migrations are an explicit deploy step — nothing is applied on boot)
- *   SECURITY.md §2 (session rules: HttpOnly/Secure/SameSite, revocation, idle timeout 8 h for
- *     organizer/admin surfaces), §13 (rate limits are durable, never the library's in-memory store)
- *   PRIVACY.md / RETENTION.md (sessions 30 days; rate-limit counters are short-lived abuse data)
+ * Rules encoded here:
+ *   - `users.email` is unique, lower-cased and shape-checked (DATA_MODEL §1 `users`).
+ *   - A blocked account always carries a reason (`blocked_until IS NULL OR blocked_reason IS NOT NULL`).
+ *   - Sessions live in the database: a restart or a deploy logs nobody out (SECURITY.md §2).
+ *   - Rate-limit counters live in the database, never in process memory
+ *     (docs/research/STACK-2026.md §6, ADR-0005 "default rate limiter is in-memory and resets on
+ *     deploy"). The bucket table is the durable store behind `src/server/http/rate-limit.ts`.
  *
- * Field names are snake_case in the database and camelCase in TypeScript, matching Better Auth's
- * default mapping so the adapter needs no per-field overrides.
- *
- * Task ownership: T-ORG-001. The `organizations` / `organization_members` tables that give these users
- * roles are deliberately NOT here — that is T-ORG-002 (organization model) and T-SEC-001 (scope).
+ * Task ownership: T-ORG-001 (identity integration + durable rate limiting).
  */
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  check,
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
-
-const createdAt = () =>
-  timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow();
-
-const updatedAt = () =>
-  timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow();
+import { boolean, check, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
- * `users` — an organizer, volunteer, reviewer or platform operator.
+ * Organizer / volunteer / reviewer / platform account. Never a participant: participants hold a
+ * capability token instead (ADR-0005 context 1, ADR-0006).
  *
- * Never a participant: attending a kajian does not create a row here (ADR-0005 §Context 1).
+ * `id` is text because Better Auth issues its own identifiers; domain aggregates keep UUIDv7
+ * (DATA_MODEL.md global conventions). The deviation is recorded in TASKS.md T-ORG-001.
  */
 export const users = pgTable(
   "users",
   {
-    id: uuid("id").primaryKey(),
+    id: text("id").primaryKey(),
     name: text("name").notNull(),
     email: text("email").notNull(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    /** Nullable; E.164 when present. Not required for an account to exist (data minimisation). */
+    /** DATA_MODEL §1: optional phone, E.164. Contact data is personal data (PRIVACY.md §4). */
     phoneE164: text("phone_e164"),
-    lastSeenAt: timestamp("last_seen_at", { withTimezone: true, mode: "date" }),
-    /** Suspension window. `blocked_reason` is mandatory whenever a block is set (DATA_MODEL §1). */
-    blockedUntil: timestamp("blocked_until", { withTimezone: true, mode: "date" }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    blockedUntil: timestamp("blocked_until", { withTimezone: true }),
     blockedReason: text("blocked_reason"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    uniqueIndex("users_email_lower_key").on(sql`lower(${table.email})`),
-    // Postgres treats NULLs as distinct, so many users may have no phone without colliding.
-    uniqueIndex("users_phone_e164_key").on(table.phoneE164),
-    index("users_last_seen_at_idx").on(table.lastSeenAt),
-    check("users_email_shape", sql`${table.email} ~* '^[^@]+@[^@]+\\.[^@]+$'`),
+  (t) => [
+    uniqueIndex("users_email_unique").on(t.email),
+    uniqueIndex("users_phone_e164_unique").on(t.phoneE164),
+    index("users_last_seen_at_idx").on(t.lastSeenAt),
+    // A dot in the domain part: the stricter of the two shapes this table was specified with (the
+    // 2026-09-27 merge of `main` tightened it; the migration and this schema must agree).
+    check("users_email_shape", sql`${t.email} ~* '^[^@]+@[^@]+\.[^@]+$'`),
+    check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
     check(
-      "users_blocked_reason_present",
-      sql`${table.blockedUntil} IS NULL OR (${table.blockedReason} IS NOT NULL AND length(${table.blockedReason}) >= 3)`,
+      "users_blocked_reason_required",
+      sql`${t.blockedUntil} IS NULL OR (${t.blockedReason} IS NOT NULL AND length(${t.blockedReason}) >= 3)`,
     ),
   ],
 );
 
-/**
- * `sessions` — server-side session state. A restart must not log anyone out (SECURITY.md §2, and
- * Better Auth's in-memory alternatives are not used).
- *
- * `token` is the opaque session token held in the cookie; only its hash would be better, but the
- * session store is the lookup mechanism itself, so the value must be retrievable by token.
- * `ip_address` exists because the identity library's session model defines it, but it is never
- *   written: IP tracking is disabled (`src/server/auth/better-auth.ts`), because `PRIVACY.md` §3
- *   records stored IP addresses as hashed. `user_agent` is personal data, retained with the session
- *   (30 days, `RETENTION.md` R29) and never emitted to telemetry (`OBSERVABILITY.md` §7).
- */
+/** Organizer/admin session. Revocable, listable per account, 8h idle timeout (SECURITY.md §2). */
 export const sessions = pgTable(
   "sessions",
   {
-    id: uuid("id").primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     token: text("token").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    /** Operator-facing label so a person can recognise and revoke their own devices. */
+    deviceLabel: text("device_label"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
   },
-  (table) => [
-    uniqueIndex("sessions_token_key").on(table.token),
-    index("sessions_user_id_idx").on(table.userId),
-    index("sessions_expires_at_idx").on(table.expiresAt),
-  ],
+  (t) => [uniqueIndex("sessions_token_unique").on(t.token), index("sessions_user_id_idx").on(t.userId)],
 );
 
-/**
- * `accounts` — credential and OAuth linkage. `password` is populated only by the credential
- * provider and is Better Auth's hashed value; we never store or log a plaintext password.
- */
+/** Credential records (password, passkey, OAuth). Better Auth core model. */
 export const accounts = pgTable(
   "accounts",
   {
-    id: uuid("id").primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    providerId: text("provider_id").notNull(),
+    id: text("id").primaryKey(),
     accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      withTimezone: true,
-      mode: "date",
-    }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      withTimezone: true,
-      mode: "date",
-    }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
   },
-  (table) => [
-    index("accounts_user_id_idx").on(table.userId),
-    uniqueIndex("accounts_provider_account_key").on(table.providerId, table.accountId),
-  ],
+  (t) => [index("accounts_user_id_idx").on(t.userId)],
 );
 
-/** `verifications` — email verification and password-reset tokens (short-lived, single purpose). */
+/** Email verification / password reset / magic-link challenges. Values are short-lived. */
 export const verifications = pgTable(
   "verifications",
   {
-    id: uuid("id").primaryKey(),
-    identifier: text("identifier").notNull(),
+    id: text("id").primaryKey(),
+    identifier: text("identifier"),
     value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    index("verifications_identifier_idx").on(table.identifier),
-    index("verifications_expires_at_idx").on(table.expiresAt),
-  ],
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
 );
 
 /**
- * `auth_rate_limit_counters` — the durable rate-limit store.
+ * Durable rate-limit buckets (fixed window).
  *
- * Why this table exists: Better Auth's default limiter is in-memory and resets on deploy, which
- * ADR-0005 records as unacceptable in production. A row per (policy, subject) bucket is the smallest
- * thing that is shared across replicas and survives a restart.
+ * One row per `(policy key, dimension value, window)`. The counter is incremented with a single
+ * `INSERT ... ON CONFLICT DO UPDATE` so that N concurrent requests cannot all pass a stale read
+ * (the concurrency gap Better Auth documents for its non-atomic get/set path).
  *
- * Privacy: `bucket_key` never contains a raw identifier. Callers hash the subject first
- * (`src/server/auth/rate-limit.ts`), so an email or a device id is not written here in the clear.
- * Retention: short, abuse-purpose only — swept by the retention job (`RETENTION.md`).
+ * Retention: abuse counters follow a short documented retention (RETENTION.md); the cleanup job is
+ * T-SEC-010.
  */
-export const authRateLimitCounters = pgTable(
-  "auth_rate_limit_counters",
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
   {
+    /** `${policyKey}:${dimension}:${hashedValue}:${windowStartEpochSeconds}` - never a raw IP. */
     bucketKey: text("bucket_key").primaryKey(),
-    count: integer("count").notNull(),
-    windowStartedAt: timestamp("window_started_at", { withTimezone: true, mode: "date" }).notNull(),
-    updatedAt: updatedAt(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    hits: integer("hits").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("auth_rate_limit_counters_updated_at_idx").on(table.updatedAt)],
+  (t) => [index("rate_limit_buckets_window_start_idx").on(t.windowStart), check("rate_limit_hits_non_negative", sql`${t.hits} >= 0`)],
 );
-
-/** Tables Better Auth's Drizzle adapter needs, keyed the way the adapter expects them. */
-export const identitySchema = {
-  user: users,
-  session: sessions,
-  account: accounts,
-  verification: verifications,
-} as const;
-
-export type UserRow = typeof users.$inferSelect;
-export type SessionRow = typeof sessions.$inferSelect;

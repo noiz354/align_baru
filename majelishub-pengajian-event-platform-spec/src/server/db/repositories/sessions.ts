@@ -19,6 +19,11 @@ import { sql } from "drizzle-orm";
 
 import type { SqlExecutor } from "@/server/db/client";
 
+// Identity ids are compared as TEXT, not uuid: `users.id`/`sessions.id` are Better Auth-issued text
+// identifiers in this schema (the deviation recorded in DATA_MODEL.md §1 and TASKS.md T-ORG-001), so a
+// `::uuid` cast here fails with "operator does not exist: text = uuid". Values stay UUID-shaped.
+
+
 export interface StoredSession {
   readonly id: string;
   readonly userId: string;
@@ -54,7 +59,7 @@ export async function findSessionById(
   const result = await database.execute(sql`
     SELECT id, user_id, created_at, updated_at, expires_at, user_agent
     FROM sessions
-    WHERE id = ${sessionId}::uuid
+    WHERE id = ${sessionId}::text
   `);
   const row = result.rows[0] as SessionRow | undefined;
   return row ? toDomain(row) : null;
@@ -68,7 +73,7 @@ export async function listSessionsForUser(
   const result = await database.execute(sql`
     SELECT id, user_id, created_at, updated_at, expires_at, user_agent
     FROM sessions
-    WHERE user_id = ${userId}::uuid
+    WHERE user_id = ${userId}::text
     ORDER BY updated_at DESC
   `);
   return result.rows.map((row) => toDomain(row as unknown as SessionRow));
@@ -86,7 +91,7 @@ export async function deleteSessionById(
   sessionId: string,
 ): Promise<boolean> {
   const result = await database.execute(sql`
-    DELETE FROM sessions WHERE id = ${sessionId}::uuid RETURNING id
+    DELETE FROM sessions WHERE id = ${sessionId}::text RETURNING id
   `);
   return result.rows.length > 0;
 }

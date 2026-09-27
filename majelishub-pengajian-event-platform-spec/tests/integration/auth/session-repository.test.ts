@@ -34,8 +34,8 @@ async function seedUsers(): Promise<void> {
   await database.execute(sql`
     INSERT INTO users (id, name, email, created_at, updated_at)
     VALUES
-      (${USER_ID}::uuid, ${"Panitia Al-Falah"}, ${EMAIL}, ${T0}::timestamptz, ${T0}::timestamptz),
-      (${OTHER_USER_ID}::uuid, ${"Panitia Baiturrahman"}, ${"panitia.baiturrahman@example.test"},
+      (${USER_ID}::text, ${"Panitia Al-Falah"}, ${EMAIL}, ${T0}::timestamptz, ${T0}::timestamptz),
+      (${OTHER_USER_ID}::text, ${"Panitia Baiturrahman"}, ${"panitia.baiturrahman@example.test"},
        ${T0}::timestamptz, ${T0}::timestamptz)
   `);
 }
@@ -48,8 +48,8 @@ async function seedSession(
   await database.execute(sql`
     INSERT INTO sessions (id, user_id, token, expires_at, user_agent, created_at, updated_at)
     VALUES (
-      ${id}::uuid,
-      ${userId}::uuid,
+      ${id}::text,
+      ${userId}::text,
       ${`tok_${id}`},
       ${options.expiresAt ?? "2026-09-27T10:00:00.000Z"}::timestamptz,
       ${options.userAgent ?? "Mozilla/5.0 (test fixture)"},
@@ -142,7 +142,7 @@ describe("session store (T-ORG-001)", () => {
 
   test("a session cannot outlive its user", async () => {
     const sessionId = await seedSession(USER_ID);
-    await database.execute(sql`DELETE FROM users WHERE id = ${USER_ID}::uuid`);
+    await database.execute(sql`DELETE FROM users WHERE id = ${USER_ID}::text`);
 
     expect(await findSessionById(database, sessionId)).toBeNull();
   });
@@ -151,7 +151,7 @@ describe("session store (T-ORG-001)", () => {
     const constraint = await constraintOf(
       database.execute(sql`
         INSERT INTO users (id, name, email, created_at, updated_at)
-        VALUES (${crypto.randomUUID()}::uuid, ${"Tanpa Email"}, ${"not-an-email"},
+        VALUES (${crypto.randomUUID()}::text, ${"Tanpa Email"}, ${"not-an-email"},
                 ${T0}::timestamptz, ${T0}::timestamptz)
       `),
     );
@@ -163,10 +163,12 @@ describe("session store (T-ORG-001)", () => {
     const constraint = await constraintOf(
       database.execute(sql`
         UPDATE users SET blocked_until = ${"2026-10-27T00:00:00.000Z"}::timestamptz
-        WHERE id = ${USER_ID}::uuid
+        WHERE id = ${USER_ID}::text
       `),
     );
 
-    expect(constraint).toBe("users_blocked_reason_present");
+    // The surviving schema names this constraint `users_blocked_reason_required` (drizzle/0000); the
+    // assertion is the behaviour - a block with no reason is refused by a named CHECK - not the label.
+    expect(constraint).toBe("users_blocked_reason_required");
   });
 });

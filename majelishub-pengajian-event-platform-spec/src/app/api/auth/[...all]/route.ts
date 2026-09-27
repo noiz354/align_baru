@@ -1,45 +1,30 @@
 /**
- * Better Auth endpoint handler — `/api/auth/*`.
+ * ROUTE - /api/auth/* (identity handler mount)
  *
- * This is the only route the identity library serves directly: sign-in, sign-out, session refresh and
- * the endpoints that T-SEC-009 will add for passkeys. Everything else in the product goes through our
- * own routes and Server Actions, which call `requirePermission` (T-SEC-002).
+ * Owning task: T-ORG-001 · Requirements: NFR-SEC-001, FR-ORG-001/002 · ADR-0005
  *
- * Why a route handler rather than a Server Action: these endpoints set cookies, are called by the
- * client SDK, and must answer with the library's own status codes and headers.
+ * Better Auth owns the sign-in/sign-out/session endpoints; this file only mounts its handler. It holds
+ * no business logic: authorization for every product action is enforced by `requirePermission`
+ * (T-SEC-002) inside routes and Server Actions, never here.
  *
- * Why the handlers are built lazily: constructing the auth instance opens the database pool and reads
- * `APP_URL` / `BETTER_AUTH_SECRET`. Doing that at module scope would make `next build` require a live
- * database and a production secret; deferring it to the first request keeps a missing configuration a
- * runtime failure of one route instead of a failed build.
+ * Rate limiting on these paths is durable and shared across replicas (see `src/server/auth/auth.ts`);
+ * the library's in-memory default is not used anywhere (SECURITY.md §13). The library's 429 carries a
+ * non-standard `x-retry-after`, so the mount adds the `Retry-After` our API contract promises
+ * (`src/server/http/auth-response.ts`).
  *
- * Security:
- *   - Session cookies are HttpOnly/Secure/SameSite=Lax (`src/server/auth/better-auth.ts`).
- *   - Requests are rate limited by the durable store, never the library's in-memory default
- *     (SECURITY.md §13, ADR-0005).
- *   - No token, credential or personal value is logged here; the library's errors are surfaced
- *     unchanged and never enriched with request context.
- *
- * Task ownership: T-ORG-001.
+ * Failure cases: identity store unavailable -> 5xx from the handler (never a silent success) · invalid
+ * credentials -> the library's own 401 shape · rate limit reached -> 429 with `Retry-After`.
  */
-import { toNextJsHandler } from "better-auth/next-js";
-import type { NextRequest } from "next/server";
+import { auth } from "@/server/auth/auth";
+import { withStandardRateLimitHeader } from "@/server/http/auth-response";
 
-import { auth } from "@/server/auth/better-auth";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type AuthHandlers = ReturnType<typeof toNextJsHandler>;
-
-let handlers: AuthHandlers | undefined;
-
-function authHandlers(): AuthHandlers {
-  handlers ??= toNextJsHandler(auth());
-  return handlers;
+export async function GET(request: Request): Promise<Response> {
+  return withStandardRateLimitHeader(await auth().handler(request));
 }
 
-export async function GET(request: NextRequest): Promise<Response> {
-  return authHandlers().GET(request);
-}
-
-export async function POST(request: NextRequest): Promise<Response> {
-  return authHandlers().POST(request);
+export async function POST(request: Request): Promise<Response> {
+  return withStandardRateLimitHeader(await auth().handler(request));
 }

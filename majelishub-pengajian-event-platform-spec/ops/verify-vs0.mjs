@@ -109,8 +109,26 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const stubIds = new Set();
   const unknownIds = new Set();
   const fakeReturns = [];
-  // "claims an effect happened": a constant object literal return carrying a success-ish flag.
-  const FAKE_RETURN = /return\s*\{[^{}]*\b(?:success|ok)\s*:\s*true\b[^{}]*\}\s*;/;
+  // "claims an effect happened": a return of an object literal that is NOTHING BUT constants and carries
+  // a success-ish flag. Every value must be a literal - `return { ok: true, entries: rows.length }` is a
+  // real result that happens to report success, not a fabricated one, and flagging it trains people to
+  // ignore this gate. This is the same semantics as the `majelishub/no-fake-implementation` rule
+  // (`constant-success`), so the two gates cannot disagree about what a fake looks like.
+  const FAKE_RETURN = /return\s*\{([^{}]*)\}\s*;/;
+  const SUCCESS_FLAG = /\b(?:success|ok)\s*:\s*true\b/;
+  const LITERAL_VALUE = /^(?:true|false|null|[-+]?\d+(?:\.\d+)?|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/;
+  const isConstantSuccessReturn = (line) => {
+    const match = FAKE_RETURN.exec(line);
+    if (!match || !SUCCESS_FLAG.test(match[1])) return false;
+    return match[1].split(",").every((part) => {
+      const property = part.trim();
+      if (property === "") return true;
+      const colon = property.indexOf(":");
+      // A shorthand property (`ok,`) or a computed value means the object carries real state.
+      if (colon === -1) return false;
+      return LITERAL_VALUE.test(property.slice(colon + 1).trim());
+    });
+  };
 
   for (const file of sourceFiles) {
     const text = read(file);
@@ -119,7 +137,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
       if (!tasks.has(m[1])) unknownIds.add(`${m[1]} (${file})`);
     }
     text.split("\n").forEach((line, index) => {
-      if (FAKE_RETURN.test(line)) fakeReturns.push(`${file}:${index + 1}`);
+      if (isConstantSuccessReturn(line)) fakeReturns.push(`${file}:${index + 1}`);
     });
   }
 
@@ -245,21 +263,27 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 // ── report ────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * `console.*` is banned across `src/`, `tests/` and `ops/` (OBSERVABILITY.md §5, T-OBS-002), so this
+ * report goes to stdout directly like `ops/docs-lint.mjs` does.
+ */
+const out = (text) => process.stdout.write(`${text}\n`);
+
 const failed = results.filter((r) => r.status === "FAIL");
 const warned = results.filter((r) => r.status === "WARN");
 
 if (process.argv.includes("--json")) {
-  console.log(JSON.stringify({ criteria: results, failed: failed.length, warned: warned.length }, null, 2));
+  out(JSON.stringify({ criteria: results, failed: failed.length, warned: warned.length }, null, 2));
 } else {
-  console.log("\nVS-0 exit gate (T-DOCS-003) — ROADMAP.md §VS-0\n");
+  out("\nVS-0 exit gate (T-DOCS-003) — ROADMAP.md §VS-0\n");
   for (const { criterion, status, detail } of results) {
-    console.log(`  ${status.padEnd(6)} ${criterion}. ${detail.split("\n")[0]}`);
+    out(`  ${status.padEnd(6)} ${criterion}. ${detail.split("\n")[0]}`);
   }
-  console.log(
+  out(
     `\n  ${results.length - failed.length - warned.length} pass · ${warned.length} warn · ${failed.length} fail\n`,
   );
-  for (const { criterion, detail } of failed) console.log(`  FAIL ${criterion}: ${detail}\n`);
-  console.log(
+  for (const { criterion, detail } of failed) out(`  FAIL ${criterion}: ${detail}\n`);
+  out(
     "  Criterion 7 cannot be proven by a script: it is satisfied when a reviewer who has never seen\n" +
       "  the project can explain the check-in path and the transcript gate from the reading list.\n",
   );

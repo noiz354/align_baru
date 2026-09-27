@@ -1,24 +1,29 @@
 /**
- * Auth-specific rate limiting policies (sign-in attempts, passkey challenges, token attempts).
+ * Auth-specific rate limiting policies (sign-in links, passkey challenges, token attempts).
  *
- * Where this belongs: server/auth; the mechanism is src/server/db/repositories/
- * auth-rate-limit-counters.ts (a durable store), and the HTTP-layer policies live in
- * src/server/http/rate-limit.ts (T-SEC-010).
- * Specification: SECURITY.md §13, TASKS.md T-SEC-010, ADR-0005 ("its default rate limiter is
- *   in-memory and resets on deploy — unacceptable in production").
+ * Where this belongs: server/auth; the mechanism is src/server/http/rate-limit.ts (durable store).
+ * Specification: SECURITY.md §13, TASKS.md T-SEC-010, docs/research/STACK-2026.md §6 and ADR-0005,
+ *   which both record the same operational warning: Better Auth's default limiter is in-memory and
+ *   resets on deploy, so it must be replaced by a durable store before production.
  *
  * Invariants:
- *   1. The store is Postgres. The library's in-memory default is never enabled, in any environment,
- *      because a limiter that forgets on deploy is not a limiter.
- *   2. A failure to reach the store is a **refusal**, never a silent allow.
- *   3. The subject (an email, a device id, an IP) is hashed before it becomes a bucket key, so the
- *      counter table never holds an identifier in the clear (PRIVACY.md, OBSERVABILITY.md §7).
+ *   1. The in-memory default of the auth library is FORBIDDEN in production (`config()` refuses
+ *      `RATE_LIMIT_STORE=memory` when NODE_ENV=production).
+ *   2. Limits are shared across replicas: the counter lives in `rate_limit_buckets`, one statement
+ *      per attempt (no read-then-write race).
+ *   3. Failures are explicit and never silently allow: `allowed: false` carries `retryAfterMs`, and a
+ *      store error propagates instead of returning "allowed".
+ *   4. The stored key is an HMAC of Better Auth's key (which contains the client IP), so no raw IP is
+ *      written to the database (SECURITY.md §11).
  *
- * Task ownership: T-SEC-010, T-ORG-001.
+ * Task ownership: T-ORG-001 (delivered 2026-09-27 - durable store wired into the auth instance),
+ * T-SEC-010 (replica hardening, `rate_limit_rejections_total` metric, bucket cleanup job).
  */
-import { consumeCounter } from "@/server/db/repositories/auth-rate-limit-counters";
-import { hashSubject } from "@/server/crypto/subject-hash";
-import { db, type SqlExecutor } from "@/server/db/client";
+import { rateLimitBuckets } from "@/server/db/schema";
+import { bucketHash, consumeBucket, type RateLimitDecision } from "@/server/http/rate-limit";
+import { getDb, type DbHandle } from "@/server/db/client";
+import { config } from "@/server/config";
+import { eq } from "drizzle-orm";
 
 export const AUTH_POLICIES = {
   signInLinkRequest: { limit: 5, windowSeconds: 900 },
@@ -28,81 +33,78 @@ export const AUTH_POLICIES = {
 
 export type AuthPolicyKey = keyof typeof AUTH_POLICIES;
 
-export interface ConsumeAuthLimitOptions {
-  /**
-   * Injected clock. Omitting it uses the adapter's real time — this module is an infrastructure
-   * adapter, so reading the clock here is allowed; domain code still injects (ADR-0018).
-   */
-  readonly now?: Date;
-  /** Overrides the pooled client. Used by tests, which run against an embedded Postgres. */
-  readonly database?: SqlExecutor;
+/** Consume one unit of an auth policy for a dimension value (device id, hashed IP, user id). */
+export async function consumeAuthLimitOn(
+  handle: DbHandle,
+  key: AuthPolicyKey,
+  value: string,
+  now?: Date,
+): Promise<RateLimitDecision> {
+  const policy = AUTH_POLICIES[key];
+  return consumeBucket(handle, {
+    key: `rl:auth:${key}:${bucketHash(value, config().rateLimitSalt)}`,
+    limit: policy.limit,
+    windowSeconds: policy.windowSeconds,
+    ...(now ? { now } : {}),
+  });
 }
 
-const SUBJECT_PURPOSE = "majelishub.rate-limit.v1";
-
-/** Builds the opaque bucket key. Exported so tests can assert that no raw subject is stored. */
-export function authRateLimitBucketKey(policy: AuthPolicyKey, value: string): string {
-  return `auth:${policy}:${hashSubject(SUBJECT_PURPOSE, value)}`;
-}
-
+/** Same, on the process-wide connection. */
 export async function consumeAuthLimit(
   key: AuthPolicyKey,
   value: string,
-  options: ConsumeAuthLimitOptions = {},
-): Promise<{ allowed: boolean; retryAfterMs?: number }> {
-  const policy = AUTH_POLICIES[key];
-  const now = options.now ?? new Date();
-
-  const decision = await consumeCounter(options.database ?? db(), {
-    bucketKey: authRateLimitBucketKey(key, value),
-    limit: policy.limit,
-    windowMs: policy.windowSeconds * 1_000,
-    now,
-  });
-
-  if (decision.allowed) return { allowed: true };
-  return decision.retryAfterMs === undefined
-    ? { allowed: false }
-    : { allowed: false, retryAfterMs: decision.retryAfterMs };
+  now?: Date,
+): Promise<RateLimitDecision> {
+  return consumeAuthLimitOn(getDb(), key, value, now);
 }
 
 /**
- * The rate-limit storage handed to Better Auth.
+ * The durable rate-limit store handed to Better Auth as `rateLimit.customStorage`.
  *
- * Better Auth builds the key (path + client identifier) and owns the per-path rules; we own the
- * counting. Returning this from `rateLimit.customStorage` means the library's own endpoints —
- * sign-in, token refresh, everything under `/api/auth/*` — are limited by the same durable store as
- * the policies above, instead of by an in-process `Map`.
+ * `consume` is the atomic path Better Auth prefers; `get`/`set` exist because the library still
+ * supports storages without it, and because a custom storage replaces the built-in one entirely
+ * (its `storage: "memory" | "database"` option is ignored once `customStorage` is set).
  *
- * `retryAfter` is in seconds, which is what the library's contract specifies.
+ * The value Better Auth stores (`{ key, count, lastRequest }`) is mapped onto the same bucket table.
  */
-export function createAuthRateLimitStorage(database?: SqlExecutor): {
-  consume: (
-    key: string,
-    rule: { window: number; max: number },
-  ) => Promise<{ allowed: boolean; retryAfter: number | null }>;
-} {
-  const resolve = (): SqlExecutor => database ?? db();
+export function createDurableAuthRateLimitStorage(handle: DbHandle) {
+  const salt = config().rateLimitSalt;
+  const hashKey = (key: string): string => `rl:auth-lib:${bucketHash(key, salt)}`;
 
   return {
-    async consume(key, rule) {
-      const now = new Date();
-      try {
-        const decision = await consumeCounter(resolve(), {
-          bucketKey: `better-auth:${key}`,
-          limit: rule.max,
-          windowMs: rule.window * 1_000,
-          now,
+    async get(key: string) {
+      const rows = await handle
+        .select({ bucketKey: rateLimitBuckets.bucketKey, hits: rateLimitBuckets.hits, windowStart: rateLimitBuckets.windowStart })
+        .from(rateLimitBuckets)
+        .where(eq(rateLimitBuckets.bucketKey, hashKey(key)))
+        .limit(1);
+      const row = rows[0];
+      if (!row) return null;
+      return { key, count: row.hits, lastRequest: row.windowStart.getTime() };
+    },
+
+    async set(key: string, value: { key: string; count: number; lastRequest: number }) {
+      const bucketKey = hashKey(key);
+      await handle
+        .insert(rateLimitBuckets)
+        .values({ bucketKey, hits: value.count, windowStart: new Date(value.lastRequest), updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: rateLimitBuckets.bucketKey,
+          set: { hits: value.count, windowStart: new Date(value.lastRequest), updatedAt: new Date() },
         });
-        if (decision.allowed) return { allowed: true, retryAfter: null };
-        return {
-          allowed: false,
-          retryAfter: Math.max(1, Math.ceil((decision.retryAfterMs ?? rule.window * 1_000) / 1_000)),
-        };
-      } catch {
-        // SECURITY.md §13: a limiter that cannot decide must not wave traffic through.
-        return { allowed: false, retryAfter: rule.window };
-      }
+    },
+
+    /** Atomic: the check and the increment are one statement, so concurrent requests cannot bypass. */
+    async consume(key: string, rule: { window: number; max: number }) {
+      const decision = await consumeBucket(handle, {
+        key: hashKey(key),
+        limit: rule.max,
+        windowSeconds: rule.window,
+      });
+      return {
+        allowed: decision.allowed,
+        retryAfter: decision.retryAfterMs === undefined ? null : Math.ceil(decision.retryAfterMs / 1000),
+      };
     },
   };
 }
