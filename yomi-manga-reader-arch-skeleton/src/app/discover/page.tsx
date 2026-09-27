@@ -1,34 +1,115 @@
 /**
- * Catalog (`/discover`) route shell.
+ * Catalog (`/discover`) — the SSR grid, the filters and the sort.
  *
- * Requirements: FR-CATALOG-001…005, NFR-PERF-001/008, NFR-A11Y-004.
- * Tasks: T-CATALOG-003 (grid), T-CATALOG-004 (genre filter),
- * T-CATALOG-005 (status/sorts).
+ * Requirements: FR-CATALOG-001…005, NFR-PERF-001/003/007/008, NFR-A11Y-004.
+ * Tasks: T-CATALOG-003 (grid, pagination, empty state), T-CATALOG-004 (genre
+ * filter), T-CATALOG-005 (status + sort). API: API_CONTRACT §2.1.
+ * Spec: ACCESSIBILITY.md §2 (landmarks, one h1, real lists, descriptive link
+ * names), §6 (never a blank main), TASKS.md T-CATALOG-003…005.
  *
- * Behavior: SSR grid (LCP = first cover), URL-driven filter/sort state
- * (?genre=,?status=,?sort=), cursor pagination; a11y per
- * ACCESSIBILITY.md §2. No feature code in this phase.
+ * ── Landmarks (ACCESSIBILITY.md §2) ────────────────────────────────────────
+ *   main  — AppShell's single <main> (this page must not add one)
+ *   aside — the filters, named by their own heading
+ *   nav   — the site nav in the header (AppShell)
+ * The h1 is the page's own ("Catalog"), and the grid is a real `ul` of links.
  *
- * Task: T-FOUND-003. API_CONTRACT §5 row 1: the catalog surface is served
- * by features/catalog (and features/chapters for the chapter counts it
- * assembles); its handler is `src/app/api/v1/catalog`.
+ * ── Why this page is `force-dynamic` ───────────────────────────────────────
+ * Two independent reasons, both from the spec:
+ *   1. PERFORMANCE.md §7 — HTML is `no-store`, because the catalog must be
+ *      fresh enough to show a title an admin published a minute ago. A
+ *      prerendered /discover would be a lie about that.
+ *   2. The view state lives in the query string, so there is no single page to
+ *      prerender: `/discover?genre=action,drama` and `/discover` are different
+ *      documents with different bytes.
+ * The consequence for the build is that nothing is fetched at build time, which
+ * is also why `next build` cannot fail on a cold database here.
  *
- * Landmarks: ACCESSIBILITY.md §2 puts filters in an `aside` and the grid in
- * the page's single `main` (AppShell's). The filter `aside` arrives with
- * T-CATALOG-004; until then this page is the h1 plus the two TODOs.
+ * ── Reads are parallel, and they are not allowed to block each other ───────
+ * The catalog page and the genre vocabulary are independent: one failing must
+ * not blank the other. So both are started before either is awaited, and a
+ * facets failure degrades to a filter that says it could not load while the
+ * grid keeps working. A catalog failure is the reverse — the page's own state,
+ * focusable and announced (ACCESSIBILITY.md §6), because a grid that silently
+ * renders nothing is the "blank main" the contract forbids.
+ *
+ * ── The `/` alias is T-LIB-004's file, not this one ────────────────────────
+ * T-CATALOG-003 names `/` as an alias for the catalog, but `src/app/page.tsx`
+ * is outside this task's write scope and is shared with the continue-reading
+ * section (FR-LIBRARY-005). `/discover` is the implemented surface; the home
+ * page keeps its own `TODO(T-CATALOG-003)` marker until that lane picks it up.
+ * Recorded here rather than silently half-done.
  */
 import type { Metadata } from 'next';
+import { readCatalogPage, readGenreFacets } from './catalog-data';
+import { CATALOG_PAGE_SIZE, catalogHref, parseCatalogView } from './catalog-query';
+import { CatalogControls } from './catalog-controls';
+import { CatalogResults } from './catalog-results';
+import { CatalogUnavailable } from './catalog-unavailable';
+import styles from './discover.module.css';
 
 export const metadata: Metadata = {
   title: 'Catalog',
+  description: 'Every published title in the library, filterable and sortable.',
 };
 
-export default function DiscoverPage() {
+export const dynamic = 'force-dynamic';
+
+/** `searchParams` is a promise in Next 16, and both keys may arrive as arrays. */
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function DiscoverPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const view = parseCatalogView(await searchParams);
+
+  // Started together, awaited separately: neither read can hold the other up.
+  const pagePromise = readCatalogPage(view, CATALOG_PAGE_SIZE);
+  const facetsPromise = readGenreFacets();
+  const [page, facets] = await Promise.all([pagePromise, facetsPromise]);
+
   return (
-    <>
-      <h1>Catalog</h1>
-      {/* TODO(T-CATALOG-003): MangaCard grid (SSR) */}
-      {/* TODO(T-CATALOG-004/005): filter + sort controls (URL-driven) */}
-    </>
+    <div className={styles.stack}>
+      <div className={styles.pageHead}>
+        <h1>Catalog</h1>
+      </div>
+
+      <div className={styles.split}>
+        <aside className={styles.filters} aria-labelledby="catalog-filters-h">
+          <h2 id="catalog-filters-h">Filters</h2>
+          <CatalogControls
+            view={view}
+            genres={facets.ok ? facets.data : []}
+            genresUnavailable={!facets.ok}
+          />
+        </aside>
+
+        <section className={styles.results} aria-labelledby="catalog-results-h">
+          <div className={styles.sectionHead}>
+            <h2 id="catalog-results-h">All titles</h2>
+            <p className={styles.pageHeadMeta}>
+              {view.genres.length > 0 || view.status !== null
+                ? 'Filtered shelf — the address bar holds this view.'
+                : 'Newest chapters first.'}
+            </p>
+          </div>
+
+          {page.ok ? (
+            <CatalogResults
+              // A new shelf mounts a new island, so no appended page and no
+              // cursor can survive into filters it does not belong to.
+              key={catalogHref(view)}
+              items={page.data.items}
+              nextCursor={page.data.nextCursor}
+              view={view}
+              limit={CATALOG_PAGE_SIZE}
+            />
+          ) : (
+            <CatalogUnavailable labelledBy="catalog-unavailable-h" retryHref={catalogHref(view)} />
+          )}
+        </section>
+      </div>
+    </div>
   );
 }

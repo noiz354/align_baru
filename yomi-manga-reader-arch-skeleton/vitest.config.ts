@@ -40,10 +40,15 @@ export default defineConfig({
       },
       exclude: ['**/*.d.ts', 'src/app/**', 'tests/**', '_docs/**'],
     },
-    // Integration tests share one Postgres schema; run them serially so
-    // migrations and fixtures cannot interleave.
+    // Integration files share one PostgreSQL, and several suites rebuild the
+    // schema in `beforeAll`, so they must not overlap. `poolOptions.forks.
+    // singleFork` was the old way to say this and Vitest 4 **removed**
+    // `poolOptions` entirely — the setting was silently inert, so integration
+    // files ran in parallel processes and truncated each other's fixtures
+    // (this cost two VS-1 lanes a red suite each). `fileParallelism: false` is
+    // the supported equivalent.
     pool: 'forks',
-    poolOptions: { forks: { singleFork: true } },
+    fileParallelism: false,
     testTimeout: 20_000,
     hookTimeout: 30_000,
   },

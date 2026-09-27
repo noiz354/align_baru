@@ -21,6 +21,7 @@
  *   Dialog      — native <dialog> (focus trap from the platform)
  *   ItemList    — real ul/ol + li
  *   FocusRegion — initial focus for not-found / error states
+ *   classNames  — the one class-list assembly helper (T-CATALOG-003/004/005/006/008)
  *
  * Stylesheets are imported by the root layout, not by the components:
  *   tokens.css — every colour in the product (the only place they are written)
@@ -30,6 +31,7 @@
  */
 export * from './AppShell';
 export * from './Button';
+export * from './classNames';
 export * from './Dialog';
 export * from './FocusRegion';
 export * from './FormField';

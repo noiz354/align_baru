@@ -302,6 +302,19 @@ Conventions:
 - Manual QA: view a page image; inspect headers.
 - DoD: AGENTS.md.
 
+## T-CATALOG-011 — Manga detail API
+- Requirements: FR-CATALOG-006, FR-CATALOG-008, NFR-SEC-015, NFR-PERF-004
+- Goal: `GET /api/v1/manga/{slug}` per contract, returning `MangaDetail` (summary fields + `aliases`, `creators`, `genres`, `tags`, `synopsis`, `readingDirection`, `chapterCount`, `firstChapter`, `latestChapter`). The detail page (T-CATALOG-006) is its caller.
+- Depends on: T-CATALOG-001 (the `bySlug` detail read), T-CATALOG-002 (list API conventions)
+- Expected modules: features/catalog, src/app/api/v1
+- Inputs: API_CONTRACT §2.1 (`GET /api/v1/manga/{slug}` row), §1
+- Expected behavior: 1. One `MangaRepository.bySlug` call — the same read the chapter-list endpoint uses, which is also the visibility gate. 2. Unknown, unpublished or soft-deleted slug → `MANGA_NOT_FOUND` 404; the three are deliberately indistinguishable (no existence leak, API_CONTRACT §1). 3. 200 with the contract's cache headers and `x-request-id`. 4. Slug bounded to ≤ 190 chars at the edge; no character-set rule (a non-latin slug is legitimate).
+- Edge cases: manga with zero chapters (`firstChapter`/`latestChapter` null, `chapterCount` 0 — still 200); slug in range that matches nothing (404, not an error page); a slug that is exactly 190 chars (200-or-404, never 422).
+- Security: identity comes from the verified session only, never the path or query (THREAT T-04); `synopsis` stays a plain-text string end to end (NFR-SEC-016, T-01) — the page renders it as a text node, never markup.
+- Testing: INT-CAT-002 (200 shape, 404 for the three invisibility cases, 422 for an over-long slug), UNIT-CAT-008 (service: one read, number coercion, `null` passthrough).
+- Manual QA: open a seeded detail page with the API reachable; confirm the page stops rendering its "unavailable" state.
+- DoD: AGENTS.md.
+
 ---
 
 # EPIC-03 — Reader (VS-2 minimal reader; VS-3 navigation; VS-4 performance)

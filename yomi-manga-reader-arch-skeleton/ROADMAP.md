@@ -18,7 +18,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 
 ## VS-1 — Catalog
 - **Requirements:** FR-CATALOG-001…008, FR-CHAPTER-001/004, FR-MEDIA-001/003, NFR-PERF-001/004/007/008/013, NFR-A11Y-004/005
-- **Tasks:** T-CATALOG-001…010
+- **Tasks:** T-CATALOG-001…010 (⚠ **documented exception, slice-scoped:** T-CATALOG-010 declares `Depends on: T-UPLOAD-006 (storage writes)`, which is a VS-7 task, yet this slice's exit criteria name "covers served with correct caching" and INT-MEDIA-001 — so VS-1 cannot exit without it. VS-1 therefore lands only the **delivery half**: the `ObjectStoragePort` S3 adapter in `server/storage` (put/get/exists/delete/head/presign) and the `/media/[assetKey]` route in `server/media` + `src/app/media`. Precedent: VS-4's pull-forward below. **Still owned by VS-7, untouched:** T-UPLOAD-005 (variant writes), T-UPLOAD-006 (job orchestration), T-UPLOAD-008 (presign *use* in the multipart flow), T-UPLOAD-011 (cover-variant generation, WebP+JPEG ≤ 1200 px). The adapter is the same transport VS-7 will call — nothing was implemented twice.)
 - **Skills:** `typescript-advanced-types`, `backend-caching`, `supabase-postgres-best-practices`, `accessibility`
 - **Architectural dependencies:** VS-0 (schema, env, CI). Media delivery depends on storage port (MinIO in dev) — pages for seeded manga use synthetic assets (T-FOUND-012), so the reader isn't needed yet.
 - **User-visible result:** browseable, filterable, sortable catalog; manga detail pages; chapter lists; covers served with correct caching. (Content is seeded — real ingestion arrives in VS-7.)
@@ -78,7 +78,7 @@ Slice convention: requirements covered · tasks · architectural dependencies ·
 
 ## VS-7 — Secure Upload Pipeline
 - **Requirements:** FR-UPLOAD-001…011, NFR-SEC-006/007/008, FR-MEDIA-002 (ladder complete)
-- **Tasks:** T-UPLOAD-001/002/003/007/008/009/010/011/013/014/015 (remaining intake/UI/reingest/security — normalization/storage/job core already landed in VS-4 per the exception)
+- **Tasks:** T-UPLOAD-001/002/003/007/008/009/010/011/013/014/015 (remaining intake/UI/reingest/security — normalization/storage/job core already landed in VS-4 per the exception) — plus **T-UPLOAD-006, still VS-7**: the VS-1 exception for T-CATALOG-010 pulled in the *storage transport + delivery route* only, so job orchestration, variant writes, the multipart presign flow, and cover-variant generation remain in this slice
 - **Skills:** `backend-idempotency`, `backend-resilience-patterns`, `security-and-hardening`
 - **Architectural dependencies:** VS-6 (admin surface), VS-4 (pipeline core).
 - **User-visible result:** the full curator loop closes: ZIP or image-set upload → validated → normalized → published → readable; failure reasons visible; re-ingest; multipart for big files.

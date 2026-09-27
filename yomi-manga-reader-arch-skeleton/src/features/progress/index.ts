@@ -12,3 +12,7 @@
  */
 export * from './reader-progress.repository';
 export * from './history.repository';
+// Continue-reading resolution (T-CATALOG-009): the port the catalog service
+// consumes, the pure rules, and the factory the composition root wires with the
+// Drizzle reader in server/db/repositories/progress.repository.ts.
+export * from './resume.service';

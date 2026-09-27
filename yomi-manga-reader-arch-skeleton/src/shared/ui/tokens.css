@@ -90,6 +90,20 @@
      only, so it is exempt below rather than silently unchecked. */
   --line-hairline: light-dark(oklch(0.918 0.008 70), oklch(0.282 0.01 70));
 
+  /* The QUIET accent: a pressed filter chip and anything else that needs the
+     accent's identity without its weight. A wash of the same hue, not a second
+     hue — the product has one accent, and "selected" must not invent a colour.
+     Stepped the same way as the base ramp: the wash is the -quiet pair's ground
+     and the ink is the step that reads 4.5:1 ON that wash, in both themes. */
+  --accent-quiet-bg: light-dark(oklch(0.941 0.036 32), oklch(0.302 0.055 32));
+  --accent-quiet-ink: light-dark(oklch(0.436 0.15 30), oklch(0.862 0.086 42));
+  /* The pressed chip's boundary. SC 1.4.11 is satisfied by the EDGE against the
+     surround (the page surface), not by the edge against the chip's own fill —
+     a fill and its own border are decoration pretending to be an indicator.
+     The pressed state is additionally carried by font-weight and aria-pressed,
+     so it is never colour-alone (ACCESSIBILITY.md §3.3). */
+  --accent-quiet-edge: light-dark(oklch(0.63 0.145 32), oklch(0.612 0.13 36));
+
   /* ---------------------------------------------------------------------
      Focus — a TWO-BAND indicator (WCAG 2.1 SC 1.4.11).
 
@@ -147,6 +161,15 @@
 /* @contrast --ink-on-accent --accent-base 4.5 primary button label */
 /* @contrast --ink-on-accent --accent-hover 4.5 primary button label, hover */
 /* @contrast --ink-on-accent --accent-press 4.5 primary button label, press */
+
+/* -- the quiet accent: a selected filter (T-CATALOG-004) ---------------- */
+/* @contrast --accent-quiet-ink --accent-quiet-bg 4.5 selected filter chip label */
+/* @contrast --accent-quiet-ink --bg-surface 4.5 selected chip ink if the wash is absent */
+/* @contrast --accent-quiet-edge --bg-surface 3 selected chip boundary on the page */
+/* @contrast --accent-quiet-edge --bg-canvas 3 selected chip boundary on the ground */
+
+/* -- meta on a raised surface (catalog cards, chapter rows) ------------- */
+/* @contrast --ink-muted --bg-surface 4.5 card meta line on the app surface */
 
 /* -- form errors ------------------------------------------------------- */
 /* @contrast --danger-ink --bg-surface 4.5 inline validation message */

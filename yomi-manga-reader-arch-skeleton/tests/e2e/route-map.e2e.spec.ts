@@ -23,6 +23,26 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * The planned route map, one entry per route that src/app owns. `title` is
  * the metadata contract from the root layout template (`%s · Yomi`).
+ *
+ * Every entry here answers **200**, including `/manga/<slug>`. That looks
+ * wrong for a slug nothing owns, and a previous revision of this spec "fixed"
+ * it to expect 404 — which was a false premise, twice over:
+ *
+ *  1. This spec runs with no seeded catalog and no `API_ORIGIN`, so
+ *     `readMangaDetail` (`src/app/discover/catalog-data.ts`) resolves its
+ *     origin to `null` and returns `failure: 'unavailable'`, not
+ *     `'not-found'`. `manga/[slug]/page.tsx` renders `DetailUnavailable` at
+ *     200, which is the specified degraded read — a title that exists but
+ *     cannot be read right now is deliberately NOT a 404.
+ *  2. T-CATALOG-006's real 404 requirement (a draft or soft-deleted title is
+ *     indistinguishable from one that never existed) is proved where the data
+ *     exists: in the API/route integration suites and E2E-CATALOG, which seed
+ *     a real manga. Asserting 404 here would have deleted the degraded-read
+ *     contract instead of testing it.
+ *
+ * A slug that is genuinely absent reaches `notFound()` — and then the global
+ * 404 shell — only with a live API origin. The unplanned-route test below is
+ * what pins that shell's contract.
  */
 const ROUTES: ReadonlyArray<{ path: string; title: string }> = [
   // `/` sits in the same segment as the root layout, so Next does not apply

@@ -632,10 +632,15 @@ describe('UNIT-ENV-006 inventory matches DEPLOYMENT.md §3', () => {
 /* ── UNIT-ENV-007 — boot wiring (composition root) ────────────────────────── */
 
 describe('UNIT-ENV-007 the composition root loads the env once, at boot', () => {
-  it('validates the environment BEFORE the not-implemented throw', () => {
-    // A complete environment gets past validation and reaches the skeleton
-    // throw of the composition root (AGENTS.md §4.3).
-    expect(() => buildComposition(BASE)).toThrow('T-CATALOG-002');
+  it('validates the environment and returns the boot plan — no skeleton throw', () => {
+    // T-CATALOG-002 landed the composition wiring, so this no longer stops at a
+    // "Not implemented" throw. What must still hold is that the env is validated
+    // FIRST and synchronously: `buildComposition` opens no connection, so a bad
+    // deploy fails here rather than at the first reader's 500.
+    const plan = buildComposition(BASE);
+    expect(plan.env.databaseUrl).toBe(BASE['DATABASE_URL']);
+    expect(plan.env.storage.bucket).toBe(BASE['S3_BUCKET']);
+    expect(plan.logger).toBeDefined();
   });
 
   it('refuses to boot — redacted — when the environment is incomplete', () => {
@@ -651,7 +656,6 @@ describe('UNIT-ENV-007 the composition root loads the env once, at boot', () => 
       }
     }
     expect(output).toContain('S3_BUCKET');
-    expect(output).not.toContain('T-CATALOG-002');
     expect(output).not.toContain(SENTINEL);
   });
 

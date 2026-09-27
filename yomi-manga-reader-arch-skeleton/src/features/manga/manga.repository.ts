@@ -67,10 +67,50 @@ export interface MangaRepository {
 }
 
 /**
+ * ONE clause of the visibility rule, as DATA.
+ *
+ * The rule has to exist in two places — as a TypeScript predicate (unit tests,
+ * in-memory callers) and as a SQL predicate (the repository's WHERE clause) —
+ * and a `features/*` module may not import drizzle (boundary rule D2), so the
+ * SQL cannot be built here. Expressing the rule as a clause list rather than
+ * duplicating the literals means it is DEFINED once, in this array, and only
+ * RENDERED twice. `server/db/repositories/manga.repository.ts` maps each clause
+ * to `eq()`/`isNull()`; INT-CAT-001 asserts the two agree row for row against a
+ * real table, so the rendering cannot drift from the rule.
+ *
+ * Invariant: one clause per visibility axis of DATA_MODEL §3 — `published`
+ * (FR-CHAPTER-002) and `deleted_at` (NFR-DATA-002 / FR-ADMIN-003). Adding an
+ * axis means adding a clause here, never a second `&&` somewhere else.
+ */
+export interface MangaVisibilityClause {
+  /** The manga column the clause reads. */
+  readonly column: 'published' | 'deletedAt';
+  /** Required value; `null` means "must be NULL", which is SQL `IS NULL`. */
+  readonly equals: boolean | null;
+}
+
+/** The visibility rule itself: `published === true && deletedAt === null`. */
+export const MANGA_VISIBILITY_CLAUSES: readonly MangaVisibilityClause[] = [
+  { column: 'published', equals: true },
+  { column: 'deletedAt', equals: null },
+];
+
+/**
  * The single visibility rule (unit-tested, T-CATALOG-001):
  * a manga is publicly visible iff published && !deleted.
- * TODO(T-CATALOG-001): implement (one line + tests).
+ *
+ * FR-CHAPTER-002, FR-ADMIN-003, NFR-DATA-002. The ONLY place the rule is
+ * evaluated: search, detail, chapter reads and the catalog list all call this
+ * (or, in SQL, the rendering of {@link MANGA_VISIBILITY_CLAUSES}) — never a
+ * hand-written second copy.
+ *
+ * Edge cases covered by the truth table: an unpublished but undeleted title is
+ * hidden (a draft); a published but soft-deleted title is hidden; both axes
+ * failing is hidden. A manga with no `deletedAt` is by definition undeleted.
  */
-export function isMangaVisible(m: { published: boolean; deletedAt: string | null }): boolean {
-  throw new Error('Not implemented: T-CATALOG-001 (visibility rule)');
+export function isMangaVisible(m: { published: boolean; deletedAt: string | Date | null }): boolean {
+  return MANGA_VISIBILITY_CLAUSES.every((clause) => {
+    const value: unknown = m[clause.column];
+    return value === clause.equals;
+  });
 }

@@ -65,15 +65,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <header className="shell-header">
         <div className="shell-header__in">
           {/* The wordmark is a link home, not the page's h1: the h1 belongs
-              to the page (ACCESSIBILITY.md §2). */}
-          <Link className="brand" href="/">
+              to the page (ACCESSIBILITY.md §2).
+
+              `prefetch={false}` on both link sets, and this is a budget
+              decision rather than a preference. Measured on /discover with the
+              prefetch left on: the six nav links (plus the wordmark) were
+              fetched TWICE during a cold page load — 13 requests, more than 40%
+              of the ≤ 30 request budget PERFORMANCE.md §2 sets for a catalog or
+              detail page, spent on routes no reader has asked for. Four of the
+              six are authenticated surfaces that redirect an anonymous visitor
+              to sign-in, so the payload is discarded as well as wasted.
+
+              TODO(T-AUTH-003): when the nav becomes session-aware, a decision
+              here can be made per link — prefetching what the reader is likely
+              to reach next, in a shell that already knows who they are. */}
+          <Link className="brand" href="/" prefetch={false}>
             Yomi
           </Link>
           <nav className="shell-nav" aria-label="Site">
             <ul>
               {PRIMARY_NAV.map((item) => (
                 <li key={item.href}>
-                  <UiLink href={item.href}>{item.label}</UiLink>
+                  <UiLink href={item.href} prefetch={false}>
+                    {item.label}
+                  </UiLink>
                 </li>
               ))}
             </ul>

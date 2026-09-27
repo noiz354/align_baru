@@ -4,3 +4,4 @@
  */
 export * from './image-processor';
 export * from './page-delivery';
+export * from './session-role';

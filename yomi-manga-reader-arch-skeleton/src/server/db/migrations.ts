@@ -52,7 +52,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -74,8 +74,38 @@ export const MIGRATION_JOURNAL_TABLE = '__drizzle_migrations';
 /** Journal schema — `public`, so the migration tooling owns no extra schema. */
 export const MIGRATION_JOURNAL_SCHEMA = 'public';
 
-/** Default location: `<repo>/drizzle`, i.e. three levels up from this module. */
-export const DEFAULT_MIGRATIONS_DIR = fileURLToPath(new URL('../../../drizzle', import.meta.url));
+/**
+ * Default location: the `drizzle/` directory shipped with the repository.
+ *
+ * Resolution order:
+ * 1. `MIGRATIONS_DIR` when set (DEPLOYMENT.md §3 — the escape hatch for an
+ *    image layout that moves the directory).
+ * 2. `<cwd>/drizzle` when it exists. This is the form that works everywhere
+ *    the app actually runs: the Next.js server, `npm run db:migrate`, the
+ *    integration suites, and `tsx` scripts — all from the repo root.
+ * 3. A module-relative fallback, for a process whose cwd is not the repo root.
+ *
+ * ── Why not `new URL('../../../drizzle', import.meta.url)` alone ──────────────
+ * That form is correct in Node, but Turbopack (Next 16) statically analyses
+ * `new URL(<anything>, import.meta.url)` as an **asset reference** and fails
+ * the build — with a literal it reports `Can't resolve '../../../drizzle'`,
+ * and with an interpolated value it reports `Can't resolve <dynamic>`. Every
+ * route that imports `server/db` inherits the failure, so the whole app fails
+ * to build. So neither step may use that form: step 2 is cwd-relative, and
+ * step 3 composes `import.meta.dirname` (Node ≥ 20.11) with `path.join`.
+ */
+function resolveMigrationsDir(): string {
+  const fromEnv = process.env['MIGRATIONS_DIR'];
+  if (fromEnv !== undefined && fromEnv !== '') return fromEnv;
+
+  const fromCwd = join(process.cwd(), 'drizzle');
+  if (existsSync(fromCwd)) return fromCwd;
+
+  // `import.meta.dirname` is a runtime value, not a bundler-tracked asset URL.
+  return join(import.meta.dirname, '..', '..', '..', 'drizzle');
+}
+
+export const DEFAULT_MIGRATIONS_DIR = resolveMigrationsDir();
 
 /** One applied revision, as recorded in the journal. */
 export interface AppliedMigration {
