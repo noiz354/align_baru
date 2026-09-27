@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library (continue reading) — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Library (continue reading)</h1>
+  <p><b>Route</b> <code>/library</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-LIBRARY-005, user-journeys J-2</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Continue reading is the top of the page</b> for a signed-in member (J-2 step 1), capped at 20 and most-recent-first (FR-LIBRARY-005). The context string is fixed — chapter and page — so a cover thumbnail is never the only information.</li>
+    <li><b>The cover's alt text is "Cover: {title}"</b> (ACCESSIBILITY.md §3.2), which is a different job from the visible title text. Both exist.</li>
+    <li><b>"Unavailable" is a state, not a 404.</b> J-2 failure branch: a chapter a curator deleted leaves the entry with a labeled unavailable state, and resume skips to the previous valid position.</li>
+    <li><b>Tabs are real</b> — either a tablist with proper roles or links with <code>aria-current</code>, never styled divs.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Library</span> class="wf-text wf-text-short"</div>
+{{continue}}
+<section class="wf-region">
+  <h2 class="wf-region-label">Sections</h2>
+  <div class="wf-region-body">
+<div class="wf-controls">
+      <span class="wf-control wf-control-primary">All series</span>
+      <span class="wf-control">Reading</span>
+      <span class="wf-control">Completed</span>
+      <span class="wf-control">On hold</span>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Series list with per-series counts</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Seed Manga 0001 — The Long Afternoon of the Second-year Archivist ·
+        12 of 13 chapters read · 1 unread · last read 2 days ago
+        <span class="wf-zone-btns"><span>link: Continue</span></span></li>
+      <li>Seed Manga 0003 — Notes Toward a Theory of Weather · completed ·
+        last read 6 days ago
+        <span class="wf-zone-btns"><span>link: Continue</span></span></li>
+      <li>Seed Manga 0004 — The Quiet Between Stations · on hold ·
+        Chapter unavailable, removed by the curator
+        <span class="wf-zone-btns"><span>link: Open series</span></span></li>
+      <li>Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late
+        Explanations · 0 chapters read · added 3 days ago
+        <span class="wf-zone-btns"><span>link: Start</span></span></li>
+    </ul>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Empty state for a new member</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Nothing in your library yet. Titles you start appear here with the page you stopped on.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

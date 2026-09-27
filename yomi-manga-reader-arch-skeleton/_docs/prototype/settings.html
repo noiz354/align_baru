@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Yomi, prototype</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../hifi/tokens.css">
+<link rel="stylesheet" href="../hifi/hifi.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="settings.html" aria-current="page">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="reader.html">Open the reader</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="rise rise-1" style="max-width:var(--measure)">
+    <h1>Settings</h1>
+    <p class="prose">The four reader preferences from reader-behavior.md §16. They
+      are written to this device. Mode and direction take effect the next time a
+      chapter opens, and also change immediately if you are already reading, because
+      the reader and this page share one record.</p>
+  </section>
+
+  <div class="split rise rise-2">
+    <nav aria-label="Settings sections">
+      <ul class="ruled">
+        <li class="ruled-row ruled-row--tight"><div>
+          <a class="list-title link-quiet" href="settings.html">Account</a></div></li>
+        <li class="ruled-row ruled-row--tight"><div>
+          <a class="list-title" href="settings.html" aria-current="page">Reader</a></div></li>
+        <li class="ruled-row ruled-row--tight"><div>
+          <a class="list-title link-quiet" href="settings.html">Appearance</a></div></li>
+        <li class="ruled-row ruled-row--tight"><div>
+          <a class="list-title link-quiet" href="settings.html">Data and privacy</a></div></li>
+      </ul>
+    </nav>
+
+    <form class="stack stack--lg" id="prefs-form" action="#" method="post">
+      <fieldset class="fieldset stack stack--sm">
+        <legend class="legend">Default reading mode</legend>
+        <p class="hint">Applied when a chapter opens. You can still switch mode per
+          session from the reader chrome.</p>
+        <label class="radio"><input type="radio" name="defaultMode" value="vertical" checked>
+          <span>Vertical<span class="check__hint">Pages form one continuous column.
+            Works best on a phone.</span></span></label>
+        <label class="radio"><input type="radio" name="defaultMode" value="single">
+          <span>Single<span class="check__hint">One page per view, centred and
+            letterboxed.</span></span></label>
+        <label class="radio"><input type="radio" name="defaultMode" value="double">
+          <span>Double<span class="check__hint">A spread per view. Needs 640px or
+            wider; below that it degrades to single.</span></span></label>
+      </fieldset>
+
+      <fieldset class="fieldset stack stack--sm">
+        <legend class="legend">Direction override</legend>
+        <p class="hint">Leave this on None to use each title's own direction. A
+          right-to-left title read left to right is genuinely hard to follow, so this
+          is for the exception rather than the rule.</p>
+        <label class="radio"><input type="radio" name="directionOverride" value="none" checked>
+          <span>None — use the title's direction</span></label>
+        <label class="radio"><input type="radio" name="directionOverride" value="rtl">
+          <span>Right to left</span></label>
+        <label class="radio"><input type="radio" name="directionOverride" value="ltr">
+          <span>Left to right</span></label>
+      </fieldset>
+
+      <fieldset class="fieldset stack stack--sm">
+        <legend class="legend">Default zoom</legend>
+        <div class="field">
+          <label class="label" for="zoom">Zoom on open</label>
+          <input class="range" id="zoom" name="zoomDefault" type="range" min="100"
+                 max="400" step="10" value="100" aria-describedby="zoom-hint">
+          <p class="hint" id="zoom-hint">Currently
+            <output for="zoom" class="num" id="zoom-out">100%</output>. Zoom is a
+            transform: it never changes which page you are on, and it resets to this
+            value when you enter a new chapter or switch to or from double.</p>
+        </div>
+        <div class="chips" role="group" aria-label="Quick zoom">
+          <button type="button" class="chip" data-zoom-set="100" aria-pressed="true">100%</button>
+          <button type="button" class="chip" data-zoom-set="150" aria-pressed="false">150%</button>
+          <button type="button" class="chip" data-zoom-set="200" aria-pressed="false">200%</button>
+          <button type="button" class="chip" data-zoom-set="300" aria-pressed="false">300%</button>
+          <button type="button" class="chip" data-zoom-set="400" aria-pressed="false">400%</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="fieldset stack stack--sm">
+        <legend class="legend">Auto-advance to the next chapter</legend>
+        <label class="check">
+          <input type="checkbox" name="autoNextChapter" checked>
+          <span>On
+            <span class="check__hint">After 1.5 seconds on the completion card. The
+              countdown is visible and any input cancels it. There is no wrap-around:
+              finishing a chapter never sends you back to the first one.</span>
+          </span>
+        </label>
+      </fieldset>
+
+      <div class="card">
+        <div class="card__body stack stack--sm">
+          <h2>What the reader will do next</h2>
+          <p class="meta" id="prefs-summary">Loading your preferences.</p>
+          <div class="cluster">
+            <a class="btn btn--primary" href="reader.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z</svg> Open a chapter</a>
+            <button type="button" class="btn" id="prefs-reset">Reset to defaults</button>
+          </div>
+          <p class="hint" id="prefs-saved" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Prototype, tier 4 · /settings · source: reader-behavior.md §16, ACCESSIBILITY.md §2 and §5</span>
+    <span class="push meta">No network, no build step, no product content</span>
+  </div>
+</footer>
+<script src="app.js"></script>
+
+<script src="settings.js"></script>
+
+</body>
+</html>

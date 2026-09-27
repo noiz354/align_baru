@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+      <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html" aria-current="page">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="signin.html">Sign in</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <h1>Search</h1>
+
+  <form class="l-stack" action="#" method="get" role="search">
+    <div class="l-searchbar">
+      <div class="l-field">
+        <label class="l-label" for="q">Search titles, aliases, creators, and tags</label>
+        <input class="l-input" id="q" name="q" type="search" value="archivist"
+               autocomplete="off" aria-describedby="q-hint">
+        <span class="l-hint" id="q-hint">Results update as you type. Press Enter to
+          search immediately.</span>
+      </div>
+      <div class="l-btn-row" style="align-items:start">
+        <button type="submit" class="l-btn l-btn--primary">Search</button>
+        <button type="button" class="l-btn">Clear</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="l-split--aside-first l-split">
+    <aside class="l-stack l-stack--tight" aria-label="Search filters">
+      <h2>Refine</h2>
+      <div class="l-field">
+        <label class="l-label" for="s-status">Status</label>
+        <select class="l-select" id="s-status"><option>Ongoing</option>
+          <option>Any</option><option>Completed</option><option>Hiatus</option></select>
+      </div>
+      <fieldset class="l-fieldset">
+        <legend class="l-legend">Genre</legend>
+        <label class="l-checkbox"><input type="checkbox" checked> Drama</label>
+        <label class="l-checkbox"><input type="checkbox" checked> Seinen</label>
+        <label class="l-checkbox"><input type="checkbox"> Comedy</label>
+      </fieldset>
+      <div class="l-field">
+        <label class="l-label" for="s-year">Year published</label>
+        <select class="l-select" id="s-year"><option>2021–2026</option>
+          <option>Any</option><option>2011–2020</option></select>
+      </div>
+    </aside>
+
+    <div class="l-stack l-stack--loose">
+      <div class="l-section-head">
+        <h2>3 results for &ldquo;archivist&rdquo;</h2>
+        <p class="l-meta">Ranked: exact, then prefix, then contains, then creator</p>
+      </div>
+      <ul class="l-list l-list--lines">
+        <li class="l-list-row">
+          <div>
+            <a href="manga-detail.html">Seed Manga 0001 — The Long Afternoon of the
+              Second-year Archivist</a>
+            <p class="l-meta">manga, Ongoing · matched: title prefix</p>
+          </div>
+          <a class="l-btn l-btn--sm" href="manga-detail.html">Open</a>
+        </li>
+        <li class="l-list-row">
+          <div>
+            <a href="manga-detail.html">Seed Manga 0014 — Archivist's Notebook, Reissued</a>
+            <p class="l-meta">manga, Completed · matched: title contains</p>
+          </div>
+          <a class="l-btn l-btn--sm" href="manga-detail.html">Open</a>
+        </li>
+        <li class="l-list-row">
+          <div>
+            <a href="manga-detail.html">Seed Manga 0007 — The Second-year Archivist's
+              Summer</a>
+            <p class="l-meta">manga, Hiatus · matched: creator</p>
+          </div>
+          <a class="l-btn l-btn--sm" href="manga-detail.html">Open</a>
+        </li>
+      </ul>
+
+      <div class="l-stack l-stack--loose">
+        <h2>The states this screen has to carry</h2>
+        <div class="l-card l-stack l-stack--tight">
+          <h3>Zero results</h3>
+          <p class="l-meta">No titles match &ldquo;archivist&rdquo;. Try a creator or a
+            tag, or browse the catalog.</p>
+          <div class="l-btn-row"><a class="l-btn" href="discover.html">Browse the
+            catalog</a></div>
+        </div>
+        <div class="l-card l-stack l-stack--tight">
+          <h3>Empty catalog</h3>
+          <p class="l-meta">The catalog is empty — content is added by the curator. This
+            is a different state from zero results, and it says so.</p>
+        </div>
+        <div class="l-banner">
+          <span>Search is unavailable right now. Your query is kept.</span>
+          <span class="l-banner__actions">
+            <button type="button" class="l-btn l-btn--sm">Retry</button>
+            <a class="l-btn l-btn--sm" href="discover.html">Go to the catalog</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /search · source: PRD FR-SEARCH-*, EC-SE-01…04, ACCESSIBILITY.md §5</span>
+  </div>
+</footer>
+</body>
+</html>

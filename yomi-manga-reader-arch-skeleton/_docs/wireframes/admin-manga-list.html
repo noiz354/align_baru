@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: manga list — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Admin: manga list</h1>
+  <p><b>Route</b> <code>/admin/manga</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> admin-workflow.md §3, §4, §10</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Admin pages are private and dense, never dark-patterned.</b> State is always visible, because the curator must never have to guess whether an action landed, and the audit log is the appeal path (admin-workflow.md §10).</li>
+    <li><b>Every destructive action is behind a confirmation dialog</b> with a focus trap (admin-workflow.md §10). That is UX protection, not security — the API is the security boundary, and the confirmation says so rather than implying it enforces anything.</li>
+    <li><b>Publish requires at least one page</b> (admin-workflow.md §4). The control explains that, instead of failing later with a code.</li>
+    <li><b>The last-admin guard disables the control and explains</b> (EC-ADM-04): a disabled button with a reason beside it, not a 409 after the click.</li>
+    <li><b>Delete states what is kept.</b> A soft delete hides the title and keeps every reader's progress, library entry, and history (EC-ADM-02). A curator needs to know that before confirming, or they will not press the button for a one-off mistake.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — admin nav landmark, separate from the site nav</h2>
+  <div class="wf-region-body">
+<nav aria-label="Admin">
+      <ul class="wf-list">
+        <li>Overview</li>
+        <li>Manga</li>
+        <li>Uploads</li>
+        <li>Users</li>
+        <li>Audit</li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Manga</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Create</h2>
+  <div class="wf-region-body">
+<div class="wf-controls"><span class="wf-control wf-control-primary">New manga — title, aliases, synopsis, status, direction, genres, tags, creators</span></div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Filters and search</h2>
+  <div class="wf-region-body">
+<div class="wf-controls"><div class="wf-box"><span class="wf-box-label">Search by title or slug</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Status: All / Ongoing / Completed / Hiatus</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Visibility: Published / Unpublished / Deleted</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Manga table — dense, one row per title, every state visible</h2>
+  <div class="wf-region-body">
+<div class="wf-scroll-x">
+<table class="wf-table">
+  <thead>
+    <tr><th>Title</th><th>Slug</th><th>Status</th><th>Visibility</th>
+        <th>Chapters</th><th>Pages</th><th>Updated</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</td>
+        <td>seed-manga-0001-the-long-afternoon</td>
+        <td>Ongoing</td><td>Published</td><td>13</td><td>388</td><td>2 days ago</td>
+        <td>[Edit] [Chapters] [Unpublish] [Delete]</td></tr>
+    <tr><td>Seed Manga 0002 — Lantern Circuit</td><td>seed-manga-0002-lantern-circuit</td>
+        <td>Ongoing</td><td>Published</td><td>41</td><td>1180</td><td>5 days ago</td>
+        <td>[Edit] [Chapters] [Unpublish] [Delete]</td></tr>
+    <tr><td>Seed Manga 0003 — Notes Toward a Theory of Weather</td>
+        <td>seed-manga-0003-weather</td>
+        <td>Completed</td><td>Published</td><td>22</td><td>640</td><td>1 month ago</td>
+        <td>[Edit] [Chapters] [Unpublish] [Delete]</td></tr>
+    <tr><td>Seed Manga 0005 — Harbourlight Omnibus</td><td>seed-manga-0005-harbourlight</td>
+        <td>Hiatus</td><td>Unpublished</td><td>4</td><td>96</td><td>2 months ago</td>
+        <td>[Edit] [Chapters] [Publish] [Delete]</td></tr>
+    <tr><td>Seed Manga 0004 — The Quiet Between Stations</td>
+        <td>seed-manga-0004-quiet-between</td>
+        <td>Ongoing</td><td>Deleted</td><td>9</td><td>241</td><td>3 months ago</td>
+        <td>[Edit] [Restore]</td></tr>
+  </tbody>
+</table>
+</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Bulk publish result — it says what it skipped and why</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Published 3 draft chapters that have pages. 2 chapters were skipped because they have no pages. A chapter with no pages cannot be published.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Delete confirmation, shown open</h2>
+  <div class="wf-region-body">
+<div class="wf-box">
+      <p class="wf-zone-role">Dialog — focus trapped, reader keys inert, Escape closes</p>
+      <p>Delete Seed Manga 0004 — The Quiet Between Stations?</p>
+      <p>Readers will see a 404. Their saved progress, library entries, and history are kept
+         and come back if you restore. Nothing is destroyed.</p>
+      <div class="wf-controls">
+        <span class="wf-control wf-control-primary">Delete</span>
+        <span class="wf-control">Cancel</span>
+      </div>
+    </div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design set — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+      <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="signin.html">Sign in</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <div class="l-stack l-stack--tight">
+    <h1>Lo-fi design set</h1>
+    <p class="l-prose">Real layout, real type scale, real spacing rhythm, and nothing
+      else. The palette is deliberately grayscale and depth comes from borders, so
+      proportion and density can be judged on their own. The next tier adds colour
+      and depth; the tier after that makes it interactive.</p>
+  </div>
+
+  <div class="l-stack">
+    <h2>Screens</h2>
+    <ul class="l-list l-list--lines">
+              <li class="l-list-row">
+          <div><a href="reader.html">Reader</a><p class="l-meta">/manga/[slug]/chapter/[chapter] — 3 modes, 2 directions, 4 breakpoints</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="discover.html">Catalog / discover</a><p class="l-meta">/discover</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="manga-detail.html">Manga detail</a><p class="l-meta">/manga/[slug]</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="search.html">Search</a><p class="l-meta">/search</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="library.html">Library (continue reading)</a><p class="l-meta">/library</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="history.html">History</a><p class="l-meta">/history</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="bookmarks.html">Bookmarks</a><p class="l-meta">/bookmarks</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="signin.html">Sign in</a><p class="l-meta">/auth/signin</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="settings.html">Settings</a><p class="l-meta">/settings — reader preferences</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="admin-manga-list.html">Admin: manga list</a><p class="l-meta">/admin/manga</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="admin-upload.html">Admin: upload pages</a><p class="l-meta">/admin/uploads</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="admin-audit.html">Admin: audit log</a><p class="l-meta">/admin/audit</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="error-states.html">Error boundary, not found, empty state</a><p class="l-meta">src/app/error.tsx, src/app/not-found.tsx</p></div>
+        </li>        <li class="l-list-row">
+          <div><a href="reader-states.html">Failed image, completion card, offline</a><p class="l-meta">reader-behavior.md §12–§15</p></div>
+        </li>
+    </ul>
+  </div>
+
+  <div class="l-split">
+    <div class="l-stack">
+      <h2>What tier 2 settles</h2>
+      <ul class="l-list l-list--lines">
+        <li class="l-list-row">
+          <div><strong>Type scale</strong><p class="l-meta">12 / 13 / 15 / 16 for body and
+            labels, 24 and 32 for headings, 40 for a manga title. Body copy never drops
+            below 16; 15 and 13 are for labels and metadata only.</p></div>
+        </li>
+        <li class="l-list-row">
+          <div><strong>Spacing</strong><p class="l-meta">A 4px grid used as
+            4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Nothing sits on a value that is not
+            on the grid.</p></div>
+        </li>
+        <li class="l-list-row">
+          <div><strong>Depth</strong><p class="l-meta">One hairline border token and
+            surface tint. No shadows anywhere, so an element never competes with the
+            content for attention.</p></div>
+        </li>
+        <li class="l-list-row">
+          <div><strong>Density</strong><p class="l-meta">Catalog cards at six across on
+            desktop and two at 320px. The admin table holds eight columns and scrolls
+            horizontally inside its own container rather than widening the page.</p></div>
+        </li>
+        <li class="l-list-row">
+          <div><strong>Touch targets</strong><p class="l-meta">Every control is at least
+            44 by 44, including the reader chrome and the small text buttons in the
+            chapter list.</p></div>
+        </li>
+      </ul>
+    </div>
+    <aside class="l-panel l-stack l-stack--tight" aria-label="Tiers">
+      <h2>Four tiers</h2>
+      <ul class="l-stack l-stack--tight">
+        <li><a href="../wireframes/index.html">1 · Wireframe</a><br>
+          <span class="l-meta">Structure only</span></li>
+        <li><strong>2 · Lo-fi</strong> — you are here<br>
+          <span class="l-meta">Layout, scale, density</span></li>
+        <li><a href="../hifi/index.html">3 · Hi-fi</a><br>
+          <span class="l-meta">Tokens, light and dark, contrast verified</span></li>
+        <li><a href="../prototype/index.html">4 · Prototype</a><br>
+          <span class="l-meta">Working reader, no build step</span></li>
+      </ul>
+    </aside>
+  </div>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · _docs/lofi/ · source: this file</span>
+  </div>
+</footer>
+</body>
+</html>

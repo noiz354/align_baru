@@ -1,0 +1,288 @@
+/* ===========================================================================
+   Yomi — design tokens
+   ---------------------------------------------------------------------------
+   THE ONLY FILE in this design set where a colour value is written. Every
+   other stylesheet and every markup file references these custom properties
+   (ACCESSIBILITY.md §3.3: "audited in CI with a token contrast check,
+   T-FOUND-004"). A hardcoded colour outside this file is a defect, not a
+   style choice.
+
+   AUTHORING
+   ---------
+   oklch() throughout, so lightness steps stay perceptually even across hues
+   and dark mode is a re-authoring rather than an inversion.
+
+   Every colour is a light-dark() pair, so the two themes sit on one line and
+   are read together. light-dark() resolves against the *computed*
+   color-scheme, which is what makes the following work without duplicating
+   the palette:
+
+     :root                    { color-scheme: light dark }  -> follow the OS
+     :root[data-theme=light]  { color-scheme: light }      -> pinned
+     :root[data-theme=dark]   { color-scheme: dark }       -> pinned
+
+   The theme toggle therefore sets one attribute and nothing else. No
+   prefers-color-scheme media query is needed anywhere in this set.
+
+   DIRECTION
+   ---------
+   "Ink on paper." A warm-neutral paper ground for reading and cataloguing, a
+   single vermilion accent — the colour of a seal, not a gradient — and an
+   old-style serif reserved for titles so the product reads as print-adjacent
+   rather than as generic dashboard chrome.
+
+   The reader is treated as an instrument: its chrome is dark in BOTH themes
+   (--bg-chrome is deliberately not a light-dark() pair), so page artwork is
+   the only bright surface while reading. Likewise the page itself keeps its
+   light paper in both themes, because a page of artwork does not invert when
+   the reader's operating system flips.
+
+   VERIFIED
+   --------
+   Every text pair >= 4.5:1 and every non-text UI pair >= 3:1, in both themes.
+   The ratios were measured, not estimated. See _docs/README.md.
+   =========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---------------------------------------------------------------------
+     Ground
+     --------------------------------------------------------------------- */
+  --bg-canvas:  light-dark(oklch(0.968 0.006 70), oklch(0.172 0.008 70));
+  --bg-surface: light-dark(oklch(0.995 0.003 80), oklch(0.218 0.009 70));
+  --bg-sunken:  light-dark(oklch(0.945 0.008 70), oklch(0.142 0.008 70));
+  --bg-inset:   light-dark(oklch(0.922 0.010 70), oklch(0.268 0.010 70));
+
+  /* ---------------------------------------------------------------------
+     Ink — a four-level contrast hierarchy. ink-faint is the relaxed tier
+     and is only used for genuinely decorative or disabled text.
+     --------------------------------------------------------------------- */
+  --ink-primary:   light-dark(oklch(0.235 0.014 55), oklch(0.948 0.006 80));
+  --ink-secondary: light-dark(oklch(0.432 0.014 55), oklch(0.802 0.008 80));
+  --ink-muted:     light-dark(oklch(0.505 0.012 55), oklch(0.702 0.010 80));
+  --ink-faint:     light-dark(oklch(0.638 0.010 55), oklch(0.588 0.010 80));
+
+  /* ---------------------------------------------------------------------
+     Lines
+     --------------------------------------------------------------------- */
+  --line-subtle:  light-dark(oklch(0.918 0.008 70), oklch(0.282 0.010 70));
+  --line-default: light-dark(oklch(0.858 0.010 70), oklch(0.342 0.012 70));
+  --line-strong:  light-dark(oklch(0.598 0.014 70), oklch(0.605 0.014 70));
+
+  /* ---------------------------------------------------------------------
+     Accent — vermilion. One hue, four roles per theme, derived by stepping
+     the same ramp rather than hand-picking a state colour.
+     --------------------------------------------------------------------- */
+  --accent-base:  light-dark(oklch(0.512 0.185 30), oklch(0.655 0.170 34));
+  --accent-hover: light-dark(oklch(0.452 0.180 30), oklch(0.718 0.162 36));
+  --accent-press: light-dark(oklch(0.408 0.172 30), oklch(0.775 0.152 38));
+  --ink-on-accent: light-dark(oklch(0.992 0.004 80), oklch(0.168 0.020 42));
+  --accent-ink:   light-dark(oklch(0.462 0.170 32), oklch(0.790 0.130 46));
+  --accent-quiet-bg:  light-dark(oklch(0.944 0.032 46), oklch(0.312 0.068 32));
+  --accent-quiet-ink: light-dark(oklch(0.408 0.132 32), oklch(0.858 0.088 50));
+  --accent-edge:  light-dark(oklch(0.700 0.120 32), oklch(0.452 0.110 32));
+
+  /* ---------------------------------------------------------------------
+     Focus — a two-band indicator (WCAG 2.1 SC 1.4.11).
+
+     A single flat ring cannot clear 3:1 against BOTH a light surface and the
+     vermilion fill: a ring dark enough for paper is too dark for the fill,
+     and a ring light enough for the fill is invisible on paper. The
+     documented remedy is a two-colour indicator, so both bands are painted:
+
+       --focus-outer  sits 2px outside the control, on the SURROUND
+       --focus-inner  sits on the control, against its OWN fill
+
+     Either band is readable on its own, so the ring survives a button that
+     happens to sit on a different surface than expected.
+
+     On the reader chrome, which is dark in both themes, one light band is
+     used instead: there is no light surface adjacent to contend with, and a
+     second band would only cost contrast against the control's own fill.
+     --------------------------------------------------------------------- */
+  --focus-outer:       light-dark(oklch(0.222 0.020 55), oklch(0.930 0.020 80));
+  --focus-inner:       light-dark(oklch(0.985 0.004 80), oklch(0.148 0.010 60));
+  --focus-outer-on-dark: oklch(0.968 0.010 80);
+
+  /* ---------------------------------------------------------------------
+     Status. Quiet fill plus deep ink, so a badge reads at --fs-xs without
+     becoming a block of colour. Each theme's edge is for a 1px border where
+     the fill alone is too close to the ground to be noticed.
+     --------------------------------------------------------------------- */
+  --status-ok-bg:        light-dark(oklch(0.938 0.046 156), oklch(0.300 0.058 156));
+  --status-ok-ink:       light-dark(oklch(0.352 0.088 156), oklch(0.862 0.098 156));
+  --status-warn-bg:      light-dark(oklch(0.950 0.056 86),  oklch(0.310 0.062 86));
+  --status-warn-ink:     light-dark(oklch(0.392 0.100 74),  oklch(0.872 0.100 86));
+  --status-danger-bg:    light-dark(oklch(0.950 0.038 26),  oklch(0.312 0.082 26));
+  --status-danger-ink:   light-dark(oklch(0.428 0.150 27),  oklch(0.872 0.098 30));
+  --status-info-bg:      light-dark(oklch(0.938 0.042 240), oklch(0.300 0.060 240));
+  --status-info-ink:     light-dark(oklch(0.392 0.112 246), oklch(0.862 0.090 245));
+  --status-draft-bg:     light-dark(oklch(0.940 0.006 70),  oklch(0.288 0.008 70));
+  --status-draft-ink:    light-dark(oklch(0.420 0.014 55),  oklch(0.842 0.010 70));
+  --status-ok-edge:      light-dark(oklch(0.700 0.110 156), oklch(0.520 0.090 156));
+  --status-warn-edge:    light-dark(oklch(0.720 0.120 76),  oklch(0.540 0.096 82));
+  --status-danger-edge:  light-dark(oklch(0.720 0.130 28),  oklch(0.540 0.110 28));
+  --status-info-edge:    light-dark(oklch(0.700 0.110 244), oklch(0.510 0.096 244));
+  --status-draft-edge:   light-dark(oklch(0.740 0.010 70),  oklch(0.470 0.010 70));
+
+  /* ---------------------------------------------------------------------
+     Depth. Light mode uses the layered ring + lift + ambient formula. Dark
+     mode drops the lift and the ambient layer and keeps the ring, because
+     both are invisible against an ink ground.
+     --------------------------------------------------------------------- */
+  --shadow-card: light-dark(
+      0 0 0 1px oklch(0.235 0.014 55 / 0.07),
+      0 1px 2px -1px oklch(0.235 0.014 55 / 0.07),
+      0 2px 4px 0 oklch(0.235 0.014 55 / 0.045),
+      0 0 0 1px oklch(0.985 0.004 80 / 0.06),
+      0 1px 2px -1px oklch(0 0 0 / 0.32));
+  --shadow-raised: light-dark(
+      0 0 0 1px oklch(0.235 0.014 55 / 0.08),
+      0 2px 4px -2px oklch(0.235 0.014 55 / 0.08),
+      0 6px 14px -4px oklch(0.235 0.014 55 / 0.10),
+      0 0 0 1px oklch(0.985 0.004 80 / 0.09),
+      0 4px 12px -3px oklch(0 0 0 / 0.42));
+
+  /* ---------------------------------------------------------------------
+     The reader instrument. Deliberately NOT a light-dark() pair: the chrome
+     is dark in both themes, the surround follows the theme, and the page
+     keeps its paper.
+     --------------------------------------------------------------------- */
+  --bg-chrome:          oklch(0.178 0.010 60);
+  --bg-chrome-raised:   oklch(0.238 0.011 60);
+  --bg-chrome-sunken:   oklch(0.140 0.009 60);
+  --ink-chrome:         oklch(0.952 0.005 80);
+  --ink-chrome-muted:   oklch(0.800 0.009 80);
+  --line-chrome:        oklch(0.522 0.014 60);
+
+  --bg-reader-surround: light-dark(oklch(0.902 0.006 70), oklch(0.128 0.006 60));
+
+  /* The reader's accent is a fixed lit vermilion, not the themed one, so a
+     filled control inside the chrome keeps both its label contrast and its
+     focus-ring contrast in either theme. */
+  --accent-reader-base:     oklch(0.512 0.185 30);
+  --accent-reader-hover:    oklch(0.452 0.180 30);
+  --ink-on-reader-accent:   oklch(0.992 0.004 80);
+  --ink-reader-accent:      oklch(0.735 0.160 36);
+
+  /* ---------------------------------------------------------------------
+     The page. A physical object, so theme-independent: a page of artwork
+     does not invert when the reader's operating system flips. The failed
+     image label is printed on that paper, which is why it needs its own
+     danger ink rather than the theme's.
+     --------------------------------------------------------------------- */
+  --page-surface:     oklch(0.990 0.002 80);
+  --page-placeholder: oklch(0.878 0.010 72);
+  --page-ink:         oklch(0.252 0.012 58);
+  --page-ink-soft:    oklch(0.468 0.012 58);
+  --page-outline:     oklch(0.792 0.008 70);
+  --page-danger-ink:  oklch(0.452 0.152 28);
+
+  /* ---------------------------------------------------------------------
+     Synthetic cover art. TEST_STRATEGY.md §6: generated gradient pages are
+     test data. The covers here are the same idea — a two-stop gradient plus
+     an index label. No real cover or page artwork appears anywhere in this
+     set, which is also a licensing condition of the product.
+     --------------------------------------------------------------------- */
+  --cover-tint-a: oklch(0.538 0.070 250);
+  --cover-tint-b: oklch(0.420 0.090 300);
+  --cover-tint-c: oklch(0.512 0.075 190);
+  --cover-tint-d: oklch(0.500 0.085 40);
+  --cover-tint-e: oklch(0.520 0.080 120);
+  --cover-tint-f: oklch(0.540 0.070 20);
+  --cover-ink:    oklch(0.985 0.004 80);
+
+  /* ---------------------------------------------------------------------
+     Type.
+
+     No network is available to these artifacts, so no webfont can be
+     bundled. Personality therefore comes from the pairing and the scale
+     rather than from a downloaded face: an old-style serif for titles — the
+     register the manga object itself lives in — against the platform's UI
+     sans for chrome, plus a mono for figures so page numbers and counts
+     align in a column.
+     --------------------------------------------------------------------- */
+  --font-display: "Iowan Old Style", "Hoefler Text", "Palatino Linotype",
+                  Palatino, "Book Antiqua", "URW Palladio L", Georgia,
+                  "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif", serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans",
+             "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", "Noto Sans Mono", monospace;
+
+  --fs-xs:  0.75rem;    /* 12 — badges and table micro-labels only */
+  --fs-sm:  0.8125rem;  /* 13 — labels, helper text, nav */
+  --fs-md:  0.9375rem;  /* 15 — dense table body, meta rows */
+  --fs-base: 1rem;      /* 16 — body copy, never smaller */
+  --fs-lg:  1.25rem;    /* 20 — card titles on small screens */
+  --fs-xl:  1.75rem;    /* 28 — section headings, page title on mobile */
+  --fs-2xl: 2.25rem;    /* 36 — page title on desktop */
+  --fs-3xl: 2.75rem;    /* 44 — a manga title, and nothing else */
+
+  --lh-tight: 1.18;
+  --lh-snug:  1.35;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
+
+  --tracking-tight: -0.017em;
+  --tracking-wide: 0.03em;
+  --tracking-caps: 0.08em;
+
+  /* ---------------------------------------------------------------------
+     Spacing — a 4px grid, no exceptions
+     --------------------------------------------------------------------- */
+  --sp-1:  0.25rem;
+  --sp-2:  0.5rem;
+  --sp-3:  0.75rem;
+  --sp-4:  1rem;
+  --sp-5:  1.25rem;
+  --sp-6:  1.5rem;
+  --sp-8:  2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+
+  /* ---------------------------------------------------------------------
+     Radius — one system, concentric: a control nested inside a container is
+     never more rounded than the container around it.
+     --------------------------------------------------------------------- */
+  --r-xs: 3px;    /* badges, tags */
+  --r-sm: 5px;    /* inputs, small buttons */
+  --r-md: 7px;    /* buttons, list rows */
+  --r-lg: 10px;   /* cards, panels */
+  --r-xl: 14px;   /* dialogs, the reader's overlays */
+  --r-pill: 999px;
+
+  /* ---------------------------------------------------------------------
+     Target size: 44px. NFR-A11Y-010 sets 44; WCAG 2.1 SC 2.5.8 AA would
+     allow 24. The product commits to the higher number, and every control in
+     the reader chrome honours it including the small text buttons.
+     --------------------------------------------------------------------- */
+  --target-min: 44px;
+
+  /* ---------------------------------------------------------------------
+     Motion. Product motion is functional and short. The only 120ms
+     transition in the product is the page turn, and it is named for that job
+     because it is the one that must stay cancellable by an opposite input.
+     --------------------------------------------------------------------- */
+  --dur-instant: 0ms;
+  --dur-fast: 110ms;
+  --dur-page: 120ms;
+  --dur-slow: 220ms;
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-page: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* ---------------------------------------------------------------------
+     Layout
+     --------------------------------------------------------------------- */
+  --page-max: 1240px;
+  --measure: 68ch;
+}
+
+/* The manual override. Three states: absent follows the OS, these two pin it.
+   Because every colour above is a light-dark() pair, this is the only CSS
+   the theme toggle needs. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }

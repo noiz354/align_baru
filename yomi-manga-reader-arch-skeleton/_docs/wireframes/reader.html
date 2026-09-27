@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Reader</h1>
+  <p><b>Route</b> <code>/manga/[slug]/chapter/[chapter]</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> docs/product/reader-behavior.md §2–§9</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>The reader is the product.</b> reader-behavior.md defines three modes (vertical, single, double), two directions, four breakpoint layouts, a keyboard map, a two-representation page indicator, and a completion state. This page shows the structure of all of it; tier 4 makes it work.</li>
+    <li><b>Direction is not a mirror.</b> Per §4, direction decides which physical page is logical page 1, which key means next, which swipe means next, which tap zone means next, and how a spread pairs. The three-zone row below is drawn once, and the mapping table says which zone means next in each direction — in RTL it is physically the opposite third.</li>
+    <li><b>displayIndex vs pageNumber.</b> §4 calls this the single largest source of reader bugs. The indicator is written as <i>displayIndex</i>, computed as <code>displayIndex = rtl ? M − pageNumber + 1 : pageNumber</code>. With M = 240 and pageNumber = 229 in RTL, the indicator reads <b>Page 12 of 240</b> — the reading-order position, not the physical page.</li>
+    <li><b>Chrome placement changes with width</b> (§2): a bottom bar under 640px, a right rail 640–1023px, and a right rail plus top bar at 1024px and up. All three are drawn as separate frames because the structural difference is the point.</li>
+    <li><b>Zoom is a transform.</b> §8.1: zoom 100–400% pans within the page box, never changes the logical page, and resets on chapter change and on entering or leaving double mode (§11).</li>
+    <li><b>Page slots persist.</b> §3 and §15: out-of-window pages are placeholder elements with reserved dimensions, so the column height never changes and there is no layout shift.</li>
+    <li><b>Every key has a button.</b> §9: the key map is an enhancement over visible chrome controls, never a replacement for them (NFR-A11Y-002/006).</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — reader top bar, 1024px and up</h2>
+  <div class="wf-region-body">
+<nav aria-label="Reader">
+      <div class="wf-box"><span class="wf-box-label">back to series</span>
+        Seed Manga 0001 — Chapter 12</div>
+      <div class="wf-controls">
+        <span class="wf-control">Mode</span>
+        <span class="wf-control">Direction</span>
+        <span class="wf-control">Zoom</span>
+        <span class="wf-control">Fullscreen</span>
+        <span class="wf-control">More</span>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — reader, full bleed</h2>
+  <div class="wf-region-body">
+<p class="wf-box-label">The chapter title is the single h1 (drawn here as a labelled block, not a real heading)</p>
+<div class="wf-box"><span class="wf-box-label">Breadcrumb: Home / Seed Manga 0001 / Chapter 12</span> class="wf-text wf-text-short"</div>
+
+<h2 class="wf-box-label">A. Vertical mode — one continuous column</h2>
+<div class="wf-box"><span class="wf-box-label">Top bar, 1024px and up: back to series · chapter title · mode · direction · more</span> class="wf-text wf-text-short"</div>
+
+<div class="wf-reader-surround">
+  <div class="wf-zones">
+    <div class="wf-zone">
+      <span class="wf-zone-role">Tap zone — start third</span>
+      <div class="wf-column">
+        <div class="wf-art wf-art-tall">Page 240<br>physical · displayIndex 1</div><div class="wf-art wf-art-tall">Page 239<br>physical · displayIndex 2</div>
+      </div>
+      <div class="wf-zone-btns"><span>button: Previous page</span></div>
+    </div>
+    <div class="wf-zone">
+      <span class="wf-zone-role">Tap zone — center third</span>
+      <div class="wf-column">
+        <div class="wf-art wf-art-tall">Page 238<br>displayIndex 3</div><div class="wf-art wf-art-tall">Page 237<br>displayIndex 4</div><div class="wf-art wf-art-tall">Page 236<br>displayIndex 5</div><div class="wf-art wf-art-tall">Page 235<br>displayIndex 6</div>
+      </div>
+      <div class="wf-zone-btns"><span>button: scroll nudge or toggle chrome</span></div>
+    </div>
+    <div class="wf-zone">
+      <span class="wf-zone-role">Tap zone — end third</span>
+      <div class="wf-column">
+        <div class="wf-art wf-art-tall">Page 234<br>displayIndex 7</div><div class="wf-art wf-art-tall">Page 233<br>displayIndex 8</div><div class="wf-art wf-art-tall">reserved slot, window edge, no image</div><div class="wf-art wf-art-tall">reserved slot, window edge, no image</div>
+      </div>
+      <div class="wf-zone-btns"><span>button: Next page</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="wf-box"><span class="wf-box-label">Position indicator, exposed as text and not only as a bar: Page 12 of 240 · direction right to left · mode vertical</span> class="wf-text wf-text-short"</div>
+<div class="wf-box"><span class="wf-box-label">Bottom bar, under 640px: Previous · Next · Mode · More</span> class="wf-text wf-text-short"</div>
+
+<h2 class="wf-box-label">B. Single page mode — letterboxed to the viewport box</h2>
+<div class="wf-reader-surround">
+  <div class="wf-paged">
+    <div class="wf-art wf-art-page">One page, aspect preserved, fit to the viewport box, neutral surround</div>
+  </div>
+</div>
+<div class="wf-box"><span class="wf-box-label">Page 12 of 240</span> class="wf-text wf-text-short"</div>
+
+<h2 class="wf-box-label">C. Double page mode — pairing is direction-aware (§6)</h2>
+<div class="wf-reader-surround">
+  <div class="wf-paged">
+    <div class="wf-paged-pair">
+      <div class="wf-art wf-art-page">Spread member, pageNumber 230 — the higher page sits on the right in RTL</div><div class="wf-art wf-art-page">Spread member, pageNumber 229 — this is the position state</div>
+    </div>
+  </div>
+</div>
+<div class="wf-box"><span class="wf-box-label">Page 12 of 240 · double · 2 pages in this spread</span> class="wf-text wf-text-short"</div>
+<div class="wf-box"><span class="wf-box-label">Odd page count: the final spread is a single centered page, never a half-empty pair</span> class="wf-text wf-text-short"</div>
+
+<h2 class="wf-box-label">D. Chrome — three breakpoint layouts (§2)</h2>
+<div class="wf-stack">
+  <div class="wf-box"><span class="wf-box-label">Under 640px, mobile portrait — bottom bar: prev / next / mode / more · default mode vertical</span> class="wf-text wf-text-short"</div>
+  <div class="wf-box"><span class="wf-box-label">640–1023px, tablet — right rail, collapsible · vertical default, double allowed</span> class="wf-text wf-text-short"</div>
+  <div class="wf-box"><span class="wf-box-label">1024px and up, desktop — right rail plus top bar · single default, and a user preference beats it</span> class="wf-text wf-text-short"</div>
+</div>
+
+<h2 class="wf-box-label">E. Direction map — the same action lives in different places (§4)</h2>
+<div class="wf-scroll-x">
+<table class="wf-table">
+  <thead><tr><th>Aspect</th><th>Left to right</th><th>Right to left</th></tr></thead>
+  <tbody>
+    <tr><td>Logical page 1</td><td>pageNumber 1, the lowest</td><td>pageNumber 240, the highest</td></tr>
+    <tr><td>"Next" advances to</td><td>pageNumber + 1</td><td>pageNumber − 1</td></tr>
+    <tr><td>Column order, top to bottom</td><td>1, 2, 3 …</td><td>240, 239, 238 …</td></tr>
+    <tr><td>Left arrow key</td><td>previous</td><td>next</td></tr>
+    <tr><td>Right arrow key</td><td>next</td><td>previous</td></tr>
+    <tr><td>Swipe right, finger moves right</td><td>previous</td><td>next</td></tr>
+    <tr><td>Swipe left</td><td>next</td><td>previous</td></tr>
+    <tr><td>Tap: start / center / end third</td><td>prev / menu / next</td><td>next / menu / prev</td></tr>
+    <tr><td>Spread pairing</td><td>(1,2), (3,4) …</td><td>(240,239), (238,237) …</td></tr>
+    <tr><td>Column direction attribute</td><td colspan="2">set from the effective direction on
+      the reader container, not from the UI language</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 class="wf-box-label">F. Keyboard map (§9) — every row names its button</h2>
+<div class="wf-scroll-x">
+<table class="wf-table">
+  <thead><tr><th>Key</th><th>Vertical</th><th>Single / Double</th><th>Button equivalent</th></tr></thead>
+  <tbody>
+    <tr><td>Down / PageDown / Space</td><td>scroll down one viewport</td><td>next page</td><td>Next</td></tr>
+    <tr><td>Up / PageUp / Shift+Space</td><td>scroll up one viewport</td><td>previous page</td><td>Previous</td></tr>
+    <tr><td>Home / End</td><td>first / last page</td><td>first / last page</td><td>position only, no wrap</td></tr>
+    <tr><td>Left / Right</td><td colspan="2">direction-aware, see table E</td><td>Previous / Next</td></tr>
+    <tr><td>+ / −</td><td colspan="2">zoom in / out, 10% steps</td><td>Zoom in / Zoom out</td></tr>
+    <tr><td>0</td><td colspan="2">zoom reset</td><td>Reset zoom</td></tr>
+    <tr><td>F</td><td colspan="2">fullscreen on the reader container</td><td>Fullscreen</td></tr>
+    <tr><td>M</td><td colspan="2">cycle mode: vertical to single to double</td><td>Mode</td></tr>
+    <tr><td>D</td><td colspan="2">toggle direction override</td><td>Direction</td></tr>
+    <tr><td>B</td><td colspan="2">toggle chrome</td><td>Toggle chrome</td></tr>
+    <tr><td>Esc</td><td colspan="2">exit fullscreen, then close dialog, then hide chrome</td><td>Close</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 class="wf-box-label">G. What sits on top of the page</h2>
+<div class="wf-stack">
+  <div class="wf-box"><span class="wf-box-label">Zoom control: 100 / 150 / 200 / 300 / 400 quick set, plus + / − and reset</span> class="wf-text wf-text-short"</div>
+  <div class="wf-box"><span class="wf-box-label">Mode picker — a dialog: focus trapped, reader keys inert while it is open, focus returns to the reader on close</span> class="wf-text wf-text-short"</div>
+  <div class="wf-box"><span class="wf-box-label">Polite live region announcing page changes, chapter completion, and mode or direction changes</span> class="wf-text wf-text-short"</div>
+  <div class="wf-box"><span class="wf-box-label">Initial focus lands on the reader container on route entry, NFR-A11Y-003</span> class="wf-text wf-text-short"</div>
+</div>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

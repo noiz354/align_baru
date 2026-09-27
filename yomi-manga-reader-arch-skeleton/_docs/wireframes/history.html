@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: History</h1>
+  <p><b>Route</b> <code>/history</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-LIBRARY-*, EC-ADM-03</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>History is sessions, not a progress log</b> (J-2 step 5). A session ends after five minutes idle (INT-PROG-002), so the list stays short and readable instead of becoming a wall of page events.</li>
+    <li><b>Each row is resumable and states its own position and deepest page</b>, because a reader needs to know whether a row is worth opening before opening it.</li>
+    <li><b>An orphaned chapter renders as "Unavailable chapter"</b> (EC-ADM-03) rather than vanishing. A curator's soft-delete must not silently rewrite a reader's history.</li>
+    <li><b>Retention is stated, not silent.</b> Rows age out; the screen says so once, in a sentence, instead of leaving a reader wondering where last month went.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: History</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Filters</h2>
+  <div class="wf-region-body">
+<div class="wf-controls">
+      <span class="wf-control wf-control-primary">All titles</span>
+      <span class="wf-control">Last 7 days</span>
+      <span class="wf-control">Last 30 days</span>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Sessions — a real list, newest first</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Seed Manga 0001 — Chapter 12 — 2 days ago · pages 1 to 12 of 240 · 14 min
+        <span class="wf-zone-btns"><span>link: Resume at page 12</span></span></li>
+      <li>Seed Manga 0003 — Chapter 4 — 6 days ago · pages 1 to 18 of 18 · 22 min
+        <span class="wf-zone-btns"><span>button: Mark as read</span>
+        <span>link: Resume</span></span></li>
+      <li>Seed Manga 0004 — Chapter 2 — 9 days ago · Unavailable chapter
+        <span class="wf-zone-btns"><span>link: Open series</span></span></li>
+      <li>Seed Manga 0002 — Chapter 7 — 21 days ago · pages 1 to 34 of 41 · 31 min
+        <span class="wf-zone-btns"><span>link: Resume at page 34</span></span></li>
+    </ul>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">States</h2>
+  <div class="wf-region-body">
+<div class="wf-stack"><div class="wf-box"><span class="wf-box-label">Empty: no reading sessions yet</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Retention: sessions age out past the window — stated, not silent</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html" aria-current="page">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="library.html">Library</a><a class="btn btn--sm" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5z M4.5 20.5a7.5 7.5 0 0 1 15 0</svg>Account</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="stack rise rise-1">
+    <h1>Search</h1>
+    <form class="card stack stack--sm" action="#" method="get" role="search" style="max-width:44rem">
+      <div class="field">
+        <label class="label" for="q">Search titles, aliases, creators, and tags</label>
+        <div class="cluster" style="flex-wrap:nowrap">
+          <input class="input" id="q" name="q" type="search" value="archivist"
+                 autocomplete="off" style="flex:1 1 auto"
+                 aria-describedby="q-hint">
+          <button type="submit" class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16.2 16.2 L21 21</svg> Search</button>
+          <button type="button" class="btn">Clear</button>
+        </div>
+        <span class="hint" id="q-hint">Results update as you type, and the last thing
+          you typed always wins. Press Enter to search immediately.</span>
+      </div>
+    </form>
+  </section>
+
+  <div class="split rise rise-2">
+    <aside class="stack stack--lg" aria-label="Search filters">
+      <div class="field">
+        <label class="label" for="s-status">Status</label>
+        <select class="select" id="s-status"><option>Ongoing</option><option>Any</option>
+          <option>Completed</option><option>Hiatus</option></select>
+      </div>
+      <fieldset class="fieldset stack stack--xs">
+        <legend class="legend">Genre</legend>
+        <label class="check"><input type="checkbox" checked><span>Drama</span></label>
+        <label class="check"><input type="checkbox" checked><span>Seinen</span></label>
+        <label class="check"><input type="checkbox"><span>Comedy</span></label>
+      </fieldset>
+      <div class="field">
+        <label class="label" for="s-year">Year published</label>
+        <select class="select" id="s-year"><option>2021 to 2026</option>
+          <option>Any</option><option>2011 to 2020</option></select>
+      </div>
+      <div class="panel panel--inset stack stack--xs">
+        <h2>Why the match label</h2>
+        <p class="meta">Exact, then prefix, then contains, then creator. A query of one
+          or two characters can only match a prefix, and the label says so rather than
+          looking arbitrary.</p>
+      </div>
+    </aside>
+
+    <div class="stack stack--xl">
+      <section class="stack" aria-labelledby="res-h">
+        <div class="section-head">
+          <h2 id="res-h">3 results for &ldquo;archivist&rdquo;</h2>
+          <p>Ranked: exact, then prefix, then contains, then creator</p>
+        </div>
+        <ul class="ruled">
+          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</a>
+              <p class="meta">manga, Ongoing · matched: title prefix</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0014 — Archivist's Notebook, Reissued</a>
+              <p class="meta">manga, Completed · matched: title contains</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0007 — The Second-year Archivist's Summer</a>
+              <p class="meta">manga, Hiatus · matched: creator</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="stack" aria-labelledby="st-h">
+        <div class="section-head">
+          <h2 id="st-h">The other states on this screen</h2>
+        </div>
+        <div class="stack">
+          <div class="empty">
+            <span class="empty__mark" aria-hidden="true">0</span>
+            <h3>No titles match &ldquo;archivist&rdquo;</h3>
+            <p class="prose">Nothing in the catalog contains that word in a title or an
+              alias. Two creators have it in their name, so a creator search would
+              find something.</p>
+            <div class="cluster"><a class="btn btn--primary" href="discover.html">Browse
+              the catalog</a></div>
+          </div>
+
+          <div class="card stack stack--sm">
+            <h3>Empty catalog</h3>
+            <p class="meta">A different state from zero results, and it says so: the
+              catalog has nothing in it at all, so there is nothing to match against.</p>
+          </div>
+
+          <div class="notice notice--warn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4 L21.5 20.5 H2.5 Z M12 10v4.5 M12 17.4v.2</svg> <span>Search is unavailable right now. Your query is kept and
+              will run when the service returns.</span>
+            <span class="push cluster">
+              <button type="button" class="btn btn--sm">Retry</button>
+              <a class="btn btn--sm" href="discover.html">Go to the catalog</a>
+            </span>
+          </div>
+
+          <div class="card stack stack--sm">
+            <h3>Loading</h3>
+            <p class="meta">Skeleton rows hold the result count, so the page does not
+              change height when results land.</p>
+            <ul class="stack stack--xs" aria-hidden="true">
+              <li class="meta">&nbsp;</li><li class="meta">&nbsp;</li>
+              <li class="meta">&nbsp;</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · /search · source: PRD FR-SEARCH-*, EC-SE-01…04, ACCESSIBILITY.md §5</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

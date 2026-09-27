@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Search</h1>
+  <p><b>Route</b> <code>/search</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-SEARCH-*, EC-SE-01…04, ACCESSIBILITY.md §5 and §6</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Search is <code>type="search"</code>, visibly labelled, and debounced</b> — but the debounce must never drop rapid typing: the last input always wins, and Enter forces an immediate search (ACCESSIBILITY.md §5, FR-SEARCH-005).</li>
+    <li><b>Zero results is its own state</b>, not an error and not a blank list (ACCESSIBILITY.md §6).</li>
+    <li><b>Empty catalog is a different state from no results</b> (EC-SE-02): "The catalog is empty — content is added by the curator", never "no results for this query".</li>
+    <li><b>CJK titles and 1–2 character queries</b> fall back to a prefix path (EC-SE-01, EC-SE-04). The result list states which path matched, so the ranking is not mysterious.</li>
+    <li><b>No result row is a link to nothing.</b> If a card would have no destination, the card is not a link.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Search</span> class="wf-text wf-text-short"</div>
+
+<section class="wf-region">
+  <h2 class="wf-region-label">Search form</h2>
+  <div class="wf-region-body">
+<div class="wf-field">
+      <span class="wf-field-label">label for=query: Search titles, aliases, creators, and tags</span>
+      <div class="wf-input">input type=search value="archivist"</div>
+    </div>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Search — forces an immediate submit on Enter</span>
+      <span class="wf-control">Clear</span>
+    </div>
+  </div>
+</section>
+
+<div class="wf-rail">
+  <div class="wf-stack">
+    <section class="wf-region">
+  <h2 class="wf-region-label">Results — descriptive accessible names on every link</h2>
+  <div class="wf-region-body">
+<ol class="wf-list">
+      <li>Seed Manga 0001 — The Long Afternoon of the Second-year Archivist — manga, Ongoing
+        · matched: title prefix</li>
+      <li>Seed Manga 0014 — Archivist's Notebook, Reissued — manga, Completed
+        · matched: title contains</li>
+      <li>Seed Manga 0007 — The Second-year Archivist's Summer — manga, Hiatus
+        · matched: creator</li>
+    </ol>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">States this screen has to carry</h2>
+  <div class="wf-region-body">
+<div class="wf-stack">
+      <div class="wf-box"><span class="wf-box-label">Loading: skeleton rows hold the result count stable, so nothing shifts</span> class="wf-text wf-text-short"</div>
+      <div class="wf-box"><span class="wf-box-label">Zero results: "No titles match archivist." plus suggestions and a link to the catalog</span> class="wf-text wf-text-short"</div>
+      <div class="wf-box"><span class="wf-box-label">Empty catalog: "The catalog is empty — content is added by the curator"</span> class="wf-text wf-text-short"</div>
+      <div class="wf-box"><span class="wf-box-label">Search unavailable: the cause, a retry, and a link home</span> class="wf-text wf-text-short"</div>
+    </div>
+  </div>
+</section>
+  </div>
+  <section class="wf-region">
+  <h2 class="wf-region-label">&lt;aside&gt; — search filters</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Status: Ongoing</li>
+      <li>Genre: Drama, Seinen</li>
+      <li>Year published: 2021–2026</li>
+      <li>Reading direction: right to left</li>
+    </ul>
+  </div>
+</section>
+</div>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

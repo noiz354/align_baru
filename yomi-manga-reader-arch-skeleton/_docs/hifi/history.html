@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html" aria-current="page">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="library.html">Library</a><a class="btn btn--sm" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5z M4.5 20.5a7.5 7.5 0 0 1 15 0</svg>Account</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="rise rise-1">
+    <div class="section-head">
+      <div>
+        <h1>History</h1>
+        <p class="meta">Sessions, newest first. A session ends after five minutes idle.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs rise rise-2" aria-label="History ranges">
+    <a href="history.html" aria-current="page">All titles</a>
+    <a href="history.html">Last 7 days</a>
+    <a href="history.html">Last 30 days</a>
+  </nav>
+
+  <ul class="ruled rise rise-3">
+          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="reader.html">Seed Manga 0001 — Chapter 12</a>
+              <p class="meta num">2 days ago · pages 1 to 12 of 240 · 14 min</p>
+            </div>
+            <div class="cluster"><a class="btn btn--sm" href="reader.html">Resume at page 12</a></div>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="reader.html">Seed Manga 0003 — Chapter 4</a>
+              <p class="meta num">6 days ago · pages 1 to 18 of 18 · 22 min</p>
+            </div>
+            <div class="cluster"><button type="button" class="btn btn--sm">Mark as read</button><a class="btn btn--sm" href="reader.html">Resume</a></div>
+          </li>          <li class="ruled-row">
+            <div>
+              <span class="list-title">Seed Manga 0004 — Chapter 2</span>
+              <p class="meta num">9 days ago · Unavailable chapter</p>
+            </div>
+            <div class="cluster"><a class="btn btn--sm" href="manga-detail.html">Open series</a></div>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="reader.html">Seed Manga 0002 — Chapter 7</a>
+              <p class="meta num">21 days ago · pages 1 to 34 of 41 · 31 min</p>
+            </div>
+            <div class="cluster"><a class="btn btn--sm" href="reader.html">Resume at page 34</a></div>
+          </li>
+  </ul>
+
+  <div class="notice rise rise-4">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M12 11v5.5 M12 7.6v.2</svg> <span>Sessions older than the retention window are removed. History is
+      never shown as a silent gap.</span>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · /history · source: PRD FR-LIBRARY-*, EC-ADM-03</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

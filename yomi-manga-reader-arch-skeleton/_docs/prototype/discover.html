@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog — Yomi, prototype</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../hifi/tokens.css">
+<link rel="stylesheet" href="../hifi/hifi.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html" aria-current="page">Catalog</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="reader.html">Open the reader</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="stack rise rise-1">
+    <div class="section-head">
+      <div>
+        <h1>Catalog</h1>
+        <p class="meta result-line" id="result-line" role="status" aria-live="polite">
+          12 titles</p>
+      </div>
+      <div class="cluster">
+        <button type="button" class="btn btn--sm" id="view-grid" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z</svg> Grid</button>
+        <button type="button" class="btn btn--sm" id="view-list" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4 6.5h16 M4 12h16 M4 17.5h16</svg> List</button>
+      </div>
+    </div>
+
+    <form class="card" action="#" method="get" role="search">
+      <div class="card__body cluster" style="align-items:flex-end">
+        <div class="field" style="flex:1 1 20rem">
+          <label class="label" for="q">Search titles, aliases, creators, and tags</label>
+          <input class="input" id="q" name="q" type="search" autocomplete="off"
+                 aria-describedby="q-hint">
+          <span class="hint" id="q-hint">Filters as you type, and the last thing you
+            typed always wins. Press Enter to submit the form.</span>
+        </div>
+        <div class="field" style="flex:0 1 12rem">
+          <label class="label" for="f-status">Status</label>
+          <select class="select" id="f-status">
+            <option value="any">Any</option><option>Ongoing</option>
+            <option>Completed</option><option>Hiatus</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0 1 13rem">
+          <label class="label" for="f-dir">Reading direction</label>
+          <select class="select" id="f-dir">
+            <option value="any">Any</option>
+            <option value="rtl">Right to left</option>
+            <option value="ltr">Left to right</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0 1 12rem">
+          <label class="label" for="f-sort">Sort</label>
+          <select class="select" id="f-sort">
+            <option value="updated">Recently updated</option>
+            <option value="title">Title</option>
+            <option value="chapters">Latest chapter</option>
+          </select>
+        </div>
+      </div>
+      <div class="card__body" style="padding-top:0">
+        <div class="chips" role="group" aria-label="Genre">
+<button type="button" class="chip" data-genre="Action" aria-pressed="false">Action</button><button type="button" class="chip" data-genre="Adventure" aria-pressed="false">Adventure</button><button type="button" class="chip" data-genre="Comedy" aria-pressed="false">Comedy</button><button type="button" class="chip" data-genre="Drama" aria-pressed="false">Drama</button><button type="button" class="chip" data-genre="Historical" aria-pressed="false">Historical</button><button type="button" class="chip" data-genre="Mystery" aria-pressed="false">Mystery</button><button type="button" class="chip" data-genre="Sci-fi" aria-pressed="false">Sci-fi</button><button type="button" class="chip" data-genre="Seinen" aria-pressed="false">Seinen</button><button type="button" class="chip" data-genre="Slice of life" aria-pressed="false">Slice of life</button><button type="button" class="chip" data-genre="Sports" aria-pressed="false">Sports</button><button type="button" class="chip" data-genre="Supernatural" aria-pressed="false">Supernatural</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="stack rise rise-2" aria-labelledby="cont-h">
+    <div class="section-head">
+      <h2 id="cont-h">Continue reading</h2>
+      <a class="btn btn--sm" href="library.html">All of it</a>
+    </div>
+    <ul class="grid-covers">
+          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--a " role="img" aria-label="Cover: Seed Manga 0001">Seed Manga 0001</span>              <span class="title-card__title">Seed Manga 0001</span></a>
+            <p class="meta">Ch. 12 · p. 12 of 240</p>
+            <div class="progress"><span class="progress__fill" style="width:5%"></span></div>
+            <p class="meta num">5% · <span class="rel-time" data-iso="2026-09-25T09:14:00Z">a moment ago</span></p>
+          </li>          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--c " role="img" aria-label="Cover: Seed Manga 0003">Seed Manga 0003</span>              <span class="title-card__title">Seed Manga 0003</span></a>
+            <p class="meta">Ch. 4 · p. 18 of 18</p>
+            <div class="progress"><span class="progress__fill" style="width:100%"></span></div>
+            <p class="meta num">100% · <span class="rel-time" data-iso="2026-08-26T14:55:00Z">a moment ago</span></p>
+          </li>          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--b " role="img" aria-label="Cover: Seed Manga 0002">Seed Manga 0002</span>              <span class="title-card__title">Seed Manga 0002</span></a>
+            <p class="meta">Ch. 7 · p. 34 of 41</p>
+            <div class="progress"><span class="progress__fill" style="width:83%"></span></div>
+            <p class="meta num">83% · <span class="rel-time" data-iso="2026-09-05T11:02:00Z">a moment ago</span></p>
+          </li>
+    </ul>
+  </section>
+
+  <div class="split rise rise-3">
+    <aside class="stack" aria-label="About this catalog">
+      <div class="panel stack stack--sm">
+        <h2>Card names</h2>
+        <p class="meta">Every card is a link whose accessible name includes the title
+          and the status, so a card's status is never carried by a badge colour
+          alone.</p>
+      </div>
+      <div class="panel stack stack--sm">
+        <h2>What is here</h2>
+        <p class="meta">Every cover is a two-stop gradient with a label, and every
+          chapter page is a labelled block. Nothing in this set is real artwork,
+          because every title in this product is licensed or owned by the operator
+          and a prototype has no licence.</p>
+      </div>
+    </aside>
+
+    <div class="stack stack--lg">
+      <section class="stack" aria-labelledby="all-h" id="grid-view">
+        <div class="section-head">
+          <h2 id="all-h">All titles</h2>
+          <p>The first cover is the LCP element, so it takes two columns at wide
+            widths. Below that the override is dropped: an asymmetric grid at 320px is
+            a broken grid.</p>
+        </div>
+        <ul class="grid-covers" id="cover-grid">
+          <li class="title-card-item" data-title="Seed Manga 0001 — The Long Afternoon of the Second-year Archivist" data-status="Ongoing" data-genres="Drama|Seinen" data-dir="rtl" data-updated="2026-09-25T09:14:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--a " role="img" aria-label="Cover: Seed Manga 0001">Seed Manga 0001</span>
+              <span class="title-card__title">Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</span>
+              <span class="title-card__meta">Ongoing · Ch. 13 · 388 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0002 — Lantern Circuit" data-status="Ongoing" data-genres="Sci-fi|Action" data-dir="rtl" data-updated="2026-09-21T11:02:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--b " role="img" aria-label="Cover: Seed Manga 0002">Seed Manga 0002</span>
+              <span class="title-card__title">Seed Manga 0002 — Lantern Circuit</span>
+              <span class="title-card__meta">Ongoing · Ch. 41 · 1180 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0003 — Notes Toward a Theory of Weather" data-status="Completed" data-genres="Slice of life|Drama" data-dir="rtl" data-updated="2026-08-26T14:55:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--c " role="img" aria-label="Cover: Seed Manga 0003">Seed Manga 0003</span>
+              <span class="title-card__title">Seed Manga 0003 — Notes Toward a Theory of Weather</span>
+              <span class="title-card__meta">Completed · Ch. 22 · 640 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0004 — The Quiet Between Stations" data-status="Hiatus" data-genres="Drama" data-dir="rtl" data-updated="2026-06-30T16:20:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--d " role="img" aria-label="Cover: Seed Manga 0004">Seed Manga 0004</span>
+              <span class="title-card__title">Seed Manga 0004 — The Quiet Between Stations</span>
+              <span class="title-card__meta">Hiatus · Ch. 9 · 241 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0005 — Harbourlight Omnibus" data-status="Ongoing" data-genres="Historical|Adventure" data-dir="ltr" data-updated="2026-07-14T08:00:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--e " role="img" aria-label="Cover: Seed Manga 0005">Seed Manga 0005</span>
+              <span class="title-card__title">Seed Manga 0005 — Harbourlight Omnibus</span>
+              <span class="title-card__meta">Ongoing · Ch. 4 · 96 pages · left to right</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations" data-status="Ongoing" data-genres="Seinen|Slice of life" data-dir="ltr" data-updated="2026-09-24T10:41:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--f " role="img" aria-label="Cover: Seed Manga 0006">Seed Manga 0006</span>
+              <span class="title-card__title">Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations</span>
+              <span class="title-card__meta">Ongoing · Ch. 3 · 74 pages · left to right</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0007 — The Second-year Archivist's Summer" data-status="Hiatus" data-genres="Slice of life|Comedy" data-dir="rtl" data-updated="2026-05-02T12:00:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--a " role="img" aria-label="Cover: Seed Manga 0007">Seed Manga 0007</span>
+              <span class="title-card__title">Seed Manga 0007 — The Second-year Archivist's Summer</span>
+              <span class="title-card__meta">Hiatus · Ch. 11 · 310 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0008 — Quiet Machines" data-status="Ongoing" data-genres="Sci-fi|Mystery" data-dir="rtl" data-updated="2026-09-19T15:32:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--b " role="img" aria-label="Cover: Seed Manga 0008">Seed Manga 0008</span>
+              <span class="title-card__title">Seed Manga 0008 — Quiet Machines</span>
+              <span class="title-card__meta">Ongoing · Ch. 27 · 712 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0009 — A Register of Small Repairs" data-status="Completed" data-genres="Drama|Historical" data-dir="rtl" data-updated="2026-07-01T09:11:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--c " role="img" aria-label="Cover: Seed Manga 0009">Seed Manga 0009</span>
+              <span class="title-card__title">Seed Manga 0009 — A Register of Small Repairs</span>
+              <span class="title-card__meta">Completed · Ch. 19 · 488 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0010 — The Afternoon Office" data-status="Ongoing" data-genres="Comedy|Slice of life" data-dir="ltr" data-updated="2026-09-10T13:45:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--d " role="img" aria-label="Cover: Seed Manga 0010">Seed Manga 0010</span>
+              <span class="title-card__title">Seed Manga 0010 — The Afternoon Office</span>
+              <span class="title-card__meta">Ongoing · Ch. 6 · 155 pages · left to right</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0011 — Second Pass" data-status="Ongoing" data-genres="Action|Sports" data-dir="rtl" data-updated="2026-09-23T17:20:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--e " role="img" aria-label="Cover: Seed Manga 0011">Seed Manga 0011</span>
+              <span class="title-card__title">Seed Manga 0011 — Second Pass</span>
+              <span class="title-card__meta">Ongoing · Ch. 30 · 902 pages · right to left</span>
+            </a>
+          </li>          <li class="title-card-item" data-title="Seed Manga 0012 — Cartography for the Unhurried" data-status="Ongoing" data-genres="Adventure|Seinen" data-dir="rtl" data-updated="2026-09-18T08:30:00Z">
+            <a class="title-card" href="manga-detail.html">
+              <span class="cover cover--f " role="img" aria-label="Cover: Seed Manga 0012">Seed Manga 0012</span>
+              <span class="title-card__title">Seed Manga 0012 — Cartography for the Unhurried</span>
+              <span class="title-card__meta">Ongoing · Ch. 15 · 377 pages · right to left</span>
+            </a>
+          </li>
+        </ul>
+        <div class="empty" id="grid-empty" hidden>
+          <span class="empty__mark" aria-hidden="true">0</span>
+          <h3>No titles match</h3>
+          <p class="prose" id="grid-empty-text">Nothing in the catalog matches
+            everything you have asked for. Loosen a filter and try again.</p>
+          <div class="cluster">
+            <button type="button" class="btn btn--primary" id="clear-filters">
+              Clear the filters</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="stack" aria-labelledby="list-h" id="list-view" hidden>
+        <div class="section-head">
+          <h2 id="list-h">List view</h2>
+          <p>The same data, denser, and the same filters.</p>
+        </div>
+        <ul class="ruled" id="title-list">
+          <li class="ruled-row" data-title="Seed Manga 0001 — The Long Afternoon of the Second-year Archivist" data-status="Ongoing" data-genres="Drama|Seinen" data-dir="rtl" data-updated="2026-09-25T09:14:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</a>
+              <p class="meta">Ongoing · latest Chapter 13 · 388 pages · updated <span class="rel-time" data-iso="2026-09-25T09:14:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0002 — Lantern Circuit" data-status="Ongoing" data-genres="Sci-fi|Action" data-dir="rtl" data-updated="2026-09-21T11:02:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0002 — Lantern Circuit</a>
+              <p class="meta">Ongoing · latest Chapter 41 · 1180 pages · updated <span class="rel-time" data-iso="2026-09-21T11:02:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0003 — Notes Toward a Theory of Weather" data-status="Completed" data-genres="Slice of life|Drama" data-dir="rtl" data-updated="2026-08-26T14:55:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0003 — Notes Toward a Theory of Weather</a>
+              <p class="meta">Completed · latest Chapter 22 · 640 pages · updated <span class="rel-time" data-iso="2026-08-26T14:55:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0004 — The Quiet Between Stations" data-status="Hiatus" data-genres="Drama" data-dir="rtl" data-updated="2026-06-30T16:20:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0004 — The Quiet Between Stations</a>
+              <p class="meta">Hiatus · latest Chapter 9 · 241 pages · updated <span class="rel-time" data-iso="2026-06-30T16:20:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0005 — Harbourlight Omnibus" data-status="Ongoing" data-genres="Historical|Adventure" data-dir="ltr" data-updated="2026-07-14T08:00:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0005 — Harbourlight Omnibus</a>
+              <p class="meta">Ongoing · latest Chapter 4 · 96 pages · updated <span class="rel-time" data-iso="2026-07-14T08:00:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations" data-status="Ongoing" data-genres="Seinen|Slice of life" data-dir="ltr" data-updated="2026-09-24T10:41:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations</a>
+              <p class="meta">Ongoing · latest Chapter 3 · 74 pages · updated <span class="rel-time" data-iso="2026-09-24T10:41:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0007 — The Second-year Archivist's Summer" data-status="Hiatus" data-genres="Slice of life|Comedy" data-dir="rtl" data-updated="2026-05-02T12:00:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0007 — The Second-year Archivist's Summer</a>
+              <p class="meta">Hiatus · latest Chapter 11 · 310 pages · updated <span class="rel-time" data-iso="2026-05-02T12:00:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0008 — Quiet Machines" data-status="Ongoing" data-genres="Sci-fi|Mystery" data-dir="rtl" data-updated="2026-09-19T15:32:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0008 — Quiet Machines</a>
+              <p class="meta">Ongoing · latest Chapter 27 · 712 pages · updated <span class="rel-time" data-iso="2026-09-19T15:32:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0009 — A Register of Small Repairs" data-status="Completed" data-genres="Drama|Historical" data-dir="rtl" data-updated="2026-07-01T09:11:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0009 — A Register of Small Repairs</a>
+              <p class="meta">Completed · latest Chapter 19 · 488 pages · updated <span class="rel-time" data-iso="2026-07-01T09:11:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0010 — The Afternoon Office" data-status="Ongoing" data-genres="Comedy|Slice of life" data-dir="ltr" data-updated="2026-09-10T13:45:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0010 — The Afternoon Office</a>
+              <p class="meta">Ongoing · latest Chapter 6 · 155 pages · updated <span class="rel-time" data-iso="2026-09-10T13:45:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0011 — Second Pass" data-status="Ongoing" data-genres="Action|Sports" data-dir="rtl" data-updated="2026-09-23T17:20:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0011 — Second Pass</a>
+              <p class="meta">Ongoing · latest Chapter 30 · 902 pages · updated <span class="rel-time" data-iso="2026-09-23T17:20:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row" data-title="Seed Manga 0012 — Cartography for the Unhurried" data-status="Ongoing" data-genres="Adventure|Seinen" data-dir="rtl" data-updated="2026-09-18T08:30:00Z">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0012 — Cartography for the Unhurried</a>
+              <p class="meta">Ongoing · latest Chapter 15 · 377 pages · updated <span class="rel-time" data-iso="2026-09-18T08:30:00Z">a moment ago</span></p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>
+        </ul>
+        <div class="empty" id="list-empty" hidden>
+          <span class="empty__mark" aria-hidden="true">0</span>
+          <h3>No titles match</h3>
+          <p class="prose">Nothing in the catalog matches everything you have asked
+            for. Loosen a filter and try again.</p>
+          <div class="cluster">
+            <button type="button" class="btn btn--primary" id="clear-filters-2">
+              Clear the filters</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Prototype, tier 4 · /discover · source: PRD FR-CATALOG-005, user-journeys J-1</span>
+    <span class="push meta">No network, no build step, no product content</span>
+  </div>
+</footer>
+<script src="app.js"></script>
+
+<script src="catalog.js"></script>
+
+</body>
+</html>

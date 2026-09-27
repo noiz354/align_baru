@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: upload pages — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+            <nav class="l-nav" aria-label="Admin">
+        <ul>
+        <li><a href="admin-overview.html">Overview</a></li>        <li><a href="admin-manga-list.html">Manga</a></li>        <li><a href="admin-upload.html" aria-current="page">Uploads</a></li>        <li><a href="admin-users.html">Users</a></li>        <li><a href="admin-audit.html">Audit</a></li>
+        </ul>
+      </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="index.html">Back to the site</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <nav class="l-crumbs" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="admin-manga-list.html">Manga</a></li>
+      <li><a href="admin-manga-list.html">Seed Manga 0001</a></li>
+      <li><a href="admin-manga-list.html">Chapters</a></li>
+      <li aria-current="page">Chapter 14</li>
+    </ol>
+  </nav>
+
+  <div class="l-section-head">
+    <h1>Upload pages</h1>
+    <p class="l-meta">Seed Manga 0001 — Chapter 14 · draft · 0 pages</p>
+  </div>
+
+  <div class="l-split">
+    <div class="l-stack l-stack--loose">
+      <div class="l-card l-stack l-stack--tight">
+        <h2>Input</h2>
+        <div style="border:2px dashed var(--l-line-2);border-radius:var(--l-r3);padding:2rem;text-align:center;background:var(--l-sunken)">
+          <p style="font-weight:600">Drop a ZIP or a set of images here</p>
+          <p class="l-hint" style="margin-top:.25rem">Advisory pre-checks: one archive or
+            an image set, up to 500 MB, up to 500 files. The server is authoritative.</p>
+        </div>
+        <div class="l-btn-row">
+          <button type="button" class="l-btn l-btn--primary">Choose files</button>
+          <button type="button" class="l-btn">Choose a ZIP</button>
+        </div>
+        <p class="l-hint">Above 100 MB the upload is split into parts and progress is
+          reported per part.</p>
+      </div>
+
+      <div class="l-card l-stack l-stack--tight" aria-labelledby="job-h">
+        <div class="l-section-head">
+          <h2 id="job-h">Job c4f1</h2>
+          <p class="l-meta">State: processing · started 40s ago · polled every 3s</p>
+        </div>
+        <ol class="l-list l-list--lines">
+          <li class="l-list-row"><div><strong>queued</strong></div>
+            <span class="l-badge">done</span></li>
+          <li class="l-list-row"><div><strong>validating</strong>
+            <p class="l-meta l-num">30 pages found, 0 unreadable</p></div>
+            <span class="l-badge">done</span></li>
+          <li class="l-list-row"><div><strong>processing</strong>
+            <p class="l-meta l-num">18 of 30 normalised to AVIF, WebP, and JPEG</p></div>
+            <span class="l-badge l-badge--solid">running</span></li>
+        </ol>
+        <div class="l-progress"><div class="l-progress__fill" style="width:60%"></div></div>
+        <p class="l-hint l-num">60%</p>
+      </div>
+
+      <div class="l-card l-stack l-stack--tight">
+        <h2>Ready</h2>
+        <p class="l-meta">The chapter has pages. Publishing is a separate, deliberate
+          step.</p>
+        <div class="l-btn-row">
+          <button type="button" class="l-btn">View chapter (draft preview)</button>
+          <button type="button" class="l-btn l-btn--primary">Publish</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="l-stack l-stack--tight" aria-label="Failure states a curator can act on">
+      <div class="l-panel l-stack l-stack--tight">
+        <h2>If it fails</h2>
+        <ul class="l-stack l-stack--tight">
+          <li><strong>Some images could not be read</strong>
+            <p class="l-meta">Pages 7, 12, 19 failed. Fix and re-upload; nothing was
+              committed, so no re-ingest is needed.</p></li>
+          <li><strong>The archive expands beyond the safe limit</strong>
+            <p class="l-meta">Re-compress or split the chapter.</p></li>
+          <li><strong>Password-protected archives are not supported</strong>
+            <p class="l-meta">Re-package without encryption.</p></li>
+          <li><strong>No images found in the archive</strong>
+            <p class="l-meta">The archive holds directories only.</p></li>
+          <li><strong>A job for this chapter is already running</strong>
+            <p class="l-meta">Watch the running job instead of submitting again.</p></li>
+          <li><strong>Processing exceeded 15 minutes and was stopped</strong>
+            <p class="l-meta">Re-upload. A failed job is never retried automatically.</p></li>
+        </ul>
+      </div>
+
+      <div class="l-dialog" role="dialog" aria-labelledby="ri-h" aria-modal="true"
+           aria-describedby="ri-b">
+        <div class="l-dialog__head"><h2 id="ri-h">Re-ingest pages for Chapter 12?</h2></div>
+        <div class="l-dialog__body">
+          <p id="ri-b">On commit the new pages go live and the old set is held for 24
+            hours. If the upload fails, the chapter keeps the pages it has now. A reader
+            mid-chapter is moved to the new pages on their next page change.</p>
+        </div>
+        <div class="l-dialog__foot">
+          <button type="button" class="l-btn l-btn--primary">Re-ingest</button>
+          <button type="button" class="l-btn">Cancel</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /admin/uploads · source: admin-workflow.md §5, §6, EC-UP-01…10</span>
+  </div>
+</footer>
+</body>
+</html>

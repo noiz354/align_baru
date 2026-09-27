@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: manga — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+            <nav class="l-nav" aria-label="Admin">
+        <ul>
+        <li><a href="admin-overview.html">Overview</a></li>        <li><a href="admin-manga-list.html" aria-current="page">Manga</a></li>        <li><a href="admin-upload.html">Uploads</a></li>        <li><a href="admin-users.html">Users</a></li>        <li><a href="admin-audit.html">Audit</a></li>
+        </ul>
+      </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="index.html">Back to the site</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <div class="l-section-head">
+    <h1>Manga</h1>
+    <p class="l-meta l-num">6 titles · 92 chapters · 2,619 pages</p>
+  </div>
+
+  <div class="l-btn-row">
+    <button type="button" class="l-btn l-btn--primary">New manga</button>
+    <button type="button" class="l-btn">Upload pages</button>
+  </div>
+
+  <form class="l-searchbar" action="#" method="get" role="search">
+    <div class="l-field">
+      <label class="l-label" for="af-q">Search by title or slug</label>
+      <input class="l-input" id="af-q" name="q" type="search">
+    </div>
+    <div class="l-field">
+      <label class="l-label" for="af-vis">Visibility</label>
+      <select class="l-select" id="af-vis"><option>All</option>
+        <option>Published</option><option>Unpublished</option>
+        <option>Deleted</option></select>
+    </div>
+  </form>
+
+  <div class="l-card l-card--flush">
+    <div class="l-table-wrap">
+      <table class="l-table">
+        <caption class="l-visually-hidden">All manga, with visibility and counts</caption>
+        <thead>
+          <tr>
+            <th scope="col">Title</th><th scope="col">Slug</th><th scope="col">Status</th>
+            <th scope="col">Visibility</th><th scope="col">Chapters</th>
+            <th scope="col">Pages</th><th scope="col">Updated</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</a></td>
+            <td class="l-num">seed-manga-0001-the-long-afternoon</td>
+            <td>Ongoing</td>
+            <td><span class="l-badge">Published</span></td>
+            <td class="l-num">13</td>
+            <td class="l-num">388</td>
+            <td>2 days ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Unpublish</button><button type="button" class="l-btn l-btn--sm">Delete</button></div></td>
+          </tr>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0002 — Lantern Circuit</a></td>
+            <td class="l-num">seed-manga-0002-lantern-circuit</td>
+            <td>Ongoing</td>
+            <td><span class="l-badge">Published</span></td>
+            <td class="l-num">41</td>
+            <td class="l-num">1180</td>
+            <td>5 days ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Unpublish</button><button type="button" class="l-btn l-btn--sm">Delete</button></div></td>
+          </tr>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0003 — Notes Toward a Theory of Weather</a></td>
+            <td class="l-num">seed-manga-0003-weather</td>
+            <td>Completed</td>
+            <td><span class="l-badge">Published</span></td>
+            <td class="l-num">22</td>
+            <td class="l-num">640</td>
+            <td>1 month ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Unpublish</button><button type="button" class="l-btn l-btn--sm">Delete</button></div></td>
+          </tr>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0005 — Harbourlight Omnibus</a></td>
+            <td class="l-num">seed-manga-0005-harbourlight</td>
+            <td>Hiatus</td>
+            <td><span class="l-badge">Unpublished</span></td>
+            <td class="l-num">4</td>
+            <td class="l-num">96</td>
+            <td>2 months ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Publish</button><button type="button" class="l-btn l-btn--sm">Delete</button></div></td>
+          </tr>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0006 — Concrete Garden, Volume Three</a></td>
+            <td class="l-num">seed-manga-0006-concrete-garden</td>
+            <td>Ongoing</td>
+            <td><span class="l-badge">Published</span></td>
+            <td class="l-num">3</td>
+            <td class="l-num">74</td>
+            <td>3 days ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Unpublish</button><button type="button" class="l-btn l-btn--sm">Delete</button></div></td>
+          </tr>          <tr>
+            <td><a href="admin-manga-detail.html">Seed Manga 0004 — The Quiet Between Stations</a></td>
+            <td class="l-num">seed-manga-0004-quiet-between</td>
+            <td>Ongoing</td>
+            <td><span class="l-badge">Deleted</span></td>
+            <td class="l-num">9</td>
+            <td class="l-num">241</td>
+            <td>3 months ago</td>
+            <td><div class="l-btn-row"><button type="button" class="l-btn l-btn--sm">Edit</button><button type="button" class="l-btn l-btn--sm">Chapters</button><button type="button" class="l-btn l-btn--sm">Restore</button></div></td>
+          </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="l-banner">
+    <span>Published 3 draft chapters that have pages. 2 chapters were skipped because
+      they have no pages. A chapter with no pages cannot be published.</span>
+  </div>
+
+  <div class="l-dialog" role="dialog" aria-labelledby="del-h" aria-modal="true"
+       aria-describedby="del-b">
+    <div class="l-dialog__head"><h2 id="del-h">Delete Seed Manga 0004 — The Quiet
+      Between Stations?</h2></div>
+    <div class="l-dialog__body">
+      <p id="del-b">Readers will see a 404. Their saved progress, library entries, and
+        history are kept and come back if you restore. Nothing is destroyed.</p>
+      <p class="l-hint">This confirmation is a safeguard, not a security control. The
+        permission check happens on the server.</p>
+    </div>
+    <div class="l-dialog__foot">
+      <button type="button" class="l-btn l-btn--primary">Delete</button>
+      <button type="button" class="l-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /admin/manga · source: admin-workflow.md §3, §4, §10</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Index</h1>
+  <p><b>Route</b> <code>_docs/wireframes/</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> n/a — index of the tier</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>What this tier is.</b> Layout and information hierarchy only. Every block is a gray box with a region label. There is no palette, no type scale, and no illustration, because deciding those is tier 2's job.</li>
+    <li><b>Landmark contract.</b> Every page below carries a skip link as the first focusable element, a <code>&lt;header&gt;</code> with a labelled <code>&lt;nav&gt;</code>, exactly one <code>&lt;main id="main"&gt;</code>, and a <code>&lt;footer&gt;</code>. That is the structure <code>AppShell.tsx</code> (T-FOUND-004) owes the product.</li>
+    <li><b>Keyboard paths.</b> Wherever this tier draws a tap zone or a swipe arrow it also draws the focusable button equivalent. Tap zones are input enhancement (reader-behavior.md §7.1), so a zone with no button beside it is a defect.</li>
+    <li><b>320px floor.</b> Every layout below collapses to one column at 320px with no fixed widths. Wide tables sit in a scroll container rather than forcing the page sideways.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — the index itself</h2>
+  <div class="wf-region-body">
+<h2 class="wf-box-label">Screens at this tier</h2>
+    <ol class="wf-index">
+      <li><a href="reader.html">Reader</a> — the product's differentiator; deepest treatment
+        (3 modes × 2 directions × 4 breakpoints)</li>
+      <li><a href="discover.html">Catalog / discover</a></li>
+      <li><a href="manga-detail.html">Manga detail</a></li>
+      <li><a href="search.html">Search</a></li>
+      <li><a href="library.html">Library (continue reading)</a></li>
+      <li><a href="history.html">History</a></li>
+      <li><a href="bookmarks.html">Bookmarks</a></li>
+      <li><a href="signin.html">Sign in</a></li>
+      <li><a href="settings.html">Settings (reader preferences)</a></li>
+      <li><a href="admin-manga-list.html">Admin: manga list</a></li>
+      <li><a href="admin-upload.html">Admin: upload pages</a></li>
+      <li><a href="admin-audit.html">Admin: audit log</a></li>
+      <li><a href="error-states.html">Error boundary / not found / empty state</a></li>
+      <li><a href="reader-states.html">Failed image / completion card / offline banner</a></li>
+    </ol>
+
+    <h2 class="wf-box-label">Not given a separate page at this tier</h2>
+    <p class="wf-text wf-text-short">The remaining admin routes
+    (<code>/admin</code>, <code>/admin/manga/[id]</code>,
+    <code>/admin/manga/[id]/chapters</code>, <code>/admin/users</code>) are detail views
+    built from structures already shown on the admin list and audit pages, so they add no
+    new structure. They are drawn at tier 3, where the visual system makes the difference
+    legible. <code>/auth/register</code> is the same form structure as
+    <a href="signin.html">sign in</a> with two more fields.</p>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

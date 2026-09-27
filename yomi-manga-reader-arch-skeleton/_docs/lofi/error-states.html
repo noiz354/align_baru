@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error, not found, and empty states — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+  <div class="l-header-in">
+    <a class="l-brand" href="index.html">Yomi</a>
+    <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <h1>Error, not found, and empty states</h1>
+  <p class="l-prose">Every state below has a cause, a next action, and a link home. None
+    of them is a status code on its own, and none of them is a blank main.</p>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="eb-h">
+    <h2 id="eb-h">Error boundary</h2>
+    <p class="l-meta">src/app/error.tsx · the RSC error boundary, EC-XX-04</p>
+    <section class="l-state" tabindex="-1" role="region" aria-labelledby="st-h">
+      <h2 id="st-h">Something went wrong on this page</h2>
+      <p><strong>Cause.</strong> the catalog could not be read from the database. Nothing you did caused this.</p>
+      <p><strong>What you can do.</strong> try again, or go back to the catalog. Your reading position is saved on this device and is not affected.</p>
+      <div class="l-btn-row"><button type="button" class="l-btn l-btn--primary">Try again</button><a class="l-btn" href="discover.html">Go to the catalog</a><button type="button" class="l-btn l-btn--quiet">Show request details</button></div>
+      <p class="l-hint">Focus lands on this region on entry and it is announced.</p>
+    </section>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="nf-h">
+    <h2 id="nf-h">Not found</h2>
+    <p class="l-meta">src/app/not-found.tsx · EC-XX-06, EC-ADM-02</p>
+    <section class="l-state" tabindex="-1" role="region" aria-labelledby="st-h">
+      <h2 id="st-h">This page is not here</h2>
+      <p><strong>Cause.</strong> the link points at a page that does not exist, or at a title that was removed. A removed title answers the same way on purpose.</p>
+      <p><strong>What you can do.</strong> search the catalog, or go back to where you were.</p>
+      <div class="l-btn-row"><a class="l-btn l-btn--primary" href="search.html">Search the catalog</a><a class="l-btn" href="discover.html">Go to the catalog</a></div>
+      <p class="l-hint">Focus lands on this region on entry and it is announced.</p>
+    </section>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="un-h">
+    <h2 id="un-h">Chapter unavailable</h2>
+    <p class="l-meta">EC-RDR-02 a chapter with no pages · EC-RDR-08 deleted mid-session</p>
+    <section class="l-state" tabindex="-1" role="region" aria-labelledby="st-h">
+      <h2 id="st-h">This chapter is not available</h2>
+      <p><strong>Cause.</strong> the chapter was removed by the curator, or it has no pages yet.</p>
+      <p><strong>What you can do.</strong> there is no reader here, and that is deliberate. Open the series to see the chapters that are available.</p>
+      <div class="l-btn-row"><a class="l-btn l-btn--primary" href="manga-detail.html">Back to the series</a><a class="l-btn" href="discover.html">Go to the catalog</a></div>
+      <p class="l-hint">Focus lands on this region on entry and it is announced.</p>
+    </section>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="pm-h">
+    <h2 id="pm-h">Permission</h2>
+    <p class="l-meta">admin-workflow.md §1 · a 403, not a sign-in redirect</p>
+    <section class="l-state" tabindex="-1" role="region" aria-labelledby="st-h">
+      <h2 id="st-h">You do not have access to the admin panel</h2>
+      <p><strong>Cause.</strong> your account is signed in but is not an administrator. This is a permission answer, not a request to sign in again.</p>
+      <p><strong>What you can do.</strong> go back to the catalog. If you need curator access, ask the instance operator.</p>
+      <div class="l-btn-row"><a class="l-btn l-btn--primary" href="discover.html">Go to the catalog</a></div>
+      <p class="l-hint">Focus lands on this region on entry and it is announced.</p>
+    </section>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="em-h">
+    <h2 id="em-h">Empty states</h2>
+    <div class="l-split">
+      <div class="l-empty">
+        <span class="l-empty__mark" aria-hidden="true">empty</span>
+        <h3>The collection is being prepared — check back soon</h3>
+        <p class="l-prose">The catalog has no titles yet. Content is added by the
+          curator, so there is nothing to search and nothing to sign in for.</p>
+        <div class="l-btn-row"><button type="button" class="l-btn">Check again</button></div>
+      </div>
+      <div class="l-empty">
+        <span class="l-empty__mark" aria-hidden="true">empty</span>
+        <h3>Nothing in your library yet</h3>
+        <p class="l-prose">Titles you start appear here with the page you stopped
+          on.</p>
+        <div class="l-btn-row"><a class="l-btn l-btn--primary" href="discover.html">Browse
+          the catalog</a></div>
+      </div>
+      <div class="l-empty">
+        <span class="l-empty__mark" aria-hidden="true">empty</span>
+        <h3>No titles match &ldquo;archivist&rdquo;</h3>
+        <p class="l-prose">Try a creator or a tag. Two creators in this catalog have
+          titles with &ldquo;archivist&rdquo; in them.</p>
+        <div class="l-btn-row"><a class="l-btn" href="discover.html">Browse the
+          catalog</a></div>
+      </div>
+      <div class="l-empty">
+        <span class="l-empty__mark" aria-hidden="true">empty</span>
+        <h3>No bookmarks yet</h3>
+        <p class="l-prose">A bookmark is per page, so you can come back to one panel
+          later.</p>
+      </div>
+      <div class="l-empty">
+        <span class="l-empty__mark" aria-hidden="true">empty</span>
+        <h3>No manga yet — create your first title</h3>
+        <p class="l-prose">A new instance starts empty. Create a title, add a chapter,
+          upload its pages, then publish.</p>
+        <div class="l-btn-row"><button type="button" class="l-btn l-btn--primary">New
+          manga</button></div>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · src/app/error.tsx · src/app/not-found.tsx · source: ACCESSIBILITY.md §6</span>
+  </div>
+</footer>
+</body>
+</html>

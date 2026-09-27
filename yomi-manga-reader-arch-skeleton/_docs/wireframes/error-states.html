@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error boundary / not found / empty state — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Error boundary / not found / empty state</h1>
+  <p><b>Route</b> <code>src/app/error.tsx · src/app/not-found.tsx</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> ACCESSIBILITY.md §6, EC-RDR-02/08, EC-SE-02, EC-ADM-01</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Every error page has three things</b> (ACCESSIBILITY.md §6): the human cause, what the reader can do about it, and a link home. A page with a status code and nothing else is a defect.</li>
+    <li><b>Error pages take focus on entry and are announced</b> (NFR-A11Y-003), so a screen-reader user is not left wherever the previous focus happened to be.</li>
+    <li><b>Typed causes are mapped to sentences</b>, never shown as codes. The code belongs in a disclosure for the operator, not in the headline.</li>
+    <li><b>Permission is not a sign-in redirect</b> (admin-workflow.md §1): a signed-in non-admin gets a 403 page, because sending them to a login form they already passed is a dead end.</li>
+    <li><b>Empty states carry the next action</b> (ACCESSIBILITY.md §6) and a blank <code>main</code> never ships.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — the four full-page states, then the empty states</h2>
+  <div class="wf-region-body">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — error boundary, src/app/error.tsx</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">h1: Something went wrong on this page</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">Cause: the catalog could not be read from the database. Nothing you did caused this.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">What you can do: try again, or go back to the catalog. Your reading position is saved on this device and is not affected.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Try again</span>
+      <span class="wf-control">Go to the catalog</span>
+    </div>
+    <div class="wf-box"><span class="wf-box-label">Disclosure: request id and timestamp, for the operator</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Focus lands here on entry and the page is announced</span> class="wf-text wf-text-short"</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — not found, src/app/not-found.tsx</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">h1: This page is not here</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">Cause: the link points at a page that does not exist, or at a title that was removed. A removed title answers 404 too, on purpose — the two are the same answer for a reader.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">What you can do: search the catalog, or go back to where you were.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Search the catalog</span>
+      <span class="wf-control">Go to the catalog</span>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — chapter unavailable, EC-RDR-02 and EC-RDR-08</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">h1: This chapter is not available</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">Cause: the chapter was removed by the curator, or it has no pages yet.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">There is no reader here, and that is deliberate: an empty reader shell would be worse than an honest stop.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Back to the series</span>
+      <span class="wf-control">Go to the catalog</span>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — permission, admin-workflow.md §1</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">h1: You do not have access to the admin panel</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">Cause: your account is signed in but is not an administrator. This is a permission answer, not a request to sign in again.</span> class="wf-text wf-text-short"</div>
+    <div class="wf-controls"><span class="wf-control wf-control-primary">Go to the catalog</span></div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — empty states</h2>
+  <div class="wf-region-body">
+<div class="wf-stack"><div class="wf-box"><span class="wf-box-label">Empty catalog: "The collection is being prepared — check back soon." No broken grid, and no invitation to sign in for content that does not exist yet.</span> class="wf-text wf-text-long"</div><div class="wf-box"><span class="wf-box-label">Empty library: "Nothing in your library yet." plus a link to the catalog</span> class="wf-text wf-text-long"</div><div class="wf-box"><span class="wf-box-label">No search results: the query back, two suggestions, and a link to the catalog</span> class="wf-text wf-text-long"</div><div class="wf-box"><span class="wf-box-label">No bookmarks: what a bookmark is, in one sentence, and where to make one</span> class="wf-text wf-text-long"</div><div class="wf-box"><span class="wf-box-label">Admin with no manga: "No manga yet — create your first title" (J-4 step 1) with the create action</span> class="wf-text wf-text-long"</div></div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

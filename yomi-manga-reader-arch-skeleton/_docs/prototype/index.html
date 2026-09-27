@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design set — Yomi, prototype</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../hifi/tokens.css">
+<link rel="stylesheet" href="../hifi/hifi.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="reader.html">Open the reader</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="stack rise rise-1" style="max-width:var(--measure)">
+    <h1>Yomi, prototype</h1>
+    <p class="prose">Four fidelity tiers exist because each answers a different
+      question. The wireframe answers "is the structure right". The lo-fi answers
+      "are the proportions and density believable". The hi-fi answers "does this
+      look designed, in both themes, at the contrast floor". This tier answers the
+      only question the other three cannot: <em>does it actually work</em>.</p>
+    <div class="cluster">
+      <a class="btn btn--primary" href="reader.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z</svg> Open the reader</a>
+      <a class="btn" href="discover.html">Browse the catalog</a>
+      <a class="btn" href="settings.html">Change the defaults</a>
+    </div>
+  </section>
+
+  <section class="stack rise rise-2">
+    <div class="section-head">
+      <h2>The path through</h2>
+      <p>Catalog, series, chapter, reader — and back</p>
+    </div>
+    <ol class="ruled">
+      <li class="ruled-row">
+        <div><span class="list-title">Catalog</span>
+          <p class="meta">Type in the search field. The genre chips, the status filter
+            and the sort all work, and the result count updates. Clearing the field
+            with no matches shows the empty state, not a blank grid.</p></div>
+        <a class="btn btn--sm" href="discover.html">Open</a>
+      </li>
+      <li class="ruled-row">
+        <div><span class="list-title">Series detail</span>
+          <p class="meta">The chapter list, with the chapter number in a fixed column
+            so a 240-page chapter and a 19-page one line up. Unread is a word and an
+            icon, never a colour.</p></div>
+        <a class="btn btn--sm" href="manga-detail.html">Open</a>
+      </li>
+      <li class="ruled-row">
+        <div><span class="list-title">The reader</span>
+          <p class="meta">Three modes, two directions, five zoom steps, tap zones,
+            swipes with a cancel, the completion card in all three of its variants,
+            a failed page, and the full keyboard map. Read the "What to try" list at
+            the bottom of the page.</p></div>
+        <a class="btn btn--sm btn--primary" href="reader.html">Open</a>
+      </li>
+      <li class="ruled-row">
+        <div><span class="list-title">Library and history of reading</span>
+          <p class="meta">Continue reading with the position each entry stopped at.</p></div>
+        <a class="btn btn--sm" href="library.html">Open</a>
+      </li>
+      <li class="ruled-row">
+        <div><span class="list-title">Settings</span>
+          <p class="meta">The four reader preferences. They write the same record the
+            reader reads, so a default changed here applies the next time a chapter
+            opens, and a mode changed in the reader shows up here.</p></div>
+        <a class="btn btn--sm" href="settings.html">Open</a>
+      </li>
+    </ol>
+  </section>
+
+  <div class="split rise rise-3">
+    <section class="stack">
+      <h2>What is faithful here, and what is not</h2>
+      <div class="prose">
+        <p><strong>Faithful.</strong> The reader's state record and its invariants. The
+          direction rules: reading order, arrow keys, swipes, tap zones, spread
+          pairing, and the indicator computed from the reading-order position rather
+          than the physical page. The mode and direction transition table, including
+          the rule that crossing into or out of double resets the zoom. The keyboard
+          map, with the browser's own zoom left alone and the reader keys made inert
+          while a dialog is open. The swipe commit threshold and its cancel. The three
+          completion variants. The per-page image failure with one automatic retry and
+          two bounded manual attempts. Initial focus, and a live region that announces
+          every tenth page in a long scroll rather than every page.</p>
+        <p><strong>Simplified, and it is worth saying why.</strong> Pages are
+          synthetic blocks, because this product only ever holds licensed content and
+          a prototype has no licence. There is no server, so progress is written to
+          this device and the status badge is not a promise about sync. Fullscreen uses
+          the standard request with a notice if the browser refuses, and the
+          pseudo-fullscreen fallback for browsers without the API is described rather
+          than faked. Nothing here is wired to a route, so "back" is a link rather than
+          a history entry.</p>
+        <p><strong>The property that matters.</strong> Turn the tap zones off, ignore
+          the swipes, and never touch a pointer. The reader is still completely
+          operable, and every screen is still reachable by keyboard alone. Zones and
+          swipes sit on top of a complete set of visible controls; they are not a
+          substitute for them.</p>
+      </div>
+    </section>
+
+    <aside class="stack">
+      <div class="panel stack stack--sm">
+        <h2>The other tiers</h2>
+        <ul class="stack stack--xs">
+          <li><a class="link-quiet" href="../wireframes/index.html">1 · Wireframe</a>
+            <p class="meta">Structure only</p></li>
+          <li><a class="link-quiet" href="../lofi/index.html">2 · Lo-fi</a>
+            <p class="meta">Layout, type scale, density</p></li>
+          <li><a class="link-quiet" href="../hifi/index.html">3 · Hi-fi</a>
+            <p class="meta">Tokens, light and dark, contrast measured</p></li>
+          <li><strong>4 · Prototype</strong> — you are here
+            <p class="meta">Working reader, no build step</p></li>
+        </ul>
+      </div>
+      <div class="panel stack stack--sm">
+        <h2>Try these first</h2>
+        <ul class="stack stack--xs">
+          <li>Press <kbd>M</kbd> four times, then <kbd>D</kbd>, then watch the
+            indicator. That sequence is where a reader implementation usually
+            breaks.</li>
+          <li>Press <kbd>End</kbd>, wait a second, then <kbd>Space</kbd> to cancel
+            the auto-advance. Do it twice to reach the third completion variant.</li>
+          <li>Narrow the window below 640px and below 1024px and watch the reader's
+            chrome move.</li>
+          <li>Set the zoom to 300% and then switch mode twice. The zoom resets at the
+            double boundary, and the page you were on does not move.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Prototype, tier 4 · _docs/prototype/ · source: this file</span>
+    <span class="push meta">No network, no build step, no product content</span>
+  </div>
+</footer>
+<script src="app.js"></script>
+
+</body>
+</html>

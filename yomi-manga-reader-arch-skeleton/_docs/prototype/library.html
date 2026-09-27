@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library — Yomi, prototype</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../hifi/tokens.css">
+<link rel="stylesheet" href="../hifi/hifi.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="library.html" aria-current="page">Library</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="reader.html">Open the reader</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="rise rise-1">
+    <div class="section-head">
+      <div>
+        <h1>Library</h1>
+        <p class="meta">4 series · 1 unread chapter</p>
+      </div>
+      <a class="btn btn--sm" href="discover.html">Browse the catalog</a>
+    </div>
+  </section>
+
+  <section class="stack rise rise-2" aria-labelledby="cont-h">
+    <div class="section-head">
+      <h2 id="cont-h">Continue reading</h2>
+      <p>Twenty at most, most recent first. Each one says where it stopped, so a
+        cover is never the only information.</p>
+    </div>
+    <ul class="grid-covers">
+          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--a " role="img" aria-label="Cover: Seed Manga 0001">Seed Manga 0001</span>              <span class="title-card__title">Seed Manga 0001</span></a>
+            <p class="meta">Ch. 12 · p. 12 of 240</p>
+            <div class="progress"><span class="progress__fill" style="width:5%"></span></div>
+            <p class="meta num">5% · <span class="rel-time" data-iso="2026-09-25T09:14:00Z">a moment ago</span></p>
+          </li>          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--c " role="img" aria-label="Cover: Seed Manga 0003">Seed Manga 0003</span>              <span class="title-card__title">Seed Manga 0003</span></a>
+            <p class="meta">Ch. 4 · p. 18 of 18</p>
+            <div class="progress"><span class="progress__fill" style="width:100%"></span></div>
+            <p class="meta num">100% · <span class="rel-time" data-iso="2026-08-26T14:55:00Z">a moment ago</span></p>
+          </li>          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--b " role="img" aria-label="Cover: Seed Manga 0002">Seed Manga 0002</span>              <span class="title-card__title">Seed Manga 0002</span></a>
+            <p class="meta">Ch. 7 · p. 34 of 41</p>
+            <div class="progress"><span class="progress__fill" style="width:83%"></span></div>
+            <p class="meta num">83% · <span class="rel-time" data-iso="2026-09-05T11:02:00Z">a moment ago</span></p>
+          </li>          <li class="continue-card">
+            <a class="title-card" href="reader.html"><span class="cover cover--e " role="img" aria-label="Cover: Seed Manga 0011">Seed Manga 0011</span>              <span class="title-card__title">Seed Manga 0011</span></a>
+            <p class="meta">Ch. 2 · p. 7 of 30</p>
+            <div class="progress"><span class="progress__fill" style="width:23%"></span></div>
+            <p class="meta num">23% · <span class="rel-time" data-iso="2026-08-20T09:00:00Z">a moment ago</span></p>
+          </li>
+    </ul>
+  </section>
+
+  <nav class="tabs rise rise-3" aria-label="Library sections">
+    <a href="library.html" aria-current="page">All series</a>
+    <a href="library.html">Reading</a>
+    <a href="library.html">Completed</a>
+    <a href="library.html">On hold</a>
+  </nav>
+
+  <ul class="ruled rise rise-4">
+          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</a>
+              <p class="meta">12 of 13 chapters read · 1 unread · last read 2 days ago</p>
+            </div>
+            <a class="btn btn--sm" href="reader.html">Continue</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0003 — Notes Toward a Theory of Weather</a>
+              <p class="meta">completed · last read 1 month ago</p>
+            </div>
+            <a class="btn btn--sm" href="reader.html">Continue</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0004 — The Quiet Between Stations</a>
+              <p class="meta">on hold · Chapter unavailable, removed by the curator</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open series</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations</a>
+              <p class="meta">0 chapters read · added 3 days ago</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Start</a>
+          </li>
+  </ul>
+
+  <div class="empty rise rise-5">
+    <span class="empty__mark" aria-hidden="true">empty</span>
+    <h2>Nothing in your library yet</h2>
+    <p class="prose">Titles you start appear here with the page you stopped on.
+      Reading without an account works too — it just does not travel between devices,
+      and nothing is promised to be kept for you.</p>
+    <div class="cluster">
+      <a class="btn btn--primary" href="discover.html">Browse the catalog</a>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Prototype, tier 4 · /library · source: PRD FR-LIBRARY-005, user-journeys J-2</span>
+    <span class="push meta">No network, no build step, no product content</span>
+  </div>
+</footer>
+<script src="app.js"></script>
+
+</body>
+</html>

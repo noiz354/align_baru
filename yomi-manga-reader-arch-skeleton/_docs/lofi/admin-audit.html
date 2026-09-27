@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: audit log — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+            <nav class="l-nav" aria-label="Admin">
+        <ul>
+        <li><a href="admin-overview.html">Overview</a></li>        <li><a href="admin-manga-list.html">Manga</a></li>        <li><a href="admin-upload.html">Uploads</a></li>        <li><a href="admin-users.html">Users</a></li>        <li><a href="admin-audit.html" aria-current="page">Audit</a></li>
+        </ul>
+      </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="index.html">Back to the site</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <div class="l-section-head">
+    <h1>Audit log</h1>
+    <p class="l-meta">Append-only. Nothing in this list can be edited or removed.</p>
+  </div>
+
+  <form class="l-searchbar" action="#" method="get">
+    <div class="l-field">
+      <label class="l-label" for="au-kind">Target kind</label>
+      <select class="l-select" id="au-kind"><option>All</option><option>manga</option>
+        <option>chapter</option><option>user</option><option>upload</option></select>
+    </div>
+    <div class="l-field">
+      <label class="l-label" for="au-id">Target id</label>
+      <input class="l-input" id="au-id" name="id" type="search" placeholder="0001">
+    </div>
+  </form>
+
+  <div class="l-card l-card--flush">
+    <div class="l-table-wrap">
+      <table class="l-table">
+        <caption class="l-visually-hidden">Audit entries, newest first</caption>
+        <thead>
+          <tr><th scope="col">When</th><th scope="col">Actor</th><th scope="col">Action</th>
+            <th scope="col">Target</th><th scope="col">Before and after</th>
+            <th scope="col">IP</th></tr>
+        </thead>
+        <tbody>          <tr>
+            <td class="l-num">2026-09-26 09:14:02</td>
+            <td>operator (admin)</td>
+            <td class="l-num">manga.create</td>
+            <td class="l-num">manga · 0001</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: (none)<br>after: {"status":"Ongoing","direction":"rtl"}</td>
+            <td class="l-num">10.0.0.4</td>
+          </tr>          <tr>
+            <td class="l-num">2026-09-26 09:31:47</td>
+            <td>operator (admin)</td>
+            <td class="l-num">chapter.publish</td>
+            <td class="l-num">chapter · 0001/12</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: {"published":false}<br>after: {"published":true,"pages":240}</td>
+            <td class="l-num">10.0.0.4</td>
+          </tr>          <tr>
+            <td class="l-num">2026-09-26 11:02:19</td>
+            <td>operator (admin)</td>
+            <td class="l-num">upload.ready</td>
+            <td class="l-num">upload · c4f1</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: {"state":"processing","pages":18}<br>after: {"state":"ready","pages":30}</td>
+            <td class="l-num">10.0.0.4</td>
+          </tr>          <tr>
+            <td class="l-num">2026-09-26 14:55:03</td>
+            <td>(deleted)</td>
+            <td class="l-num">manga.delete</td>
+            <td class="l-num">manga · 0004</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: {"deleted":false}<br>after: {"deleted":true}</td>
+            <td class="l-num">10.0.0.9</td>
+          </tr>          <tr>
+            <td class="l-num">2026-09-26 15:20:38</td>
+            <td>operator (admin)</td>
+            <td class="l-num">manga.update</td>
+            <td class="l-num">manga · 0006</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: {"synopsis":"[truncated at 2 KB]"}<br>after: {"synopsis":"[truncated at 2 KB]"}</td>
+            <td class="l-num">10.0.0.4</td>
+          </tr>          <tr>
+            <td class="l-num">2026-09-26 16:02:11</td>
+            <td>operator (admin)</td>
+            <td class="l-num">user.role.bootstrap</td>
+            <td class="l-num">user · 0001</td>
+            <td class="l-num" style="font-size:var(--l-fs-00)">before: (none)<br>after: {"role":"admin","method":"operator procedure"}</td>
+            <td class="l-num">10.0.0.4</td>
+          </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="l-meta l-num">Newest first · 50 per page · retention at least one year</p>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /admin/audit · source: admin-workflow.md §8, EC-ADM-06</span>
+  </div>
+</footer>
+</body>
+</html>

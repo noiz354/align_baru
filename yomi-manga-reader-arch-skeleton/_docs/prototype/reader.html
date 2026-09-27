@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader — Yomi, prototype</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="../hifi/tokens.css">
+<link rel="stylesheet" href="../hifi/hifi.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- The reader is a Client Component under an SSR shell (ADR-007): the shell
+     below is what an un-hydrated first paint looks like, and it is also the
+     no-JavaScript state. Everything inside <main> is the client surface. -->
+<main id="main" class="reader-main">
+<div class="reader" id="reader" on-dark>
+
+  <h1 class="sr-only" id="chapter-h1">Chapter 12 — The Cartographer's Revision, Second Pass</h1>
+
+  <!-- Top bar, 1024px and up (§2) -->
+  <header class="rbar rbar--top" id="top-bar">
+    <a class="rbtn rbtn--icon" href="manga-detail.html" aria-label="Back to Seed Manga 0001">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M15 5 L8 12 L15 19</svg>
+    </a>
+    <span class="rbar__title">Seed Manga 0001 · Chapter 12</span>
+
+    <nav class="rbar__nav" aria-label="Reader navigation">
+    <div class="rbar__group" role="group" aria-label="Reading mode">
+      <button type="button" class="rbtn rbtn--on" data-mode="vertical" aria-pressed="true" aria-label="Vertical mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+             stroke-linecap="round" aria-hidden="true" focusable="false">M4 6.5h16 M4 12h16 M4 17.5h16</svg>
+      </button>
+      <button type="button" class="rbtn" data-mode="single" aria-pressed="false" aria-label="Single page mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+             stroke-linecap="round" aria-hidden="true" focusable="false">M5.5 4.5h13v15h-13z</svg>
+      </button>
+      <button type="button" class="rbtn" data-mode="double" aria-pressed="false" aria-label="Double page mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+             stroke-linecap="round" aria-hidden="true" focusable="false">M4 4.5h16v15H4z M12 4.5v15</svg>
+      </button>
+    </div>
+
+    <div class="rbar__group" role="group" aria-label="Reading direction">
+      <button type="button" class="rbtn rbtn--on" data-dir="rtl" aria-pressed="true" aria-label="Read right to left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M9 5 L16 12 L9 19</svg>
+      </button>
+      <button type="button" class="rbtn" data-dir="ltr" aria-pressed="false" aria-label="Read left to right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M15 5 L8 12 L15 19</svg>
+      </button>
+    </div>
+
+    <button type="button" class="rbtn rbtn--icon" data-act="fullscreen" aria-label="Toggle fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9 M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9 M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15 M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15</svg>
+    </button>
+    <button type="button" class="rbtn rbtn--icon" data-act="chrome" aria-label="Hide the reader controls">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M3 12s3.5-6.5 9-6.5 9 6.5 9 6.5-3.5 6.5-9 6.5-9-6.5-9-6.5z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z</svg>
+    </button>
+    <button type="button" class="rbtn rbtn--sm" data-act="options" aria-haspopup="dialog">Options</button>
+
+    <button type="button" class="theme-toggle" data-theme-toggle data-state="system">
+      <span class="theme-toggle__dot" aria-hidden="true"></span>
+      <span class="theme-toggle__label">Theme: system</span>
+    </button>
+    </nav>
+  </header>
+
+  <div class="reader__frame" id="main-frame">
+    <div class="rcanvas-wrap" id="canvas-wrap">
+      <div class="rcanvas" id="canvas" tabindex="-1" role="region" dir="rtl"
+           data-mode="vertical" data-chrome="visible"
+           aria-label="Reader canvas: 240 pages, right to left, vertical mode, 100% zoom">
+        <div class="rcolumn" id="column"></div>
+        <div class="rstage" id="stage"></div>
+      </div>
+
+      <!-- The tap-zone overlay. aria-hidden because it documents an input
+           method whose every action already exists as a focusable button in
+           the chrome — a screen-reader user is given the buttons, not this. -->
+      <div class="rzones" id="zones" data-show="false" aria-hidden="true">
+        <div class="rzone" data-zone="start">
+          <span class="rzone__role">start</span>
+          <span class="rzone__hint">next page</span>
+        </div>
+        <div class="rzone" data-zone="center">
+          <span class="rzone__role">center</span>
+          <span class="rzone__hint">toggle the controls</span>
+        </div>
+        <div class="rzone" data-zone="end">
+          <span class="rzone__role">end</span>
+          <span class="rzone__hint">previous page</span>
+        </div>
+      </div>
+    </div>
+
+    <aside class="rrail" id="rail" aria-label="Reader controls">
+      <div class="rrail__group">
+        <h2 class="rrail__label">Navigate</h2>
+        <div class="rrail__row">
+          <button type="button" class="rbtn" data-act="home">First</button>
+          <button type="button" class="rbtn" data-act="prev">Previous</button>
+          <button type="button" class="rbtn" data-act="next">Next</button>
+          <button type="button" class="rbtn" data-act="end">Last</button>
+        </div>
+      </div>
+
+      <div class="rrail__group">
+        <h2 class="rrail__label">Mode</h2>
+        <div class="rrail__row" role="group" aria-label="Reading mode">
+          <button type="button" class="rbtn rbtn--on" data-mode="vertical">Vertical</button>
+          <button type="button" class="rbtn" data-mode="single">Single</button>
+          <button type="button" class="rbtn" data-mode="double">Double</button>
+        </div>
+        <p class="rrail__label">Double needs 640px or wider. Below that it degrades
+          to single, once, with a notice.</p>
+      </div>
+
+      <div class="rrail__group">
+        <h2 class="rrail__label">Direction</h2>
+        <div class="rrail__row" role="group" aria-label="Reading direction">
+          <button type="button" class="rbtn rbtn--on" data-dir="rtl" aria-pressed="true">Right to left</button>
+          <button type="button" class="rbtn" data-dir="ltr" aria-pressed="false">Left to right</button>
+        </div>
+        <p class="rrail__label">Changes the reading order, the arrow keys, the swipes,
+          the tap zones, and the spread pairing. The physical page does not move.</p>
+      </div>
+
+      <div class="rrail__group">
+        <h2 class="rrail__label">Zoom</h2>
+        <div class="rrail__row" role="group" aria-label="Zoom">
+          <button type="button" class="rbtn rbtn--sm rbtn--on" data-zoom="100" aria-pressed="true">100%</button>
+          <button type="button" class="rbtn rbtn--sm" data-zoom="150" aria-pressed="false">150%</button>
+          <button type="button" class="rbtn rbtn--sm" data-zoom="200" aria-pressed="false">200%</button>
+          <button type="button" class="rbtn rbtn--sm" data-zoom="300" aria-pressed="false">300%</button>
+          <button type="button" class="rbtn rbtn--sm" data-zoom="400" aria-pressed="false">400%</button>
+        </div>
+        <div class="rrail__row">
+          <button type="button" class="rbtn rbtn--sm" data-act="zoom-out" aria-label="Zoom out">−</button>
+          <button type="button" class="rbtn rbtn--sm" data-act="zoom-reset" aria-label="Reset zoom to 100%">Reset</button>
+          <button type="button" class="rbtn rbtn--sm" data-act="zoom-in" aria-label="Zoom in">+</button>
+        </div>
+        <p class="rrail__label">A transform, not a position. Zoom never changes which
+          page you are on, and it resets to the default when you enter a new chapter
+          or switch to or from double.</p>
+      </div>
+
+      <div class="rrail__group">
+        <h2 class="rrail__label">Chapter</h2>
+        <div class="rrail__row">
+          <button type="button" class="rbtn" data-act="mark-read">Mark as read</button>
+          <button type="button" class="rbtn" data-act="options" aria-haspopup="dialog">Options</button>
+        </div>
+        <label class="rrail__label" style="display:flex;gap:0.5rem;align-items:flex-start;min-height:44px">
+          <input type="checkbox" id="auto-toggle" style="accent-color:var(--accent-reader-base);margin-top:4px">
+          <span>Auto-advance to the next chapter after 1.5 seconds on the
+            completion card. Any input cancels it.</span>
+        </label>
+      </div>
+
+      <div class="rrail__group">
+        <h2 class="rrail__label">Prototype controls</h2>
+        <label class="rrail__label" style="display:flex;gap:0.5rem;align-items:flex-start;min-height:44px">
+          <input type="checkbox" id="zone-toggle" style="accent-color:var(--accent-reader-base);margin-top:4px">
+          <span>Show the tap zones. The zone that means "next" moves to the other
+            side in right to left.</span>
+        </label>
+        <button type="button" class="rbtn rbtn--block" id="fail-toggle">Stop failing page 7</button>
+        <p class="rrail__label">A failed page is per page: the rest of the chapter
+          stays readable, one automatic retry runs, and two manual attempts remain.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div>
+    <!-- Banners. The offline one is honest: it does not imply an offline
+         download exists, because there deliberately is not one. -->
+    <div class="rbanner" id="banner" hidden>
+      <span id="banner-text"></span>
+      <button type="button" class="rbtn rbtn--sm push" data-act="dismiss-banner">Dismiss</button>
+    </div>
+
+    <p class="rposition" id="position">
+      <span>Page <strong class="rposition__page" id="display-index">1</strong> of
+        <span id="display-total">240</span></span>
+      <span class="rposition__bar" aria-hidden="true">
+        <span class="rposition__fill" id="position-fill" style="width:0%"></span>
+      </span>
+      <span id="physical">physical page 240</span>
+      <span class="rposition__spacer"></span>
+      <span class="announce announce--bare">
+        <span class="announce__dot" aria-hidden="true"></span>
+        <span id="announce-text">Page 1 of 240</span>
+      </span>
+    </p>
+
+    <!-- Bottom bar, under 640px (§2) -->
+    <div class="rbar rbar--bottom" id="bottom-bar">
+      <div class="rbar__group">
+        <button type="button" class="rbtn rbtn--icon" data-act="prev" aria-label="Previous page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M15 5 L8 12 L15 19</svg>
+        </button>
+        <button type="button" class="rbtn rbtn--icon" data-act="next" aria-label="Next page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M9 5 L16 12 L9 19</svg>
+        </button>
+      </div>
+      <span class="rbar__meta">Page <span id="display-index-2">1</span> of
+        <span id="display-total-2">240</span></span>
+      <span class="rbar__spacer"></span>
+      <button type="button" class="rbtn rbtn--sm" data-mode="vertical" aria-pressed="true">Mode</button>
+      <button type="button" class="rbtn rbtn--sm" data-act="options" aria-haspopup="dialog">More</button>
+    </div>
+  </div>
+</div>
+
+<!-- The completion card. In vertical mode this is the tail of the column
+     rather than a dead end; here it is shown as an overlay so the three
+     variants are all visible without scrolling 240 slots. -->
+<div class="shell-main" style="max-width:var(--measure);padding-block:var(--sp-6)">
+  <div class="rcomplete" id="complete" hidden>
+    <h2 id="complete-title">Chapter 12 complete</h2>
+    <p id="complete-body"></p>
+    <div class="cluster" id="complete-actions"></div>
+    <p class="rcomplete__countdown" id="countdown" hidden>
+      <span id="countdown-text">Leaving in 1.5s</span>
+      <span class="rcomplete__bar" aria-hidden="true">
+        <span class="rcomplete__fill" id="countdown-fill" style="width:100%"></span>
+      </span>
+      <button type="button" class="rbtn rbtn--sm" data-stay="1">Cancel</button>
+    </p>
+  </div>
+
+  <p class="sr-only" role="status" aria-live="polite" id="live"></p>
+
+  <section class="stack">
+    <h2 class="h2">What to try</h2>
+    <div class="card"><div class="card__body stack stack--sm">
+      <p><strong><kbd>M</kbd> cycles the mode.</strong> Vertical to single to double
+        and back. Notice that the page you were on does not move, and that the zoom
+        resets when you cross into or out of double — that is the documented rule,
+        not a bug.</p>
+      <p><strong><kbd>D</kbd> flips the direction.</strong> The column reorders so
+        the reading-start page is at the top, the arrow keys swap meaning, the tap
+        zones swap sides, the spread pairs change, and the indicator recomputes from
+        <span class="num">displayIndex</span> — while the physical page number stays
+        exactly where it was. Watch the indicator when you flip.</p>
+      <p><strong><kbd>End</kbd> reaches the reading end.</strong> Wait a second and
+        the completion card appears with a 1.5 second countdown. Press
+        <kbd>Space</kbd> to cancel it. Continue to Chapter 13, press
+        <kbd>End</kbd> again, and you get the "not published yet" variant. Chapter 14
+        is the end of the series.</p>
+      <p><strong>Turn on "Show the tap zones".</strong> The zone labelled "next page"
+        is the start third in right to left and the end third in left to right.</p>
+      <p><strong>Swipe in single or double mode.</strong> Release past a quarter of
+        the box, or flick it fast, and the page turns. Release early and it animates
+        back with no state change.</p>
+      <p><strong>Switch on "Stop failing page 7" off, then go there.</strong> In
+        vertical mode, use <kbd>Home</kbd> then scroll, or switch to single and use
+        <kbd>Home</kbd> then navigate. The failed page holds its exact height, so
+        nothing shifts around it.</p>
+      <p><strong><kbd>+</kbd>, <kbd>−</kbd>, <kbd>0</kbd> and the quick set.</strong>
+        Zoom is a transform: the page you are on does not change.</p>
+      <p><strong><kbd>B</kbd> hides the chrome</strong>, and tapping the centre of
+        the page brings it back. <kbd>F</kbd> requests fullscreen on the reader
+        container. <kbd>Esc</kbd> exits fullscreen, then closes a dialog, then hides
+        the chrome, in that order.</p>
+      <p><strong>Turn the whole page off.</strong> Every action above has a visible,
+        focusable button: the rail and the bars are the real interface, and the tap
+        zones and swipes sit on top of them. Press <kbd>Tab</kbd> from the canvas and
+        nothing is more than a few stops away.</p>
+    </div></div>
+  </section>
+
+  <section class="stack">
+    <h2 class="h2">Where to go next</h2>
+    <div class="cluster">
+      <a class="btn" href="manga-detail.html">Back to Seed Manga 0001</a>
+      <a class="btn" href="library.html">Your library</a>
+      <a class="btn" href="discover.html">The catalog</a>
+      <a class="btn" href="settings.html">Reader preferences</a>
+      <a class="btn" href="index.html">Prototype index</a>
+    </div>
+    <p class="meta">Preferences set here are written to the same record the
+      <a href="settings.html">settings page</a> writes, so changing a default there
+      and opening a chapter applies it here.</p>
+  </section>
+</div>
+
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span>Yomi</span>
+    <span>Prototype, tier 4 · <span class="num">/manga/[slug]/chapter/[chapter]</span> · source: docs/product/reader-behavior.md</span>
+    <a href="manga-detail.html">Series</a>
+  </div>
+</footer>
+
+<!-- The mode picker. A native <dialog> with showModal() gives the focus trap
+     and the Escape handling, and while it is open the reader keys are inert. -->
+<dialog class="opts" id="options" aria-labelledby="options-h">
+  <div class="opts__head">
+    <h2 id="options-h">Reader options</h2>
+  </div>
+  <div class="opts__body">
+    <fieldset class="fieldset stack stack--xs">
+      <legend class="legend">Reading mode</legend>
+      <label class="radio"><input type="radio" name="opt-mode" data-mode="vertical" checked>
+        <span>Vertical<span class="check__hint">One continuous column.</span></span></label>
+      <label class="radio"><input type="radio" name="opt-mode" data-mode="single">
+        <span>Single<span class="check__hint">One page per view, letterboxed.</span></span></label>
+      <label class="radio"><input type="radio" name="opt-mode" data-mode="double">
+        <span>Double<span class="check__hint">A spread per view. Needs 640px or wider.</span></span></label>
+    </fieldset>
+    <fieldset class="fieldset stack stack--xs">
+      <legend class="legend">Direction</legend>
+      <label class="radio"><input type="radio" name="opt-dir" data-dir="rtl" checked>
+        <span>Right to left</span></label>
+      <label class="radio"><input type="radio" name="opt-dir" data-dir="ltr">
+        <span>Left to right</span></label>
+    </fieldset>
+    <p class="hint">Reader keys are inert while this dialog is open, and focus comes
+      back to the page when it closes.</p>
+  </div>
+  <div class="opts__foot">
+    <button type="button" class="btn" data-act="close-options">Close</button>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+<script src="reader.js"></script>
+</body>
+</html>

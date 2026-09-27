@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+  <div class="l-header-in">
+    <a class="l-brand" href="index.html">Yomi</a>
+    <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main" class="l-main">
+<div style="max-width:26rem;margin:0 auto;display:grid;gap:1.5rem">
+  <div class="l-stack l-stack--tight">
+    <h1>Sign in</h1>
+    <p class="l-prose">You can read without an account. Signing in keeps your position,
+      your library, and your bookmarks.</p>
+  </div>
+
+  <div class="l-error-summary" role="alert" tabindex="-1" id="err-summary">
+    <strong>Sign in failed</strong>
+    <ul>
+      <li><a href="#f-email">Email or password is incorrect</a> — two attempts remain
+        before a temporary lock.</li>
+    </ul>
+  </div>
+
+  <form class="l-card l-stack l-stack--loose" action="#" method="post" novalidate>
+    <div class="l-field l-field--invalid">
+      <label class="l-label" for="f-email">Email address</label>
+      <input class="l-input" id="f-email" name="email" type="email"
+             autocomplete="username" value="reader@example.invalid" required
+             aria-invalid="true" aria-describedby="f-email-err">
+      <p class="l-field__error" id="f-email-err">Enter the address you registered with.</p>
+    </div>
+
+    <div class="l-field">
+      <label class="l-label" for="f-pass">Password</label>
+      <div class="l-row" style="flex-wrap:nowrap">
+        <input class="l-input" id="f-pass" name="password" type="password"
+               autocomplete="current-password" required
+               aria-describedby="f-pass-policy">
+        <button type="button" class="l-btn" aria-pressed="false"
+                aria-controls="f-pass">Show</button>
+      </div>
+      <p class="l-hint" id="f-pass-policy">At least 12 characters. Not in the
+        common-password list.</p>
+    </div>
+
+    <div class="l-btn-row">
+      <button type="submit" class="l-btn l-btn--primary">Sign in</button>
+      <button type="button" class="l-btn">Request a sign-in link</button>
+    </div>
+  </form>
+
+  <div class="l-stack l-stack--tight">
+    <div class="l-banner">
+      <span>Too many attempts. Try again in 4 minutes.</span>
+      <span class="l-banner__actions"><a class="l-btn l-btn--sm" href="discover.html">Go
+        to the catalog</a></span>
+    </div>
+    <div class="l-banner">
+      <span>This account is disabled. Contact the instance operator.</span>
+    </div>
+    <div class="l-btn-row">
+      <a class="l-btn" href="signin.html">Create an account</a>
+      <a class="l-btn" href="signin.html">Forgot your password</a>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /auth/signin · source: PRD FR-AUTH-003, ACCESSIBILITY.md §5</span>
+  </div>
+</footer>
+</body>
+</html>

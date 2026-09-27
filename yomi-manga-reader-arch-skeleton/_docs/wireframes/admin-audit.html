@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: audit log — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Admin: audit log</h1>
+  <p><b>Route</b> <code>/admin/audit</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> admin-workflow.md §8, EC-ADM-06</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>The log is append-only and immutable</b> (admin-workflow.md §8). There is no delete or edit path, and the interface does not imply one.</li>
+    <li><b>Every row names the actor, the action, the target, and the time.</b> A deleted actor renders as <code>&lt;deleted&gt;</code> rather than as a blank cell.</li>
+    <li><b>Before and after are capped at 2 KB per field</b> and truncation is marked (EC-ADM-06). A full synopsis is never in the log, and a marked truncation is better than a silently short value.</li>
+    <li><b>Filters are by target kind and id</b>, with a cursor list rather than page numbers — the log grows without bound and retention is at least a year.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — admin nav landmark, separate from the site nav</h2>
+  <div class="wf-region-body">
+<nav aria-label="Admin">
+      <ul class="wf-list">
+        <li>Overview</li>
+        <li>Manga</li>
+        <li>Uploads</li>
+        <li>Users</li>
+        <li>Audit</li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Audit log</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Filters</h2>
+  <div class="wf-region-body">
+<div class="wf-controls"><div class="wf-box"><span class="wf-box-label">Target kind: All / manga / chapter / user / upload</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Target id</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Action: All / create / update / publish / unpublish / delete / restore / reingest</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Entries — a cursor list, newest first, immutable</h2>
+  <div class="wf-region-body">
+<div class="wf-scroll-x">
+<table class="wf-table">
+  <thead>
+    <tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th>
+        <th>Before / after</th><th>IP</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>2026-09-26 09:14:02</td><td>operator (admin)</td><td>manga.create</td>
+        <td>manga · 0001</td>
+        <td>before: (none)<br>after: { status: "Ongoing", direction: "rtl", genres: ["Drama","Seinen"] }</td>
+        <td>10.0.0.4</td></tr>
+    <tr><td>2026-09-26 09:31:47</td><td>operator (admin)</td><td>chapter.publish</td>
+        <td>chapter · 0001/12</td>
+        <td>before: { published: false }<br>after: { published: true, pages: 240 }</td>
+        <td>10.0.0.4</td></tr>
+    <tr><td>2026-09-26 11:02:19</td><td>operator (admin)</td><td>upload.ready</td>
+        <td>upload · c4f1</td>
+        <td>before: { state: "processing", pages: 18 }<br>after: { state: "ready", pages: 30 }</td>
+        <td>10.0.0.4</td></tr>
+    <tr><td>2026-09-26 14:55:03</td><td>&lt;deleted&gt;</td><td>manga.delete</td>
+        <td>manga · 0004</td>
+        <td>before: { deleted: false }<br>after: { deleted: true }</td>
+        <td>10.0.0.9</td></tr>
+    <tr><td>2026-09-26 15:20:38</td><td>operator (admin)</td><td>manga.update</td>
+        <td>manga · 0006</td>
+        <td>before: { synopsis: "... [truncated at 2 KB]" }<br>after: { synopsis: "... [truncated at 2 KB]" }</td>
+        <td>10.0.0.4</td></tr>
+  </tbody>
+</table>
+</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Cursor paging</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Newest first · 50 per page · older entries · no deletion control, ever</span> class="wf-text wf-text-short"</div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

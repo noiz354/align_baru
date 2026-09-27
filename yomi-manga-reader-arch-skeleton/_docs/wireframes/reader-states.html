@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Failed image / completion card / offline banner — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Failed image / completion card / offline banner</h1>
+  <p><b>Route</b> <code>reader states, overlay and inline</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> reader-behavior.md §12, §13, §14, §15</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>The failed-image placeholder is per page, not per chapter</b> (§14). The rest of the chapter stays fully usable because each page has independent state, and one automatic retry runs after 500ms before the manual button matters.</li>
+    <li><b>Retry is bounded.</b> Cache-busted re-requests stop after two attempts and the button stays for manual action. No loop, no storm.</li>
+    <li><b>Three distinct failures in a session raise a banner</b>, and that banner suppresses the automatic retries (§14).</li>
+    <li><b>The completion card has three different endings</b> (§13) and the difference is the state, not the wording: a published next chapter, the end of the series, and a next chapter that exists but is still draft.</li>
+    <li><b>Auto-advance is visible and cancellable</b>: a 1.5s countdown that any input cancels. A countdown with no visible state is a trap.</li>
+    <li><b>The offline banner is honest</b> (§15): it says images may not load, and it does not imply an offline download exists. There is deliberately none (NO-6).</li>
+    <li><b>Progress keeps being written while images fail</b> (§15): the position does not depend on the artwork, so a storage outage never costs a reader their place.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — the reader's own states</h2>
+  <div class="wf-region-body">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — failed image placeholder, reader-behavior.md §14</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Chapter 12 — The Cartographer's Revision, Second Pass</span> class="wf-text wf-text-short"</div>
+    <div class="wf-box"><span class="wf-box-label">Offline — some images may not load  [dismiss] · shown when navigator.onLine is false</span> class="wf-text wf-text-short"</div>
+<div class="wf-reader-surround">
+  <div class="wf-column">
+    <div class="wf-art wf-art-page">Page 238 — loaded</div>
+    <div class="wf-box">
+      <p class="wf-zone-role">The placeholder occupies the page's exact reserved height, so
+        nothing shifts when it appears</p>
+      <p>Page 239</p>
+      <p>Failed to load</p>
+      <p class="wf-zone-role">One automatic retry already ran after 500ms · two manual
+        attempts remain</p>
+      <div class="wf-controls">
+        <span class="wf-control wf-control-primary">Retry page 239</span>
+        <span class="wf-control">Skip to page 240</span>
+      </div>
+    </div>
+    <div class="wf-art wf-art-page">Page 240 — loaded, unaffected by the failure above it</div>
+  </div>
+</div><div class="wf-box"><span class="wf-box-label">After three distinct failures in a session: "Images may be temporarily unavailable" [dismiss] — automatic retries stop while this is shown</span> class="wf-text wf-text-short"</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — completion card, a published next chapter exists</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Chapter 12 — The Cartographer's Revision, Second Pass</span> class="wf-text wf-text-short"</div>
+<div class="wf-reader-surround">
+  <div class="wf-box">
+    <p class="wf-zone-role">The card replaces the next affordance. The reader never wraps.</p>
+    <p>Chapter 12 complete</p>
+    <p>Next: Chapter 13 — Return of the Borrowing Desk · 26 pages</p>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Continue to Chapter 13</span>
+      <span class="wf-control">Stay here</span>
+    </div>
+    <p class="wf-zone-role">Auto-advance: leaving in 1.5s · [Cancel] — any input cancels</p>
+  </div>
+</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — completion card, the end of the series</h2>
+  <div class="wf-region-body">
+<div class="wf-reader-surround">
+  <div class="wf-box">
+    <p>Chapter 22 complete</p>
+    <p>You've finished Seed Manga 0003 — Notes Toward a Theory of Weather</p>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Back to the series</span>
+      <span class="wf-control">Go to the catalog</span>
+    </div>
+    <p class="wf-zone-role">No auto-advance, because there is nothing to advance to</p>
+  </div>
+</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — completion card, the next chapter exists but is draft</h2>
+  <div class="wf-region-body">
+<div class="wf-reader-surround">
+  <div class="wf-box">
+    <p>Chapter 12 complete</p>
+    <p>That's everything for now</p>
+    <p>Chapter 13 is not published yet. It will appear here when it is.</p>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">Back to the series</span>
+    </div>
+    <p class="wf-zone-role">No auto-advance, and the card says why instead of looking broken</p>
+  </div>
+</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt; — the other reader notices</h2>
+  <div class="wf-region-body">
+<div class="wf-stack"><div class="wf-box"><span class="wf-box-label">Progress sync failed: "Your position is saved on this device and will be retried." One notice, not one per write (§12)</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Deep link clamped: ?page=999 became page 240, with a single inline note (EC-RDR-05)</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Chapter shrank after a re-ingest: the position clamps to the last page, with one notice (EC-RDR-10)</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Start of reading reached: a brief no-op cue, never a wrap-around (§13, T-READER-033)</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog / discover — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Catalog / discover</h1>
+  <p><b>Route</b> <code>/discover</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-CATALOG-005, user-journeys J-1</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Anonymous home is the catalog.</b> J-1 step 1: <code>/</code> renders a catalog preview for signed-out visitors and the LCP element is the first cover card (NFR-PERF-001). This page is that view.</li>
+    <li><b>Card content is fixed by FR-CATALOG-005:</b> cover, title, status, latest chapter. Card accessible names are descriptive — "{title} — manga, {status}" (ACCESSIBILITY.md §2) — which is why status is text in the card, not only a badge colour (NFR-A11Y-008).</li>
+    <li><b>Filters are an <code>aside</code> landmark</b> (ACCESSIBILITY.md §2), not a bare div, and they become a disclosure under the small breakpoint rather than shrinking into unreadable slivers.</li>
+    <li><b>The empty state is not a blank grid.</b> J-1 failure branch: an empty catalog says so and offers the next step. See <a href="error-states.html">error-states</a>.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<p class="wf-box-label">the page h1: Catalog</p>
+<div class="wf-rail">
+  <section class="wf-region">
+  <h2 class="wf-region-label">&lt;aside&gt; — filters landmark</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Genre chips: Action · Adventure · Comedy · Drama · Historical · Mystery ·
+        Romance · Sci-fi · Seinen · Slice of life · Sports · Supernatural</li>
+      <li>Status: Any / Ongoing / Completed / Hiatus</li>
+      <li>Reading direction: Any / Right to left / Left to right</li>
+      <li>Sort: Recently updated / Title / Latest chapter</li>
+    </ul>
+  </div>
+</section>
+  <div class="wf-stack">
+    <section class="wf-region">
+  <h2 class="wf-region-label">Result summary and sort control</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">128 titles · sorted by recently updated</span> class="wf-text wf-text-short"</div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">Catalog grid — a list of links, never a grid of divs</h2>
+  <div class="wf-region-body">
+<div class="wf-grid"><div class="wf-art wf-art-cover">cover<br>Seed Manga 0001</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0002</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0003</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0004</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0005</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0006</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0007</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0008</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0009</div><div class="wf-art wf-art-cover">cover<br>Seed Manga 0010</div></div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">Continue reading strip for a signed-in member, 20 at most, most recent first</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Same card component as the grid, with a position line and a progress bar</span> class="wf-text wf-text-short"</div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">List view — a second density over the same data</h2>
+  <div class="wf-region-body">
+<ul class="wf-list"><li><div class="wf-art wf-art-cover">cover 1</div><div class="wf-box"><span class="wf-box-label">Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Status · latest chapter · progress</span> class="wf-text wf-text-short"</div></li><li><div class="wf-art wf-art-cover">cover 2</div><div class="wf-box"><span class="wf-box-label">Seed Manga 0006 — Concrete Garden, Volume Three: Structural Notes and Other Late Explanations</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Status · latest chapter · progress</span> class="wf-text wf-text-short"</div></li></ul>
+  </div>
+</section>
+  </div>
+</div>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

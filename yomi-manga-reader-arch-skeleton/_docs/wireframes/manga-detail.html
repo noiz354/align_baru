@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manga detail — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Manga detail</h1>
+  <p><b>Route</b> <code>/manga/[slug]</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-CATALOG-006, ACCESSIBILITY.md §2 and §4</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Breadcrumbs are required</b> on detail and chapter pages (ACCESSIBILITY.md §4): Home / {title} / Chapter N.</li>
+    <li><b>One h1</b>, and it is the manga title. Section headings are h2 and the chapter list is a list of items, so heading levels never skip (ACCESSIBILITY.md §2).</li>
+    <li><b>The chapter list is a real <code>ol</code></code> with <code>li</code> children</b> inside a <code>nav</code> landmark. It is not a stack of divs with roles bolted on.</li>
+    <li><b>Every field in FR-CATALOG-006 is present:</b> title, aliases, status, creators with roles, genres, synopsis, latest chapter. Reading direction is shown to readers as a plain label, not as a control — only an admin changes it.</li>
+    <li><b>Draft and unpublished chapters appear for admins only</b> (J-4 step 5). This page is the reader view; the admin view adds publish controls, shown at tier 3.</li>
+    <li><b>Unread state is not a colour.</b> A chapter carries an icon and the word "unread" alongside any count (NFR-A11Y-008).</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<nav aria-label="Breadcrumb" class="wf-region">
+  <h2 class="wf-region-label">breadcrumb</h2>
+  <div class="wf-region-body"><div class="wf-box"><span class="wf-box-label">Home / Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</span> class="wf-text wf-text-short"</div></div>
+</nav>
+
+<div class="wf-rail">
+  <div class="wf-stack">
+    <div class="wf-row">
+      <div class="wf-art wf-art-cover">cover<br>alt: Cover: Seed Manga 0001</div>
+      <div class="wf-stack">
+        <div class="wf-box"><span class="wf-box-label">the page h1: Seed Manga 0001 — The Long Afternoon of the Second-year Archivist</span></div>
+        <div class="wf-box"><span class="wf-box-label">Aliases: none · Status: Ongoing · Reading direction: right to left · Chapters: 13 · Pages: 388</span> class="wf-text wf-text-short"</div>
+        <div class="wf-box"><span class="wf-box-label">Creators: H. Sasaki (author), M. Oda (artist)</span> class="wf-text wf-text-short"</div>
+        <div class="wf-box"><span class="wf-box-label">Genres: Drama · Seinen</span> class="wf-text wf-text-short"</div>
+      </div>
+    </div>
+    <section class="wf-region">
+  <h2 class="wf-region-label">Actions</h2>
+  <div class="wf-region-body">
+<div class="wf-controls">
+      <span class="wf-control wf-control-primary">Read Chapter 12 — resumes at the saved position</span>
+      <span class="wf-control">Add to library</span>
+      <span class="wf-control">Mark chapter 12 as read</span>
+      <span class="wf-control">Follow</span>
+    </div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">Synopsis</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Plain text, up to 10k characters. A paragraph block, not a card.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">&lt;nav&gt; — chapter list landmark, an ordered list of real items</h2>
+  <div class="wf-region-body">
+<ol class="wf-list"><li>Chapter 13 — Return of the Borrowing Desk · 26 pages · published · unread <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 12 — The Cartographer's Revision, Second Pass · 240 pages · published · in progress: page 12 of 240 <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 11 — The Long Repair · 29 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 10 — An Argument About Footnotes · 33 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 9 — Marginalia · 22 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 8 — The Second-year's Account · 26 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 7 — Afternoon, Interrupted · 35 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 6 — The Cartographer's Revision · 27 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 5 — A Note on Shelf Nine · 24 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 4 — What the Stacks Would Not Say · 19 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 3 — Ledger of Small Repairs · 31 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 2 — The Lending Room · 28 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li><li>Chapter 1 — Prologue — The Lending Room · 22 pages · published · read <span class="wf-zone-btns"><span>button: Mark as read</span><span>link: Read</span></span></li></ol>
+  </div>
+</section>
+  </div>
+  <section class="wf-region">
+  <h2 class="wf-region-label">&lt;aside&gt; — series context</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Latest chapter: 13</li>
+      <li>Your progress: 12 of 13 chapters read</li>
+      <li>Bookmarks on this title: 3</li>
+      <li>Last read: 2 days ago</li>
+    </ul>
+  </div>
+</section>
+</div>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design set — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="library.html">Library</a><a class="btn btn--sm" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5z M4.5 20.5a7.5 7.5 0 0 1 15 0</svg>Account</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="stack rise rise-1" style="max-width:var(--measure)">
+    <h1>Yomi, hi-fi</h1>
+    <p class="prose">A reading instrument. Warm paper ground, one vermilion accent
+      reserved for the current place and the single primary action, an old-style serif
+      for titles because the product's subject would be printed, and hairline rules
+      instead of boxes so a list of thirteen chapters reads as a ledger.</p>
+    <p class="prose">Every colour resolves to a token in <code>tokens.css</code>. There
+      are no colour literals in any stylesheet here or in any markup file, which is what
+      makes a token-level contrast check meaningful.</p>
+    <div class="cluster">
+      <span class="badge badge--ok">Text pairs verified at 4.5:1 or better</span>
+      <span class="badge badge--ok">Interface pairs verified at 3:1 or better</span>
+      <span class="badge badge--info">Light and dark, from the system preference</span>
+    </div>
+  </section>
+
+  <section class="stack rise rise-2">
+    <div class="section-head">
+      <h2>Screens</h2>
+      <p>Resize the window: the reader's chrome changes placement at 640px and 1024px</p>
+    </div>
+    <ul class="ruled">
+          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="reader.html">Reader</a>
+              <p class="meta">/manga/[slug]/chapter/[chapter] — three modes, two directions, three chrome placements</p>
+            </div>
+            <a class="btn btn--sm" href="reader.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="discover.html">Catalog and discover</a>
+              <p class="meta">/discover</p>
+            </div>
+            <a class="btn btn--sm" href="discover.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="manga-detail.html">Manga detail</a>
+              <p class="meta">/manga/[slug]</p>
+            </div>
+            <a class="btn btn--sm" href="manga-detail.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="search.html">Search</a>
+              <p class="meta">/search</p>
+            </div>
+            <a class="btn btn--sm" href="search.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="library.html">Library, continue reading</a>
+              <p class="meta">/library</p>
+            </div>
+            <a class="btn btn--sm" href="library.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="history.html">History</a>
+              <p class="meta">/history</p>
+            </div>
+            <a class="btn btn--sm" href="history.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="bookmarks.html">Bookmarks</a>
+              <p class="meta">/bookmarks</p>
+            </div>
+            <a class="btn btn--sm" href="bookmarks.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="signin.html">Sign in</a>
+              <p class="meta">/auth/signin</p>
+            </div>
+            <a class="btn btn--sm" href="signin.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="settings.html">Settings, reader preferences</a>
+              <p class="meta">/settings</p>
+            </div>
+            <a class="btn btn--sm" href="settings.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="admin-manga-list.html">Admin: manga list</a>
+              <p class="meta">/admin/manga</p>
+            </div>
+            <a class="btn btn--sm" href="admin-manga-list.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="admin-upload.html">Admin: upload pages</a>
+              <p class="meta">/admin/uploads</p>
+            </div>
+            <a class="btn btn--sm" href="admin-upload.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="admin-audit.html">Admin: audit log</a>
+              <p class="meta">/admin/audit</p>
+            </div>
+            <a class="btn btn--sm" href="admin-audit.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="error-states.html">Error boundary, not found, empty state</a>
+              <p class="meta">src/app/error.tsx, src/app/not-found.tsx</p>
+            </div>
+            <a class="btn btn--sm" href="error-states.html">Open</a>
+          </li>          <li class="ruled-row">
+            <div>
+              <a class="list-title" href="reader-states.html">Failed image, completion card, offline</a>
+              <p class="meta">reader-behavior.md §12–§15</p>
+            </div>
+            <a class="btn btn--sm" href="reader-states.html">Open</a>
+          </li>
+    </ul>
+  </section>
+
+  <div class="split rise rise-3">
+    <section class="stack">
+      <h2>What the visual system is doing</h2>
+      <div class="prose">
+        <p><strong>The accent has exactly two jobs.</strong> It marks where you are —
+          the current nav item, the current tab, a spine on the section you are reading —
+          and it fills the one primary button on a view. Nowhere else. When an accent
+          appears on everything, it stops meaning anything, and here it would compete
+          with the cover art.</p>
+        <p><strong>The reader's chrome is dark in both themes.</strong> That is the one
+          place the system deliberately ignores the operating system. Page artwork is the
+          only bright thing on screen while reading, and a chrome that flipped with the
+          theme would compete with it. The page itself keeps its paper in both themes for
+          the same reason: a page of artwork does not invert.</p>
+        <p><strong>Figures are set in tabular mono.</strong> Page counts, chapter
+          numbers, and progress are compared vertically, so they are aligned and
+          scannable. A number inside a sentence stays in the sans, because a number in
+          prose should not announce itself.</p>
+        <p><strong>Lists are ruled, not boxed.</strong> A card appears only where the
+          card itself is the interaction. Thirteen chapters get a hairline and a fixed
+          number column, so a 240-page omnibus and a 19-page chapter line up on the same
+          axis.</p>
+        <p><strong>One asymmetric move.</strong> The catalog grid's first card spans two
+          columns at 72rem and up, because the first cover is the LCP element
+          (NFR-PERF-001) and it should have the largest box on the page. Below 72rem the
+          override is dropped entirely: an asymmetric grid at 320px is a broken grid.</p>
+      </div>
+    </section>
+
+    <aside class="stack">
+      <div class="panel stack stack--sm">
+        <h2>The four tiers</h2>
+        <ul class="stack stack--xs">
+          <li><a class="link-quiet" href="../wireframes/index.html">1 · Wireframe</a>
+            <p class="meta">Structure only</p></li>
+          <li><a class="link-quiet" href="../lofi/index.html">2 · Lo-fi</a>
+            <p class="meta">Layout, type scale, density</p></li>
+          <li><strong>3 · Hi-fi</strong> — you are here
+            <p class="meta">Tokens, light and dark, contrast measured</p></li>
+          <li><a class="link-quiet" href="../prototype/index.html">4 · Prototype</a>
+            <p class="meta">A working reader, no build step</p></li>
+        </ul>
+      </div>
+
+      <div class="panel stack stack--sm">
+        <h2>Try it</h2>
+        <ul class="stack stack--xs">
+          <li>The theme button in the header cycles system, light, dark. It is one
+            attribute: every colour is a light-dark() pair.</li>
+          <li>Narrow the window on the <a href="reader.html">reader</a> and watch the
+            chrome move from a bottom bar, to a right rail, to a rail plus a top
+            bar.</li>
+          <li>Turn on reduced motion in your system settings. Nothing is lost: no
+            information in this set is carried by motion.</li>
+          <li>Turn on Windows High Contrast. Borders return, fills are replaced with
+            system colours, and nothing disappears.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · _docs/hifi/ · source: this file</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

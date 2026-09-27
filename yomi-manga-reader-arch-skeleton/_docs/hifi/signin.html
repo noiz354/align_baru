@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="signin.html">Sign in</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack" style="max-width:28rem;margin-inline:auto">
+  <section class="stack rise rise-1">
+    <h1>Sign in</h1>
+    <p class="prose">Reading works without an account. Signing in keeps your position,
+      your library, and your bookmarks, and lets them follow you between devices.</p>
+  </section>
+
+  <div class="error-summary rise rise-2" role="alert" tabindex="-1" id="err">
+    <h2 class="h3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4 L21.5 20.5 H2.5 Z M12 10v4.5 M12 17.4v.2</svg> Sign in failed</h2>
+    <ul>
+      <li><a href="#f-email">Email or password is incorrect</a> — two attempts remain
+        before a temporary lock.</li>
+    </ul>
+  </div>
+
+  <form class="card stack rise rise-3" action="#" method="post" novalidate>
+    <div class="card__body stack">
+      <div class="field field--invalid">
+        <label class="label" for="f-email">Email address</label>
+        <input class="input" id="f-email" name="email" type="email"
+               autocomplete="username" value="reader@example.invalid" required
+               aria-invalid="true" aria-describedby="f-email-err">
+        <p class="field__error" id="f-email-err"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4 L21.5 20.5 H2.5 Z M12 10v4.5 M12 17.4v.2</svg> Enter the address you
+          registered with.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="f-pass">Password</label>
+        <div class="cluster" style="flex-wrap:nowrap">
+          <input class="input" id="f-pass" name="password" type="password"
+                 autocomplete="current-password" required
+                 aria-describedby="f-pass-policy" style="flex:1 1 auto">
+          <button type="button" class="btn" aria-pressed="false"
+                  aria-controls="f-pass">Show</button>
+        </div>
+        <p class="hint" id="f-pass-policy">At least 12 characters. Not in the
+          common-password list. Paste is allowed.</p>
+      </div>
+      <div class="cluster">
+        <button type="submit" class="btn btn--primary">Sign in</button>
+        <button type="button" class="btn">Request a sign-in link</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="stack rise rise-4">
+    <div class="notice notice--warn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4 L21.5 20.5 H2.5 Z M12 10v4.5 M12 17.4v.2</svg> <span>Too many attempts. Try again in 4 minutes.</span>
+    </div>
+    <div class="notice notice--danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 3.5 L20 6.5v5.5c0 4.2-3.2 7.4-8 8.5-4.8-1.1-8-4.3-8-8.5V6.5z M9 12l2.2 2.2L15.5 10</svg> <span>This account is disabled. Contact the instance operator.</span>
+    </div>
+    <div class="notice notice--ok">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4.5 12.5 L9.5 17.5 L19.5 6.5</svg> <span>A sign-in link was sent to reader@example.invalid. It expires
+        in fifteen minutes and can be used once.</span>
+    </div>
+    <div class="cluster">
+      <a class="btn" href="signin.html">Create an account</a>
+      <a class="btn" href="signin.html">Forgot your password</a>
+    </div>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · /auth/signin · source: PRD FR-AUTH-003, ACCESSIBILITY.md §5</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

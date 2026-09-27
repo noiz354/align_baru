@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings (reader preferences) — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Settings (reader preferences)</h1>
+  <p><b>Route</b> <code>/settings</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> reader-behavior.md §16, ACCESSIBILITY.md §2 and §5</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>The reader preference form is a form</b>, per reader-behavior.md §16 and ACCESSIBILITY.md §5.</li>
+    <li><b>Radio groups get a fieldset and legend</b> (ACCESSIBILITY.md §2): default mode, direction override, and auto-advance are each a group, not a select of unexplained options.</li>
+    <li><b>Each control states its effect, not only its name.</b> "Applied when a chapter opens; you can still switch per session" is the sentence that prevents the question.</li>
+    <li><b>Zoom default is a range 100–400%</b> (§16) — a different control type from the radio groups, with the same quick-set values the reader chrome offers.</li>
+    <li><b>Changes persist with a 500ms debounce</b> and take effect immediately for mode and direction, or on next open for the defaults (§16).</li>
+    <li><b>Nothing here is account-wide by accident.</b> Preferences never leak between users: server-stored when signed in, device-local and profile-namespaced when not (§16).</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Settings</span> class="wf-text wf-text-short"</div>
+<div class="wf-rail">
+  <div class="wf-stack">
+    <section class="wf-region">
+  <h2 class="wf-region-label">Reader preferences, reader-behavior.md §16</h2>
+  <div class="wf-region-body">
+<div class="wf-stack">
+
+  <fieldset class="wf-box">
+    <legend class="wf-field-label">Default reading mode</legend>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">radio: Vertical, the default — pages form
+        one continuous column</span>
+      <span class="wf-control">radio: Single — one page per view</span>
+      <span class="wf-control">radio: Double — a spread per view, needs 640px or wider</span>
+    </div>
+  </fieldset>
+
+  <fieldset class="wf-box">
+    <legend class="wf-field-label">Direction override</legend>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">radio: None, the default — use each
+        title's own direction</span>
+      <span class="wf-control">radio: Right to left</span>
+      <span class="wf-control">radio: Left to right</span>
+    </div>
+  </fieldset>
+
+  <fieldset class="wf-box">
+    <legend class="wf-field-label">Default zoom</legend>
+    <div class="wf-controls">
+      <span class="wf-control">range 100% to 400%, value 100%</span>
+      <span class="wf-control">Quick set: 100 / 150 / 200 / 300 / 400</span>
+    </div>
+  </fieldset>
+
+  <fieldset class="wf-box">
+    <legend class="wf-field-label">Auto-advance to the next chapter</legend>
+    <div class="wf-controls">
+      <span class="wf-control wf-control-primary">checkbox: On, the default — 1.5s on the
+        completion card, and any input cancels</span>
+    </div>
+  </fieldset>
+
+</div>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">Account and data</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Email address · Display name · Change password</li>
+      <li>Delete account — self-service only, behind a confirmation step. FR-AUTH-005
+        records that admins cannot delete other accounts in v1; disable is the control.</li>
+    </ul>
+  </div>
+</section>
+    <section class="wf-region">
+  <h2 class="wf-region-label">State</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">A saved confirmation, announced politely. A failed save keeps the local value and says so, because the reader never waits on the network to change a mode.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+  </div>
+  <section class="wf-region">
+  <h2 class="wf-region-label">&lt;nav&gt; — settings sections</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Account</li>
+      <li>Reader — current</li>
+      <li>Appearance</li>
+      <li>Notifications</li>
+      <li>Data and privacy</li>
+    </ul>
+  </div>
+</section>
+</div>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

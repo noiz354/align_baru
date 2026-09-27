@@ -1,0 +1,301 @@
+/* ===========================================================================
+   Yomi — prototype styles (tier 4)
+   ---------------------------------------------------------------------------
+   The prototype reuses hifi/tokens.css unchanged. It adds no colour of its
+   own: every value below is a custom property. That is the point — if the
+   prototype needs a colour the product does not have, the product is missing
+   something, and it should be found here rather than discovered in code.
+
+   The reader additions here are the mechanics that a static tier cannot show:
+   a zoomed page reserving its scaled box, a pan box, and the tap-zone overlay.
+   =========================================================================== */
+
+@import url("../hifi/tokens.css");
+@import url("../hifi/hifi.css");
+
+/* ===========================================================================
+   THE `hidden` GUARD
+
+   Repeated from hifi.css on purpose. The @import above would already bring it
+   in, but this tier is where `hidden` is actually driven at run time — the
+   reader toggles the chrome bars, the rail, the position indicator, the
+   completion card, the countdown and the banner, and the catalog toggles its
+   filtered rows, both empty states and both views — so the rule that governs
+   them belongs where those calls are, not only three files away in an import.
+
+   Without it the UA stylesheet's `[hidden] { display: none }` loses to every
+   author `display` rule in this file, and hidden elements stay laid out and
+   painted. That was a shipped defect, caught in a browser, not by reading the
+   CSS: the completion card was visible at 416x243 while carrying `hidden`.
+
+   `!important` is what makes it authoritative — no later rule can beat it.
+   The price is that `hidden` is absolute, so it is never used here for
+   "merely off-screen"; the `.sr-only` utility covers that case instead.
+   =========================================================================== */
+
+[hidden] { display: none !important; }
+
+/* ===========================================================================
+   The zoom mechanism
+
+   Zoom is a transform, never a position: the logical page does not move when
+   the zoom changes, and progress writes are unaffected (reader-behavior.md
+   §8.1). A transform alone would not enlarge the box the column reserves, so
+   each slot is sized to the *scaled* dimensions and the page inside it is
+   scaled with transform-origin at the top-left corner. The two agree exactly,
+   so the column length is correct at every zoom level and nothing reflows.
+   =========================================================================== */
+
+.reader {
+  --z: 1;
+  --pw: 24rem;          /* the page's base box, set per mode by the script */
+  --ph: 32rem;
+  --gap: var(--sp-3);
+}
+
+/* The middle row has to be allowed to shrink, or a tall vertical column
+   pushes the bottom bar off the screen instead of scrolling inside it. */
+.reader__frame { min-height: 0; }
+
+.pslot {
+  display: flex;
+  justify-content: center;
+  width: calc(var(--pw) * var(--z));
+  height: calc(var(--ph) * var(--z));
+  flex: none;
+}
+.pslot > * {
+  width: var(--pw);
+  height: var(--ph);
+  transform: scale(var(--z));
+  transform-origin: 0 0;
+  flex: none;
+}
+
+/* vertical mode: the column is the scroll container, and the page box is set
+   from the available width by the script. */
+.rcolumn { width: 100%; }
+
+/* The canvas wrapper never scrolls, so the tap-zone overlay stays pinned to
+   the visible box while the column scrolls underneath it. The scroller is the
+   .rcanvas inside it, and only in vertical mode: in paged modes there is no
+   page scroll at all, which is what makes a vertical drag a no-op there. */
+.rcanvas-wrap {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.rcanvas { min-height: 0; }
+.rcanvas[data-mode="vertical"] { overflow-y: auto; overscroll-behavior: contain; }
+.rcanvas[data-mode="paged"] { overflow: hidden; }
+.rcanvas[data-chrome="hidden"] { padding: 0; }
+
+/* paged modes: the stage is the box the page is fitted into, and it is the
+   scroll parent once zoom pushes the page past its edges. */
+.rstage {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  place-items: center;
+  padding: var(--sp-2);
+}
+.rstage .rspread { justify-content: center; }
+
+/* The paged modes use the same transform mechanism, so there is one rule to
+   reason about rather than two. Each grid cell is sized to the SCALED box and
+   the page inside is scaled from its own top-left corner, so the two agree
+   exactly and the spread never reflows when the zoom changes. */
+.rspread {
+  --cell-w: calc(var(--pw) * var(--z));
+  --cell-h: calc(var(--ph) * var(--z));
+}
+.rspread--single { grid-template-columns: var(--cell-w); justify-content: center; }
+.rspread--double { grid-template-columns: var(--cell-w) var(--cell-w); }
+.rspread > .rpage {
+  width: var(--pw);
+  height: var(--ph);
+  max-width: none;
+  align-self: start;
+  justify-self: start;
+  transform: scale(var(--z));
+  transform-origin: 0 0;
+}
+
+/* the paged mode's cross-fade, and the one transition the product spends
+   time on (reader-behavior.md §5) */
+.rstage.is-turning { animation: proto-fade var(--dur-page) var(--ease-page) both; }
+@keyframes proto-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* the reading-start marker: the page where reading begins, which is the LAST
+   page in a right-to-left title. Labeled, not colour-only. */
+.pslot[data-start="true"] .rpage { outline: 2px solid var(--page-outline); }
+.pslot[data-current="true"] .rpage { outline-color: var(--page-ink); }
+
+/* --- the failed page ---------------------------------------------------- */
+.rpage--failed {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5);
+  border: 0;
+  outline: 2px dashed var(--page-danger-ink);
+  outline-offset: -2px;
+  border-radius: 0;
+  background: var(--page-surface);
+  color: var(--page-danger-ink);
+  text-align: center;
+}
+.rpage--failed .rpage__label { color: var(--page-danger-ink); }
+.rpage--failed .hint { color: var(--page-ink-soft); }
+
+/* --- the completion card ------------------------------------------------
+   Anchored at the end of the column in vertical mode (a flow tail, never a
+   dead end) and centred in the stage in paged modes. */
+.rcomplete {
+  display: grid;
+  gap: var(--sp-3);
+  width: min(100%, 26rem);
+  margin: var(--sp-4) auto var(--sp-8);
+  padding: var(--sp-5);
+  border: 1px solid var(--line-chrome);
+  border-radius: var(--r-xl);
+  background: var(--bg-chrome);
+  color: var(--ink-chrome);
+}
+.rcomplete h2 { font-family: var(--font-display); font-size: var(--fs-lg); }
+.rcomplete p { color: var(--ink-chrome-muted); }
+.rcomplete__countdown {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--ink-chrome-muted);
+}
+.rcomplete__bar { flex: 1 1 4rem; height: 3px; border-radius: var(--r-pill); background: var(--bg-chrome-sunken); overflow: hidden; }
+.rcomplete__fill { display: block; height: 100%; background: var(--ink-reader-accent); }
+
+/* --- the tap-zone overlay ----------------------------------------------
+   Shown on demand. It is an input enhancement, so the chrome above already
+   offers every zone action as a button and the reader is fully operable with
+   the overlay hidden and with a keyboard. */
+.rzones { position: absolute; inset: 0; z-index: 4; }
+.rzone__hint { display: block; color: var(--ink-chrome-muted); font-weight: 400; }
+
+/* --- the swipe cancel tell ----------------------------------------------
+   When a gesture releases below the commit threshold the page animates back
+   rather than jumping. Reduced motion makes it snap instantly, which is why
+   this transition is the one the product keeps short. */
+@keyframes proto-snapback { from { opacity: 0.4; } to { opacity: 1; } }
+.rstage.is-cancelled { animation: proto-snapback var(--dur-fast) var(--ease-out) both; }
+
+/* ===========================================================================
+   Catalog and library: the parts a static tier cannot show
+   =========================================================================== */
+
+/* A filter that narrows the grid and reports how many titles it removed. */
+.result-line { font-variant-numeric: tabular-nums; }
+
+/* The continue-reading card carries its position, so a cover is never the only
+   information a reader has. */
+.continue-card {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* A live-updating clock, so "2 days ago" is visibly computed rather than typed. */
+.rel-time { font-variant-numeric: tabular-nums; }
+
+/* ===========================================================================
+   Dialog
+   The mode picker. While it is open the reader keys are inert and focus is
+   trapped — a native <dialog> with showModal() gives both for free, which is
+   why the product uses one (ACCESSIBILITY.md §3.1).
+   =========================================================================== */
+
+.opts {
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid var(--line-default);
+  border-radius: var(--r-xl);
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  box-shadow: var(--shadow-raised);
+}
+.opts::backdrop { background: oklch(0.18 0 0 / 0.55); }
+.opts__head { padding: var(--sp-5) var(--sp-5) var(--sp-2); }
+.opts__head h2 { font-size: var(--fs-lg); }
+.opts__body { padding: 0 var(--sp-5) var(--sp-4); display: grid; gap: var(--sp-4); }
+.opts__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--line-subtle);
+  background: var(--bg-sunken);
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+}
+
+/* ===========================================================================
+   Announcements
+
+   The live region is the source of truth for the position indicator, but a
+   live region is invisible. So the reader shows the same sentence on screen
+   and announces it politely. Both come from one function, which is why they
+   can never disagree. Vertical mode announces every tenth page rather than
+   every page, because per-page announcements in a long scroll are noise — a
+   documented exception, not an oversight (ACCESSIBILITY.md §3.2).
+   =========================================================================== */
+
+.announce {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--target-min);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-chrome);
+  color: var(--ink-chrome);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+.announce--bare {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink-chrome-muted);
+}
+.announce__dot {
+  width: 8px; height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--ink-reader-accent);
+  flex: none;
+}
+
+/* The reader page has no site chrome, so <main> carries no padding and the
+   canvas reaches the viewport edges. */
+.reader-main { max-width: none; padding: 0; }
+
+/* ===========================================================================
+   Reduced motion
+
+   The prototype's only long transition is the swipe snap-back, and reduced
+   motion makes it instant. Nothing in the prototype carries information in
+   motion, so nothing is lost.
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .rstage.is-turning, .rstage.is-cancelled { animation: none !important; }
+}

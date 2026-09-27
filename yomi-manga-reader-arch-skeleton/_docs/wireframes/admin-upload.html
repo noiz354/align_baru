@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: upload pages — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Admin: upload pages</h1>
+  <p><b>Route</b> <code>/admin/uploads</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> admin-workflow.md §5, §6, EC-UP-01…10</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>The job state machine is the screen.</b> admin-workflow.md §6: queued → validating → processing → ready, with <code>failed</code> terminal. Transitions are forward-only and each one is audited.</li>
+    <li><b>Failure is a typed, actionable sentence</b>, never a bare code: what to do about it, and which pages failed, capped at 20 listed.</li>
+    <li><b>A failing job is terminal</b> — no automatic retry, because retrying flaky storage would mask the bug. The curator re-uploads (admin-workflow.md §5).</li>
+    <li><b>One active job per chapter.</b> A second submit is 409 job-busy; the screen offers to watch the running job rather than to submit again.</li>
+    <li><b>Client checks are advisory.</b> Size, count, and format hints appear before upload, but the server is authoritative (NFR-SEC-007) and its typed errors are what the curator acts on.</li>
+    <li><b>Ready is not published.</b> J-4 step 5 gives two distinct actions — View chapter (a draft preview) and Publish — and step 6 closes the loop by opening the published chapter in the reader.</li>
+    <li><b>Replace-or-fail is stated before the click</b> (J-5), including the promise that a failed re-ingest leaves the current pages in place.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — admin nav landmark, separate from the site nav</h2>
+  <div class="wf-region-body">
+<nav aria-label="Admin">
+      <ul class="wf-list">
+        <li>Overview</li>
+        <li>Manga</li>
+        <li>Uploads</li>
+        <li>Users</li>
+        <li>Audit</li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Upload pages</span> class="wf-text wf-text-short"</div>
+<div class="wf-box"><span class="wf-box-label">Breadcrumb: Admin / Manga / Seed Manga 0001 / Chapters / Chapter 14</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Target chapter</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Seed Manga 0001 — Chapter 14 — new, 0 pages, draft</li>
+      <li>Advisory pre-checks: one ZIP or an image set · up to 500 MB · up to 500 files</li>
+    </ul>
+  </div>
+</section>
+{{input}}
+<section class="wf-region">
+  <h2 class="wf-region-label">Active job — the state machine, watched live</h2>
+  <div class="wf-region-body">
+<div class="wf-stack">
+      <div class="wf-box">
+        <p class="wf-zone-role">State: processing · job c4f1 · started 40s ago · polled
+          every 3s</p>
+        <div class="wf-zones">
+          <div class="wf-zone">
+            <span class="wf-zone-role">queued — done</span>
+            <div class="wf-zone-btns"><span>passed</span></div>
+          </div>
+          <div class="wf-zone">
+            <span class="wf-zone-role">validating — done</span>
+            <div class="wf-zone-btns"><span>30 pages found</span></div>
+          </div>
+          <div class="wf-zone">
+            <span class="wf-zone-role">processing — current</span>
+            <div class="wf-zone-btns"><span>18 of 30 normalised</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="wf-box"><span class="wf-box-label">Ready: [View chapter — draft preview] [Publish]</span> class="wf-text wf-text-short"</div>
+      <div class="wf-box"><span class="wf-box-label">Failed: the cause, the cause code, the page list capped at 20, and [Try again]</span> class="wf-text wf-text-short"</div>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Failure variants a curator can act on</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>"Some images could not be read" — pages 7, 12 and 19 failed. Fix and re-upload; no
+        re-ingest is needed because nothing was committed.</li>
+      <li>"The archive expands beyond the safe limit" — re-compress or split the chapter.</li>
+      <li>"Password-protected archives are not supported" — re-package without encryption.</li>
+      <li>"No images found in the archive" — the archive holds directories only.</li>
+      <li>"A job for this chapter is already running" — watch the running job instead.</li>
+      <li>"Processing exceeded 15 minutes and was stopped" — re-upload.</li>
+    </ul>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Re-ingest, J-5 — replace-or-fail, stated before the action</h2>
+  <div class="wf-region-body">
+<div class="wf-box">
+      <p>Re-ingest pages for Chapter 12?</p>
+      <p>On commit the new pages go live and the old set is held for 24 hours. If the upload
+         fails, the chapter keeps the pages it has now. A reader mid-chapter is moved to the
+         new pages on their next page change.</p>
+      <div class="wf-controls">
+        <span class="wf-control wf-control-primary">Re-ingest</span>
+        <span class="wf-control">Cancel</span>
+      </div>
+    </div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

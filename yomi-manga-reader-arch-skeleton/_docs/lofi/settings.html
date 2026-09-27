@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+    <div class="l-header-in">
+      <a class="l-brand" href="index.html">Yomi</a>
+      <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html" aria-current="page">Settings</a></li>
+      </ul>
+    </nav>
+      <div class="l-header-actions">
+        <a class="l-btn l-btn--sm" href="signin.html">Sign in</a>
+      </div>
+    </div>
+  </header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <h1>Settings</h1>
+
+  <div class="l-split--aside-first l-split">
+    <nav aria-label="Settings sections">
+      <ul class="l-list l-list--lines">
+        <li><a href="settings.html">Account</a></li>
+        <li><a href="settings.html" aria-current="page">Reader</a></li>
+        <li><a href="settings.html">Appearance</a></li>
+        <li><a href="settings.html">Notifications</a></li>
+        <li><a href="settings.html">Data and privacy</a></li>
+      </ul>
+    </nav>
+
+    <form class="l-stack l-stack--loose" action="#" method="post">
+      <p class="l-prose">These are the four reader preferences from
+        reader-behavior.md §16. Changes save on their own, and mode and direction take
+        effect immediately.</p>
+
+      <fieldset class="l-fieldset l-stack l-stack--tight">
+        <legend class="l-legend">Default reading mode</legend>
+        <p class="l-hint">Applied when a chapter opens. You can still switch per
+          session.</p>
+        <label class="l-radio"><input type="radio" name="mode" value="vertical" checked>
+          <span>Vertical — pages form one continuous column</span></label>
+        <label class="l-radio"><input type="radio" name="mode" value="single">
+          <span>Single — one page per view</span></label>
+        <label class="l-radio"><input type="radio" name="mode" value="double">
+          <span>Double — a spread per view, needs 640px or wider</span></label>
+      </fieldset>
+
+      <fieldset class="l-fieldset l-stack l-stack--tight">
+        <legend class="l-legend">Direction override</legend>
+        <p class="l-hint">Leave this on None to use each title's own direction.</p>
+        <label class="l-radio"><input type="radio" name="dir" value="none" checked>
+          <span>None — use the title's direction</span></label>
+        <label class="l-radio"><input type="radio" name="dir" value="rtl">
+          <span>Right to left</span></label>
+        <label class="l-radio"><input type="radio" name="dir" value="ltr">
+          <span>Left to right</span></label>
+      </fieldset>
+
+      <fieldset class="l-fieldset l-stack l-stack--tight">
+        <legend class="l-legend">Default zoom</legend>
+        <div class="l-field">
+          <label class="l-label" for="z">Zoom on open</label>
+          <input id="z" name="zoom" type="range" min="100" max="400" step="10" value="100">
+          <p class="l-hint">Value <output for="z" class="l-num">100%</output>. Zoom is a
+            transform: it never changes which page you are on, and it resets to this value
+            when you enter a new chapter.</p>
+        </div>
+        <div class="l-chips" role="group" aria-label="Quick zoom">
+          <button type="button" class="l-chip" aria-pressed="true">100%</button>
+          <button type="button" class="l-chip" aria-pressed="false">150%</button>
+          <button type="button" class="l-chip" aria-pressed="false">200%</button>
+          <button type="button" class="l-chip" aria-pressed="false">300%</button>
+          <button type="button" class="l-chip" aria-pressed="false">400%</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="l-fieldset l-stack l-stack--tight">
+        <legend class="l-legend">Auto-advance to the next chapter</legend>
+        <label class="l-checkbox">
+          <input type="checkbox" name="autonext" checked>
+          <span>After 1.5 seconds on the completion card. A countdown is shown and any
+            input cancels it.</span>
+        </label>
+      </fieldset>
+
+      <div class="l-banner">
+        <span>Settings saved on this device.</span>
+        <span class="l-banner__actions"><span class="l-meta">2 seconds ago</span></span>
+      </div>
+    </form>
+  </div>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="acct-h">
+    <h2 id="acct-h">Account and data</h2>
+    <ul class="l-list l-list--lines">
+      <li class="l-list-row"><div><strong>Email address</strong>
+        <p class="l-meta">reader@example.invalid</p></div>
+        <button type="button" class="l-btn l-btn--sm">Change</button></li>
+      <li class="l-list-row"><div><strong>Display name</strong>
+        <p class="l-meta">reader</p></div>
+        <button type="button" class="l-btn l-btn--sm">Change</button></li>
+      <li class="l-list-row"><div><strong>Password</strong>
+        <p class="l-meta">Changed 3 months ago</p></div>
+        <button type="button" class="l-btn l-btn--sm">Change</button></li>
+      <li class="l-list-row"><div><strong>Delete account</strong>
+        <p class="l-meta">Removes your progress, library, history, and bookmarks. This
+          cannot be undone, and no administrator can do it for you.</p></div>
+        <button type="button" class="l-btn l-btn--sm">Delete account</button></li>
+    </ul>
+  </section>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · /settings · source: reader-behavior.md §16, ACCESSIBILITY.md §2 and §5</span>
+  </div>
+</footer>
+</body>
+</html>

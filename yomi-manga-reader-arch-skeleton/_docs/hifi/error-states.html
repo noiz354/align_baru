@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error, not found, and empty states — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="index.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>        <li><a href="search.html">Search</a></li>        <li><a href="library.html">Library</a></li>        <li><a href="history.html">History</a></li>        <li><a href="bookmarks.html">Bookmarks</a></li>        <li><a href="settings.html">Settings</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <a class="btn btn--sm" href="library.html">Library</a><a class="btn btn--sm" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 4.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5z M4.5 20.5a7.5 7.5 0 0 1 15 0</svg>Account</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="stack rise rise-1" style="max-width:var(--measure)">
+    <h1>Error, not found, and empty</h1>
+    <p class="prose">Each state below names the cause, says what the reader can do, and
+      offers somewhere to go. None is a status code on its own, and none is a blank
+      main. Focus moves to the state on entry, and it is announced.</p>
+  </section>
+
+  <section class="stack rise rise-2" aria-labelledby="eb-h">
+    <div class="section-head">
+      <h2 id="eb-h">Error boundary</h2>
+      <p>src/app/error.tsx · EC-XX-04</p>
+    </div>
+    <div class="state" tabindex="-1" role="region" aria-labelledby="eb-t">
+      <h3 id="eb-t" class="h2">Something went wrong on this page</h3>
+      <p><strong>Cause.</strong> The catalog could not be read from the database.
+        Nothing you did caused this, and it is not your account.</p>
+      <p><strong>What you can do.</strong> Try again, or go back to the catalog. Your
+        reading position is saved on this device and is not affected.</p>
+      <div class="cluster">
+        <button type="button" class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M20 12a8 8 0 1 1-2.4-5.7 M20 4v4.5h-4.5</svg> Try again</button>
+        <a class="btn" href="discover.html">Go to the catalog</a>
+        <button type="button" class="btn btn--quiet">Show request details</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack rise rise-3" aria-labelledby="nf-h">
+    <div class="section-head">
+      <h2 id="nf-h">Not found</h2>
+      <p>src/app/not-found.tsx · EC-XX-06, EC-ADM-02</p>
+    </div>
+    <div class="state" tabindex="-1" role="region" aria-labelledby="nf-t">
+      <h3 id="nf-t" class="h2">This page is not here</h3>
+      <p><strong>Cause.</strong> The link points at a page that does not exist, or at a
+        title a curator removed. A removed title answers this way on purpose — the two
+        are the same answer for a reader, and saying which one it was would tell them
+        about content they are not entitled to know exists.</p>
+      <p><strong>What you can do.</strong> Search the catalog, or go back to where you
+        were.</p>
+      <div class="cluster">
+        <a class="btn btn--primary" href="search.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16.2 16.2 L21 21</svg> Search the catalog</a>
+        <a class="btn" href="discover.html">Go to the catalog</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack rise rise-4" aria-labelledby="un-h">
+    <div class="section-head">
+      <h2 id="un-h">Chapter unavailable</h2>
+      <p>EC-RDR-02 no pages · EC-RDR-08 deleted mid-session</p>
+    </div>
+    <div class="state state--warn" tabindex="-1" role="region" aria-labelledby="un-t">
+      <h3 id="un-t" class="h2">This chapter is not available</h3>
+      <p><strong>Cause.</strong> The chapter was removed by the curator, or it has no
+        pages yet.</p>
+      <p><strong>What you can do.</strong> There is no reader here, and that is
+        deliberate: an empty reader shell with dead controls is worse than an honest
+        stop. Open the series to see the chapters that are available.</p>
+      <div class="cluster">
+        <a class="btn btn--primary" href="manga-detail.html">Back to the series</a>
+        <a class="btn" href="discover.html">Go to the catalog</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack rise rise-5" aria-labelledby="pm-h">
+    <div class="section-head">
+      <h2 id="pm-h">Permission</h2>
+      <p>admin-workflow.md §1 · a 403 page, not a sign-in redirect</p>
+    </div>
+    <div class="state state--danger" tabindex="-1" role="region" aria-labelledby="pm-t">
+      <h3 id="pm-t" class="h2">You do not have access to the admin panel</h3>
+      <p><strong>Cause.</strong> Your account is signed in and is not an administrator.
+        Sending you to a sign-in form you already passed would be a dead end, so this
+        is a permission answer.</p>
+      <div class="cluster">
+        <a class="btn btn--primary" href="discover.html">Go to the catalog</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack rise rise-6" aria-labelledby="em-h">
+    <div class="section-head">
+      <h2 id="em-h">Empty states</h2>
+      <p>Informative, and each one offers the next action</p>
+    </div>
+    <div class="split">
+      <div class="empty">
+        <span class="empty__mark" aria-hidden="true">empty</span>
+        <h3>The collection is being prepared — check back soon</h3>
+        <p class="prose">The catalog has no titles yet. Content is added by the curator,
+          so there is nothing to search and no reason to sign in.</p>
+        <div class="cluster"><button type="button" class="btn">Check again</button></div>
+      </div>
+      <div class="empty">
+        <span class="empty__mark" aria-hidden="true">empty</span>
+        <h3>Nothing in your library yet</h3>
+        <p class="prose">Titles you start appear here with the page you stopped on.</p>
+        <div class="cluster">
+          <a class="btn btn--primary" href="discover.html">Browse the catalog</a>
+        </div>
+      </div>
+      <div class="empty">
+        <span class="empty__mark" aria-hidden="true">empty</span>
+        <h3>No titles match &ldquo;archivist&rdquo;</h3>
+        <p class="prose">Nothing in the catalog has that word in a title or an alias. Two
+          creators have it in their name.</p>
+        <div class="cluster"><a class="btn" href="discover.html">Browse the catalog</a></div>
+      </div>
+      <div class="empty">
+        <span class="empty__mark" aria-hidden="true">empty</span>
+        <h3>No bookmarks yet</h3>
+        <p class="prose">A bookmark is per page, so you can come back to one panel
+          later.</p>
+      </div>
+    </div>
+    <div class="card stack" style="max-width:36rem">
+      <div class="card__body stack stack--sm">
+        <h3>No manga yet — create your first title</h3>
+        <p class="meta">A new instance starts empty. Create a title, add a chapter,
+          upload its pages, then publish — and check the chapter in the reader before you
+          call it done.</p>
+        <div class="cluster">
+          <button type="button" class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 5v14 M5 12h14</svg> New manga</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · src/app/error.tsx · src/app/not-found.tsx · source: ACCESSIBILITY.md §6</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

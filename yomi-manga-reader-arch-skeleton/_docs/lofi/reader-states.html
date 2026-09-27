@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader states — Yomi, lo-fi</title>
+<link rel="stylesheet" href="lofi.css">
+</head>
+<body>
+<a class="l-skip" href="#main">Skip to content</a>
+<header class="l-header">
+  <div class="l-header-in">
+    <a class="l-brand" href="index.html">Yomi</a>
+    <nav class="l-nav" aria-label="Site">
+      <ul>
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main" class="l-main">
+<div class="l-stack l-stack--loose">
+  <h1>Reader states</h1>
+  <p class="l-prose">The reader's own states: a per-page failure, the offline banner, and
+    the three different completion cards. Each one states what happened and what to do
+    next.</p>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="off-h">
+    <h2 id="off-h">Offline banner</h2>
+    <div class="l-banner" style="border-left-color:var(--l-ink)">
+      <span>Offline — some images may not load. Pages you have already read stay
+        readable and your position keeps being saved on this device.</span>
+      <span class="l-banner__actions"><button type="button" class="l-btn l-btn--sm"
+        >Dismiss</button></span>
+    </div>
+    <p class="l-hint">The banner never implies an offline download exists. There is
+      deliberately none.</p>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="fail-h">
+    <h2 id="fail-h">Failed image, one page only</h2>
+    <div class="lr" style="border-radius:var(--l-r3);overflow:hidden">
+      <div class="lr-bar lr-bar--top" style="position:static">
+        <span class="lr-bar__title">Seed Manga 0001 · Chapter 12</span>
+        <span class="lr-bar__spacer"></span>
+        <span class="lr-bar__title">Page 13 of 240</span>
+      </div>
+      <div class="lr-canvas">
+        <div class="lr-column">
+          <div class="lr-page lr-page--tall">
+            <span class="lr-page__label">Page 238</span>
+            <span class="lr-page__sub">displayIndex 3</span>
+          </div>
+          <div class="lr-failed" role="group" aria-labelledby="f239">
+            <strong id="f239">Page 239</strong>
+            <span>Failed to load</span>
+            <p class="l-hint">One automatic retry already ran. Two manual attempts
+              remain.</p>
+            <div class="l-btn-row" style="justify-content:center">
+              <button type="button" class="lr-btn">Retry page 239</button>
+              <button type="button" class="lr-btn">Skip to page 240</button>
+            </div>
+          </div>
+          <div class="lr-page lr-page--tall">
+            <span class="lr-page__label">Page 240</span>
+            <span class="lr-page__sub">unaffected by the failure above</span>
+          </div>
+        </div>
+      </div>
+      <p class="lr-position"><span>Page <strong>13</strong> of 240</span>
+        <span class="lr-position__spacer"></span>
+        <span>direction: right to left</span></p>
+    </div>
+    <div class="l-banner" style="border-left-color:var(--l-ink)">
+      <span>Images may be temporarily unavailable. Automatic retries are paused while
+        this is shown.</span>
+      <span class="l-banner__actions"><button type="button" class="l-btn l-btn--sm"
+        >Dismiss</button></span>
+    </div>
+  </section>
+
+  <div class="l-split">
+    <section class="l-stack l-stack--tight" aria-labelledby="c1-h">
+      <h2 id="c1-h">Completion, next chapter published</h2>
+      <div class="lr-overlay">
+        <h3>Chapter 12 complete</h3>
+        <p>Next: Chapter 13 — Return of the Borrowing Desk, 26 pages.</p>
+        <div class="l-btn-row">
+          <button type="button" class="lr-btn lr-btn--on">Continue to Chapter 13</button>
+          <button type="button" class="lr-btn">Stay here</button>
+        </div>
+        <p class="lr-countdown">Leaving in 1.5s — <button type="button" class="lr-btn"
+          style="min-height:2rem">Cancel</button></p>
+      </div>
+    </section>
+
+    <section class="l-stack l-stack--tight" aria-labelledby="c2-h">
+      <h2 id="c2-h">Completion, end of the series</h2>
+      <div class="lr-overlay">
+        <h3>Chapter 22 complete</h3>
+        <p>You've finished Seed Manga 0003 — Notes Toward a Theory of Weather.</p>
+        <div class="l-btn-row">
+          <button type="button" class="lr-btn lr-btn--on">Back to the series</button>
+          <button type="button" class="lr-btn">Go to the catalog</button>
+        </div>
+        <p class="l-hint">No countdown: there is nothing to advance to.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="c3-h">
+    <h2 id="c3-h">Completion, next chapter exists but is draft</h2>
+    <div class="lr-overlay">
+      <h3>Chapter 12 complete</h3>
+      <p>That's everything for now. Chapter 13 is not published yet. It will appear here
+        when it is.</p>
+      <div class="l-btn-row">
+        <button type="button" class="lr-btn lr-btn--on">Back to the series</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="l-stack l-stack--tight" aria-labelledby="nt-h">
+    <h2 id="nt-h">The other reader notices</h2>
+    <ul class="l-list l-list--lines">
+      <li class="l-list-row"><div><strong>Progress sync failed</strong>
+        <p class="l-meta">Your position is saved on this device and will be retried. One
+          notice, not one per write.</p></div></li>
+      <li class="l-list-row"><div><strong>Deep link clamped</strong>
+        <p class="l-meta l-num">?page=999 became page 240.</p></div></li>
+      <li class="l-list-row"><div><strong>Chapter shrank after a re-ingest</strong>
+        <p class="l-meta">Your position moved to the new last page.</p></div></li>
+      <li class="l-list-row"><div><strong>Start of reading reached</strong>
+        <p class="l-meta">A brief no-op cue. The reader never wraps around.</p></div></li>
+    </ul>
+  </section>
+</div>
+</main>
+<footer class="l-footer">
+  <div class="l-footer-in">
+    <span>Yomi</span>
+    <span>Self-hosted. Content is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="l-meta">Lo-fi, tier 2 · reader states · source: reader-behavior.md §12–§15</span>
+  </div>
+</footer>
+</body>
+</html>

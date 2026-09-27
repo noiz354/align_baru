@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Sign in</h1>
+  <p><b>Route</b> <code>/auth/signin</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-AUTH-003, ACCESSIBILITY.md §5 and §6</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>Every input has a visible label</b> (ACCESSIBILITY.md §5). Placeholder text is not a label.</li>
+    <li><b>Errors are linked by <code>aria-describedby</code> and announced</b>, and an error summary sits at the top of the form, linked and focusable (ACCESSIBILITY.md §5, NFR-A11Y-003). A bare red border is not an error announcement.</li>
+    <li><b>No colour-only signalling.</b> An invalid field carries an icon and text as well as a border (NFR-A11Y-008).</li>
+    <li><b>Password has a labelled reveal toggle</b> and its policy is announced through <code>aria-describedby</code>. The field does not block paste.</li>
+    <li><b>Rate limiting is a real state</b> (INT-AUTH-003 rejects the 11th attempt in a minute). It is shown as a message with a retry time, not as a generic failure.</li>
+    <li><b>Signed out, the reader still has a reader.</b> Anonymous reading is a supported journey (J-1); signing in is offered, never demanded.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Sign in</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Error summary — at the top, focusable, linked to its field</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">Email or password is incorrect. Two attempts remain before a temporary lock.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Sign-in form</h2>
+  <div class="wf-region-body">
+<div class="wf-stack">
+      <div class="wf-field">
+        <span class="wf-field-label">Email address</span>
+        <div class="wf-input">input type=email autocomplete=username</div>
+        <span class="wf-zone-role">aria-describedby to email-error: "Enter the address you
+          registered with."</span>
+      </div>
+      <div class="wf-field">
+        <span class="wf-field-label">Password</span>
+        <div class="wf-input">input type=password autocomplete=current-password</div>
+        <span class="wf-zone-role">[button: Show password, labelled] ·
+          aria-describedby to password-policy</span>
+      </div>
+      <div class="wf-controls">
+        <span class="wf-control wf-control-primary">Sign in</span>
+        <span class="wf-control">Request a sign-in link</span>
+      </div>
+      <div class="wf-field">
+        <span class="wf-field-label">Password policy, announced</span>
+        <div class="wf-input wf-input-long">At least 12 characters. Not in the
+          common-password list.</div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Other states on this screen</h2>
+  <div class="wf-region-body">
+<div class="wf-stack"><div class="wf-box"><span class="wf-box-label">Disabled account: "This account is disabled. Contact the instance operator."</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Too many attempts: the retry time, the form kept, focus on the summary</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Reset link sent: the confirmation names the address, never a token</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Service unavailable: cause, retry, link home</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Links</h2>
+  <div class="wf-region-body">
+<div class="wf-controls"><div class="wf-box"><span class="wf-box-label">Create an account</span> class="wf-text wf-text-short"</div><div class="wf-box"><span class="wf-box-label">Forgot your password</span> class="wf-text wf-text-short"</div></div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

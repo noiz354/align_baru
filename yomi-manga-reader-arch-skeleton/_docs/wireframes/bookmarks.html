@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — Yomi wireframe</title>
+<link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+<div class="wf-page">
+
+<a class="wf-skip" href="#main">Skip to content</a>
+<p class="wf-skip-note">The skip link above is the first focusable element on every page,
+   per the AppShell.tsx contract (T-FOUND-004).</p>
+
+<div class="wf-doc-head">
+  <h1>Wireframe: Bookmarks</h1>
+  <p><b>Route</b> <code>/bookmarks</code> · <b>Tier</b> 1, structure only ·
+     <b>Source</b> PRD FR-LIBRARY-*, EC-RDR-06</p>
+  <p>Grayscale blocks and region labels only. No colour, type, or scale decision is
+     made at this tier.</p>
+</div>
+
+<aside class="wf-notes">
+  <h2>Annotations</h2>
+  <ul>
+    <li><b>A bookmark is an explicit jump to a specific page</b> (T-LIB-008), which is the one documented exception to saved-position-wins (EC-RDR-06): the intent was the specific page, so the deep link wins.</li>
+    <li><b>Each bookmark carries an optional note.</b> Editing it happens in a dialog, so the reader keys are inert and focus is trapped while it is open (§9).</li>
+    <li><b>Grouped by series, not a flat reverse-chronological list</b> — a reader bookmarks moments, then looks for them by title.</li>
+    <li><b>Delete asks first</b>, and the confirmation names the page being removed, because that is the only way to be sure the right one is going.</li>
+  </ul>
+</aside>
+
+<header class="wf-region">
+  <h2 class="wf-region-label">&lt;header&gt; — site nav landmark</h2>
+  <div class="wf-region-body">
+<nav aria-label="Site">
+      <ul class="wf-list">
+        <li><a href="discover.html">Catalog</a></li>
+        <li><a href="search.html">Search</a></li>
+        <li><a href="library.html">Library</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="bookmarks.html">Bookmarks</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+      <p class="wf-zone-role">The active item carries <b>aria-current="page"</b> in the
+        real markup. This tier shows the slot, not the attribute.</p>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="wf-region">
+  <h2 class="wf-region-label">&lt;main&gt;</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">the page h1: Bookmarks</span> class="wf-text wf-text-short"</div>
+<section class="wf-region">
+  <h2 class="wf-region-label">Bookmarks grouped by series</h2>
+  <div class="wf-region-body">
+<ul class="wf-list">
+      <li>Seed Manga 0001 — Chapter 12, page 12 — 2 days ago
+        <br>Note: the map that contradicts the archive
+        <span class="wf-zone-btns"><span>link: Go to page 12</span>
+        <span>button: Edit note</span><span>button: Delete</span></span></li>
+      <li>Seed Manga 0001 — Chapter 3, page 14 — 3 weeks ago
+        <br>Note: (none)
+        <span class="wf-zone-btns"><span>link: Go to page 14</span>
+        <span>button: Edit note</span><span>button: Delete</span></span></li>
+      <li>Seed Manga 0003 — Chapter 4, page 3 — 6 days ago
+        <br>Note: the panel is in colour here
+        <span class="wf-zone-btns"><span>link: Go to page 3</span>
+        <span>button: Edit note</span><span>button: Delete</span></span></li>
+    </ul>
+  </div>
+</section>
+<section class="wf-region">
+  <h2 class="wf-region-label">Empty state</h2>
+  <div class="wf-region-body">
+<div class="wf-box"><span class="wf-box-label">No bookmarks yet. A bookmark is per page, so you can come back to one panel later.</span> class="wf-text wf-text-long"</div>
+  </div>
+</section>
+  </div>
+</section>
+</main>
+
+<footer class="wf-region">
+  <span class="wf-region-label">&lt;footer&gt; — minimal: site name, admin link for admins</span>
+  <div class="wf-region-body">
+    <p>Yomi · <span>Admin</span> (admins only, per AppShell.tsx)</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

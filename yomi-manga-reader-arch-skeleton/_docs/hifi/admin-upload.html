@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: upload pages — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="admin-overview.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Admin">
+      <ul>
+        <li><a href="admin-overview.html">Overview</a></li>        <li><a href="admin-manga-list.html">Manga</a></li>        <li><a href="admin-upload.html" aria-current="page">Uploads</a></li>        <li><a href="admin-users.html">Users</a></li>        <li><a href="admin-audit.html">Audit</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <span class="badge badge--info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 3.5 L20 6.5v5.5c0 4.2-3.2 7.4-8 8.5-4.8-1.1-8-4.3-8-8.5V6.5z M9 12l2.2 2.2L15.5 10</svg> Curator</span>
+      <a class="btn btn--sm" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M15 5 L8 12 L15 19</svg> Back to the site</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <div class="rise rise-1"><nav class="meta" aria-label="Breadcrumb"><ol class="cluster">
+        <li><a href="admin-manga-list.html">Manga</a></li>        <li><a href="admin-manga-list.html">Seed Manga 0001</a></li>        <li><a href="admin-manga-list.html">Chapters</a></li>        <li aria-current="page">Chapter 14</li>
+      </ol></nav></div>
+
+  <section class="rise rise-2">
+    <div class="section-head">
+      <div>
+        <h1>Upload pages</h1>
+        <p class="meta">Seed Manga 0001 — Chapter 14 · draft · 0 pages</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="split rise rise-3">
+    <div class="stack stack--lg">
+      <div class="card">
+        <div class="card__head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 16.5V4.5 M8 8.5 L12 4.5 L16 8.5 M4 15.5v3a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5v-3</svg> Input</div>
+        <div class="card__body stack">
+          <div class="empty__mark" style="width:100%;height:7rem;border-style:dashed"
+               aria-hidden="true">drop a ZIP or an image set</div>
+          <div class="cluster">
+            <button type="button" class="btn btn--primary">Choose files</button>
+            <button type="button" class="btn">Choose a ZIP</button>
+          </div>
+          <p class="hint">Advisory pre-checks: one archive or an image set, up to 500 MB,
+            up to 500 files. The server is authoritative, and its typed errors are what
+            you act on. Above 100 MB the upload splits into parts and progress is
+            reported per part.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__head">
+          <span>Job c4f1</span>
+          <span class="push meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M12 7.5V12l3 2</svg> processing · 40s · polled every 3s</span>
+        </div>
+        <div class="card__body stack">
+          <ol class="ruled">
+            <li class="ruled-row ruled-row--tight">
+              <div><span class="list-title">queued</span></div>
+              <span class="badge badge--ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4.5 12.5 L9.5 17.5 L19.5 6.5</svg> done</span>
+            </li>
+            <li class="ruled-row ruled-row--tight">
+              <div><span class="list-title">validating</span>
+                <p class="meta num">30 pages found, 0 unreadable</p></div>
+              <span class="badge badge--ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4.5 12.5 L9.5 17.5 L19.5 6.5</svg> done</span>
+            </li>
+            <li class="ruled-row ruled-row--tight">
+              <div><span class="list-title">processing</span>
+                <p class="meta num">18 of 30 normalised to AVIF, WebP, and JPEG</p></div>
+              <span class="badge badge--solid">running</span>
+            </li>
+          </ol>
+          <div class="progress"><span class="progress__fill" style="width:60%"></span></div>
+          <p class="hint num">60%</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M4.5 12.5 L9.5 17.5 L19.5 6.5</svg> Ready</div>
+        <div class="card__body stack">
+          <p class="meta">The chapter has pages. Publishing is a separate, deliberate
+            step, because a published chapter that turns out to be wrong is a thing
+            readers see.</p>
+          <div class="cluster">
+            <button type="button" class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z</svg> View chapter, draft preview</button>
+            <button type="button" class="btn btn--primary">Publish</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="stack" aria-label="Upload outcomes">
+      <div class="panel stack stack--sm">
+        <h2>If it fails</h2>
+        <ul class="stack stack--sm">
+          <li><strong>Some images could not be read</strong>
+            <p class="meta">Pages 7, 12, and 19 failed. Fix and re-upload. Nothing was
+              committed, so no re-ingest is needed.</p></li>
+          <li><strong>The archive expands beyond the safe limit</strong>
+            <p class="meta">Re-compress or split the chapter.</p></li>
+          <li><strong>Password-protected archives are not supported</strong>
+            <p class="meta">Re-package without encryption.</p></li>
+          <li><strong>No images found in the archive</strong>
+            <p class="meta">The archive holds directories only.</p></li>
+          <li><strong>A job for this chapter is already running</strong>
+            <p class="meta">Watch the running job instead of submitting again.</p></li>
+          <li><strong>Processing exceeded 15 minutes and was stopped</strong>
+            <p class="meta">Re-upload. A failed job is never retried automatically,
+              because retrying flaky storage would hide the fault.</p></li>
+        </ul>
+      </div>
+
+      <div class="card stack">
+        <div class="card__head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M20 12a8 8 0 1 1-2.4-5.7 M20 4v4.5h-4.5</svg> Re-ingest</div>
+        <div class="card__body stack stack--sm">
+          <h3>Re-ingest pages for Chapter 12?</h3>
+          <p class="meta">On commit the new pages go live and the old set is held for
+            24 hours. If the upload fails, the chapter keeps the pages it has now. A
+            reader mid-chapter is moved to the new pages on their next page change.</p>
+          <div class="cluster">
+            <button type="button" class="btn btn--primary">Re-ingest</button>
+            <button type="button" class="btn">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · /admin/uploads · source: admin-workflow.md §5, §6, EC-UP-01…10</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>

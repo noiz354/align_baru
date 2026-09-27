@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: audit log — Yomi, hi-fi</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="hifi.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <div class="shell-header__in">
+    <a class="brand focus-none" href="admin-overview.html">Yomi</a>
+    <nav class="shell-nav" aria-label="Admin">
+      <ul>
+        <li><a href="admin-overview.html">Overview</a></li>        <li><a href="admin-manga-list.html">Manga</a></li>        <li><a href="admin-upload.html">Uploads</a></li>        <li><a href="admin-users.html">Users</a></li>        <li><a href="admin-audit.html" aria-current="page">Audit</a></li>
+      </ul>
+    </nav>
+    <div class="shell-header__end">
+      <span class="badge badge--info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M12 3.5 L20 6.5v5.5c0 4.2-3.2 7.4-8 8.5-4.8-1.1-8-4.3-8-8.5V6.5z M9 12l2.2 2.2L15.5 10</svg> Curator</span>
+      <a class="btn btn--sm" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">M15 5 L8 12 L15 19</svg> Back to the site</a>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="shell-main">
+<div class="stack stack--xl">
+  <section class="rise rise-1">
+    <div class="section-head">
+      <div>
+        <h1>Audit log</h1>
+        <p class="meta">Append-only. Nothing in this list can be edited or removed, and
+          the interface does not offer it.</p>
+      </div>
+      <button type="button" class="theme-toggle focus-pill" data-theme-toggle data-state="system" aria-label="Colour theme: follow the system. Activate to change."><span class="theme-toggle__dot" aria-hidden="true"></span><span class="theme-toggle__label">Theme: system</span></button>
+    </div>
+  </section>
+
+  <form class="card card--flush rise rise-2" action="#" method="get">
+    <div class="card__body cluster" style="align-items:flex-end">
+      <div class="field" style="flex:0 1 12rem">
+        <label class="label" for="au-kind">Target kind</label>
+        <select class="select" id="au-kind"><option>All</option><option>manga</option>
+          <option>chapter</option><option>user</option><option>upload</option></select>
+      </div>
+      <div class="field" style="flex:0 1 14rem">
+        <label class="label" for="au-id">Target id</label>
+        <input class="input" id="au-id" name="id" type="search" placeholder="0001">
+      </div>
+      <div class="field" style="flex:0 1 14rem">
+        <label class="label" for="au-act">Action</label>
+        <select class="select" id="au-act"><option>All</option><option>create</option>
+          <option>update</option><option>publish</option><option>unpublish</option>
+          <option>delete</option><option>restore</option><option>reingest</option></select>
+      </div>
+    </div>
+  </form>
+
+  <div class="card card--flush rise rise-3">
+    <div class="table-wrap">
+      <table class="table">
+        <caption class="sr-only">Audit entries, newest first, with before and after values</caption>
+        <thead>
+          <tr><th scope="col">When</th><th scope="col">Actor</th>
+            <th scope="col">Action</th><th scope="col">Target</th>
+            <th scope="col">Before and after</th><th scope="col">IP</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+              <td class="is-num">2026-09-26 16:02:11</td>
+              <td>operator</td>
+              <td class="is-num">user.role.bootstrap</td>
+              <td class="is-num">user · 0001</td>
+              <td class="table__json">before: (none)<br>after: {"role":"admin","method":"operator procedure"}</td>
+              <td class="is-num">10.0.0.4</td>
+            </tr>            <tr>
+              <td class="is-num">2026-09-26 15:20:38</td>
+              <td>operator</td>
+              <td class="is-num">manga.update</td>
+              <td class="is-num">manga · 0006</td>
+              <td class="table__json">before: {"synopsis":"[truncated at 2 KB]"}<br>after: {"synopsis":"[truncated at 2 KB]"}</td>
+              <td class="is-num">10.0.0.4</td>
+            </tr>            <tr>
+              <td class="is-num">2026-09-26 14:55:03</td>
+              <td>(deleted)</td>
+              <td class="is-num">manga.delete</td>
+              <td class="is-num">manga · 0004</td>
+              <td class="table__json">before: {"deleted":false}<br>after: {"deleted":true}</td>
+              <td class="is-num">10.0.0.9</td>
+            </tr>            <tr>
+              <td class="is-num">2026-09-26 11:02:19</td>
+              <td>operator</td>
+              <td class="is-num">upload.ready</td>
+              <td class="is-num">upload · c4f1</td>
+              <td class="table__json">before: {"state":"processing","pages":18}<br>after: {"state":"ready","pages":30}</td>
+              <td class="is-num">10.0.0.4</td>
+            </tr>            <tr>
+              <td class="is-num">2026-09-26 09:31:47</td>
+              <td>operator</td>
+              <td class="is-num">chapter.publish</td>
+              <td class="is-num">chapter · 0001/12</td>
+              <td class="table__json">before: {"published":false}<br>after: {"published":true,"pages":240}</td>
+              <td class="is-num">10.0.0.4</td>
+            </tr>            <tr>
+              <td class="is-num">2026-09-26 09:14:02</td>
+              <td>operator</td>
+              <td class="is-num">manga.create</td>
+              <td class="is-num">manga · 0001</td>
+              <td class="table__json">before: (none)<br>after: {"status":"Ongoing","direction":"rtl"}</td>
+              <td class="is-num">10.0.0.4</td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="meta num rise rise-4">Newest first · 50 per page · retention at least one
+    year. Summaries are capped at 2 KB per field and truncation is marked, because a
+    silently short value is worse than an obviously truncated one.</p>
+</div>
+</main>
+<footer class="shell-footer">
+  <div class="shell-footer__in">
+    <span class="brand focus-none" style="font-size:var(--fs-md)">Yomi</span>
+    <span>Self-hosted. Every title is licensed or owned by the operator.</span>
+    <a href="admin-manga-list.html">Admin</a>
+    <span class="push meta">Hi-fi, tier 3 · /admin/audit · source: admin-workflow.md §8, EC-ADM-06</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'yomi-theme';
+  var ORDER = ['', 'light', 'dark'];
+  var LABEL = { '': 'Theme: system', 'light': 'Theme: light', 'dark': 'Theme: dark' };
+  var root = document.documentElement;
+  function read() {
+    try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+  }
+  function write(v) {
+    if (v) { root.setAttribute('data-theme', v); } else { root.removeAttribute('data-theme'); }
+    try {
+      if (v) { localStorage.setItem(KEY, v); } else { localStorage.removeItem(KEY); }
+    } catch (e) {}
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      b.setAttribute('data-state', v || 'system');
+      b.setAttribute('aria-label',
+        'Colour theme: ' + (v || 'follow the system').replace('light', 'light')
+          + '. Activate to change.');
+      var lab = b.querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[v || '']; }
+    }
+  }
+  function cycle() {
+    var cur = root.getAttribute('data-theme') || '';
+    write(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+  window.yomiTheme = { set: write, cycle: cycle, current: function () {
+    return root.getAttribute('data-theme') || '';
+  } };
+  var saved = read();
+  if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+  function init() {
+    var cur = root.getAttribute('data-theme') || '';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('data-state', cur || 'system');
+      var lab = buttons[i].querySelector('.theme-toggle__label');
+      if (lab) { lab.textContent = LABEL[cur || '']; }
+      buttons[i].addEventListener('click', cycle);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+
+</body>
+</html>
