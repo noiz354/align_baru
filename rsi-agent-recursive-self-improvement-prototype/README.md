@@ -161,7 +161,7 @@ rsi-agent-recursive-self-improvement-prototype/
 │   └── cli.py              # run / improve / benchmark / dashboard / skills / rao / audit / status
 └── tests/
     ├── test_rsi.py         # 10 — core loop
-    ├── test_improvement.py # 52 — proposals/sandbox/patches/risk/loop/live
+    ├── test_improvement.py # 50 — proposals/sandbox/patches/risk/loop/limits
     ├── test_adversarial.py # 38 — tampering, escape, injection, resource limits
     ├── test_artifacts.py   # 34 — benchmark/skills/RAO/dashboard/CLI
     └── test_manual_qa.py   # 9  — walkthrough loop 14 langkah end-to-end
