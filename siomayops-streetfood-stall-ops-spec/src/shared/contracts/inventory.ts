@@ -1,11 +1,6 @@
-/**
- * PHASE 0 — CONTRACT ONLY. Zod schemas describe the request/response shape of API.md and are the
- * single source of truth shared by route shells, clients and the offline queue. No handler logic
- * exists anywhere in this phase (ADR-0036).
- */
 import { z } from "zod";
+import { uuidSchema, uuidV7Schema, instantSchema } from "./common";
 
-/** API.md §11/§12 — stock reports and restock requests. Requirements: FR-STOCK-001..012. */
 export const stockReportRequestSchema = z.object({
   shiftId: uuidSchema,
   kind: z.enum(["OPENING_COUNT", "MID_COUNT", "CLOSING_COUNT", "WASTE", "DAMAGE", "SAMPLE", "STAFF_MEAL", "ADJUSTMENT", "RETURN", "UNKNOWN"]),

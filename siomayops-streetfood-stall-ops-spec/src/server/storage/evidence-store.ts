@@ -1,12 +1,3 @@
-/**
- * PHASE 0 — SKELETON ONLY. No I/O, no queries, no provider calls, no authentication.
- * Every function that would contain logic throws `Not implemented: T-XXX-XXX` (ADR-0036).
- */
-
-/**
- * Evidence storage via the S3-compatible API with short-lived pre-signed URLs (ADR-0020).
- * Evidence is optional, access-controlled, and deleted on the retention schedule (R-06/R-12).
- */
 export interface PresignUploadInput {
   readonly organizationId: string;
   readonly subjectKind: "EXPENSE" | "INCIDENT" | "STOCK" | "PAYMENT_EVIDENCE";
@@ -21,7 +12,43 @@ export interface EvidenceStore {
   scheduleDeletion(organizationId: string, assetId: string, deleteAfter: Date): Promise<void>;
 }
 
-/** Throws. Task: T-EXP-004. */
+import { generateId } from "../db/memory-store";
+
+class InMemoryEvidenceStore implements EvidenceStore {
+  private assets = new Map<string, { organizationId: string; contentType: string; createdAt: Date }>();
+
+  async presignUpload(input: PresignUploadInput): Promise<{ readonly assetId: string; readonly uploadUrl: string; readonly expiresAt: Date }> {
+    const assetId = generateId();
+    this.assets.set(assetId, {
+      organizationId: input.organizationId,
+      contentType: input.contentType,
+      createdAt: new Date(),
+    });
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    // In real implementation, this would be a presigned S3 URL
+    const uploadUrl = `/api/v1/evidence/${assetId}/upload?token=fake-presigned`;
+    return { assetId, uploadUrl, expiresAt };
+  }
+
+  async presignDownload(organizationId: string, assetId: string): Promise<{ readonly url: string; readonly expiresAt: Date }> {
+    const asset = this.assets.get(assetId);
+    if (!asset || asset.organizationId !== organizationId) {
+      throw Object.assign(new Error("Asset not found"), { code: "NOT_FOUND" });
+    }
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const url = `/api/v1/evidence/${assetId}/download?token=fake-presigned`;
+    return { url, expiresAt };
+  }
+
+  async scheduleDeletion(organizationId: string, assetId: string, _deleteAfter: Date): Promise<void> {
+    // In real implementation, schedule deletion job
+    this.assets.delete(assetId);
+  }
+}
+
+let storeInstance: EvidenceStore | null = null;
+
 export function createEvidenceStore(): EvidenceStore {
-  throw new Error("Not implemented: T-EXP-004");
+  if (!storeInstance) storeInstance = new InMemoryEvidenceStore();
+  return storeInstance;
 }

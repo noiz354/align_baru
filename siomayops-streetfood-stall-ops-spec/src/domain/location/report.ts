@@ -1,8 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Location reporting (ADR-0007). Location exists ONLY as an explicit, shift-bounded operator
- * report; there is no passive capture path anywhere in the codebase (INV-07).
- */
 export type LocationTrigger = "ARRIVED" | "CONFIRM_UNCHANGED" | "MOVE_SITE" | "STEPPED_AWAY" | "DEPARTED";
 
 export type MoveReason =
@@ -27,12 +22,24 @@ export interface LocationReport {
   readonly clientReportId: string;
 }
 
-/** Throws. Task: T-LOC-004. */
-export function validateLocationReport(_report: LocationReport): void {
-  throw new Error("Not implemented: T-LOC-004");
+export function validateLocationReport(report: LocationReport): void {
+  if (!report.shiftId) throw new Error("shiftId required");
+  if (!report.sellingLocationId) throw new Error("sellingLocationId required");
+  if (!report.operatorId) throw new Error("operatorId required");
+  if (report.trigger === "MOVE_SITE" && !report.reasonForMove) {
+    throw new Error("reasonForMove required for MOVE_SITE");
+  }
+  if (report.arrivedAt > new Date(Date.now() + 5 * 60 * 1000)) {
+    throw new Error("arrivedAt cannot be in the future beyond 5 min tolerance");
+  }
 }
 
-/** Throws. Task: T-LOC-005. A move never deletes history: the previous report is closed, not edited. */
-export function closeLocationReport(_report: LocationReport, _departedAt: Date, _reason: MoveReason): LocationReport {
-  throw new Error("Not implemented: T-LOC-005");
+export function closeLocationReport(report: LocationReport, departedAt: Date, reason: MoveReason): LocationReport {
+  if (report.departedAt) throw new Error("Report already closed");
+  if (departedAt < report.arrivedAt) throw new Error("departedAt cannot be before arrivedAt");
+  return {
+    ...report,
+    departedAt,
+    reasonForMove: reason,
+  };
 }

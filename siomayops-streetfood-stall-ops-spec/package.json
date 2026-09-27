@@ -1,9 +1,8 @@
 {
   "name": "siomayops",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "phase0Note": "PHASE 0: declarations only. Nothing is installed and there is no runnable app. Dependencies are listed so the selected stack in docs/research/STACK-2026.md is explicit and pinnable. Installation, build and test execution begin with T-FOUND-001 (VS-0).",
-  "engines": { "node": ">=24.0.0 <25" },
+  "engines": { "node": ">=20.0.0" },
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "next dev",
@@ -20,28 +19,27 @@
     "census": "node tools/census.mjs"
   },
   "dependencies": {
-    "next": "16.3.1",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "zod": "4.6.5",
-    "drizzle-orm": "1.0.0",
-    "pg": "8.16.0",
-    "pino": "9.7.0",
+    "next": "15.4.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "3.24.1",
+    "drizzle-orm": "0.44.3",
+    "pg": "8.13.0",
+    "pino": "9.6.0",
     "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/sdk-node": "0.158.0"
+    "@opentelemetry/sdk-node": "0.57.0"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "@types/node": "24.3.0",
-    "@types/react": "19.2.0",
+    "typescript": "5.7.3",
+    "@types/node": "22.10.5",
+    "@types/react": "19.0.7",
+    "@types/pg": "8.11.10",
     "eslint": "9.20.0",
-    "tailwindcss": "4.1.0",
-    "drizzle-kit": "1.0.0",
-    "vitest": "4.0.0",
-    "@vitest/browser-playwright": "4.0.0",
-    "playwright": "1.56.0",
-    "@playwright/test": "1.56.0"
+    "tailwindcss": "4.0.0",
+    "drizzle-kit": "0.31.4",
+    "vitest": "3.1.1",
+    "playwright": "1.50.0",
+    "@playwright/test": "1.50.0"
   },
-  "optionalDependencies": {},
-  "comment_on_planned_deps": "PLANNED (not installed in Phase 0, add in the named slice): @serwist/next (VS-16), pg-boss (VS-10), better-auth (VS-17), @aws-sdk/client-s3 (VS-7), @tanstack/react-query (VS-3)."
+  "optionalDependencies": {}
 }

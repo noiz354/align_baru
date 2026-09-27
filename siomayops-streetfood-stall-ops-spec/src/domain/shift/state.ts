@@ -1,9 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Shift state machine (STATE_MACHINE.md §Operator Shift). DATA ONLY in Phase 0: the transition
- * table is declared so tests and UI can be written against it; the guard function throws.
- * Shift is the root of cash accountability (DOMAIN.md).
- */
 export type ShiftStatus =
   | "DRAFT_OFFLINE"
   | "OPEN"
@@ -25,7 +19,16 @@ export const SHIFT_TRANSITIONS: Readonly<Record<ShiftStatus, readonly ShiftStatu
   VOID: []
 };
 
-/** Throws. Task: T-SHIFT-001. */
-export function assertShiftTransition(_from: ShiftStatus, _to: ShiftStatus, _reason?: string): void {
-  throw new Error("Not implemented: T-SHIFT-001");
+export class InvalidShiftTransitionError extends Error {
+  constructor(from: ShiftStatus, to: ShiftStatus) {
+    super(`Invalid shift transition ${from} -> ${to}`);
+    this.name = "InvalidShiftTransitionError";
+  }
+}
+
+export function assertShiftTransition(from: ShiftStatus, to: ShiftStatus, _reason?: string): void {
+  const allowed = SHIFT_TRANSITIONS[from];
+  if (!allowed || !allowed.includes(to)) {
+    throw new InvalidShiftTransitionError(from, to);
+  }
 }

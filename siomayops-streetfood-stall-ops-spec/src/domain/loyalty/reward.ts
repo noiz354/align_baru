@@ -1,8 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Loyalty (LOYALTY.md, ADR-0028). No points algorithm exists in this phase; the domain fixes
- * identity, consent and single-use redemption rules so concurrency is decidable later.
- */
 export interface LoyaltyRules {
   readonly rulesVersion: string;
   readonly earnPerMinorSpent: number;
@@ -22,16 +17,43 @@ export interface RewardInstance {
   readonly redeemedSaleId?: string;
 }
 
-/** Throws. Task: T-LOY-003. Exactly one concurrent redemption may succeed (INV-06). */
-export function redeemReward(
-  _instance: RewardInstance,
-  _saleId: string,
-  _now: Date
-): { readonly instance: RewardInstance; readonly outcome: "REDEEMED" } {
-  throw new Error("Not implemented: T-LOY-003");
+export class RewardAlreadyRedeemedError extends Error {
+  constructor() {
+    super("Reward already redeemed");
+    this.name = "RewardAlreadyRedeemedError";
+  }
 }
 
-/** Throws. Task: T-LOY-002. No earning on self-operated transactions (FR-LOYALTY-011). */
-export function computeEarn(_rules: LoyaltyRules, _saleTotalMinor: number): number {
-  throw new Error("Not implemented: T-LOY-002");
+export class RewardExpiredError extends Error {
+  constructor() {
+    super("Reward expired");
+    this.name = "RewardExpiredError";
+  }
+}
+
+export function redeemReward(
+  instance: RewardInstance,
+  saleId: string,
+  now: Date
+): { readonly instance: RewardInstance; readonly outcome: "REDEEMED" } {
+  if (instance.redeemedAt) {
+    throw new RewardAlreadyRedeemedError();
+  }
+  if (instance.expiresAt && now > instance.expiresAt) {
+    throw new RewardExpiredError();
+  }
+  if (!saleId) throw new Error("saleId required");
+  const updated: RewardInstance = {
+    ...instance,
+    redeemedAt: now,
+    redeemedSaleId: saleId,
+  };
+  return { instance: updated, outcome: "REDEEMED" };
+}
+
+export function computeEarn(rules: LoyaltyRules, saleTotalMinor: number): number {
+  if (saleTotalMinor <= 0) return 0;
+  if (rules.earnPerMinorSpent <= 0) return 0;
+  const points = Math.floor(saleTotalMinor * rules.earnPerMinorSpent);
+  return Math.min(points, rules.periodCapPoints);
 }

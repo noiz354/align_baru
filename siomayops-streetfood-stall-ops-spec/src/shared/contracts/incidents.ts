@@ -1,11 +1,6 @@
-/**
- * PHASE 0 — CONTRACT ONLY. Zod schemas describe the request/response shape of API.md and are the
- * single source of truth shared by route shells, clients and the offline queue. No handler logic
- * exists anywhere in this phase (ADR-0036).
- */
 import { z } from "zod";
+import { uuidSchema, uuidV7Schema, instantSchema } from "./common";
 
-/** API.md §14 — submit incident. Requirements: FR-INC-001..010 (neutral recording, no auto-judgement). */
 export const incidentSubmitRequestSchema = z.object({
   shiftId: uuidSchema.optional(),
   stallId: uuidSchema.optional(),

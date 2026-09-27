@@ -1,9 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Inventory (INVENTORY.md, ADR-0030). Movements are append-only; positions are DERIVED.
- * Every difference is explainable by a reason, including the explicit UNKNOWN; nothing is
- * ever concluded about a person from variance.
- */
 export type MovementKind =
   | "ISSUE" | "RETURN" | "TRANSFER_IN" | "TRANSFER_OUT" | "WASTE" | "DAMAGE"
   | "SAMPLE" | "STAFF_MEAL" | "ADJUSTMENT" | "UNKNOWN" | "COUNT";
@@ -33,15 +27,51 @@ export interface DerivedStockPosition {
   readonly derivedAt: Date;
 }
 
-/** Throws. Task: T-STOCK-001. */
-export function deriveStockPosition(_movements: readonly StockMovement[]): DerivedStockPosition {
-  throw new Error("Not implemented: T-STOCK-001");
+export function deriveStockPosition(movements: readonly StockMovement[]): DerivedStockPosition {
+  if (movements.length === 0) throw new Error("No movements to derive position");
+  const stockItemId = movements[0]!.stockItemId;
+  const stallId = movements[0]!.stallId;
+  let qty = 0;
+  for (const m of movements) {
+    if (m.stockItemId !== stockItemId) throw new Error("Mixed stock items in derivation");
+    // Simple: ISSUE, TRANSFER_IN, RETURN increase; TRANSFER_OUT, WASTE, DAMAGE, SAMPLE, STAFF_MEAL decrease
+    switch (m.kind) {
+      case "ISSUE":
+      case "TRANSFER_IN":
+      case "RETURN":
+      case "ADJUSTMENT":
+        qty += m.quantity;
+        break;
+      case "TRANSFER_OUT":
+      case "WASTE":
+      case "DAMAGE":
+      case "SAMPLE":
+      case "STAFF_MEAL":
+      case "UNKNOWN":
+        qty -= Math.abs(m.quantity);
+        break;
+      case "COUNT":
+        // COUNT is snapshot, not movement - but if present, set to quantity
+        qty = m.quantity;
+        break;
+    }
+  }
+  return {
+    stockItemId,
+    stallId,
+    quantity: qty,
+    derivedAt: new Date(),
+  };
 }
 
-/** Throws. Task: T-STOCK-002. Returns a NEUTRAL difference plus its reason requirement. */
 export function computeStockVariance(
-  _expectedQuantity: number,
-  _countedQuantity: number | null
+  expectedQuantity: number,
+  countedQuantity: number | null
 ): { difference: number; reasonRequired: boolean; uncounted: boolean } {
-  throw new Error("Not implemented: T-STOCK-002");
+  if (countedQuantity === null) {
+    return { difference: 0, reasonRequired: false, uncounted: true };
+  }
+  const diff = countedQuantity - expectedQuantity;
+  const reasonRequired = diff !== 0;
+  return { difference: diff, reasonRequired, uncounted: false };
 }

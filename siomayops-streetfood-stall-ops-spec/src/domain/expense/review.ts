@@ -1,9 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Expenses (EXPENSES.md, ADR-0027). Field payments are recorded NEUTRALLY as
- * UNVERIFIED_FIELD_EXPENSE (or another auditable category). The domain knows nothing about who
- * received a payment or why, and contains no workflow that would facilitate, hide or optimise it.
- */
 export type ExpenseCategoryCode =
   | "UNVERIFIED_FIELD_EXPENSE" | "TRANSPORT" | "CLEANING" | "CONSUMABLE"
   | "REPAIR_MINOR" | "PARKING" | "OTHER_OPERATIONAL";
@@ -25,19 +19,46 @@ export interface ExpenseRecord {
   readonly clientExpenseId: string;
 }
 
-/** Throws. Task: T-EXP-002. */
+const REVIEW_TRANSITIONS: Record<ExpenseReviewState, ExpenseReviewState[]> = {
+  SUBMITTED: ["REVIEW_REQUIRED", "REVIEWED", "REJECTED", "ESCALATED"],
+  REVIEW_REQUIRED: ["REVIEWED", "REJECTED", "ESCALATED"],
+  REVIEWED: [],
+  REJECTED: ["REVIEW_REQUIRED"],
+  ESCALATED: ["REVIEWED", "REJECTED"],
+};
+
 export function nextReviewState(
-  _current: ExpenseReviewState,
-  _decision: "REVIEWED" | "REJECTED" | "ESCALATED",
-  _reason: string
+  current: ExpenseReviewState,
+  decision: "REVIEWED" | "REJECTED" | "ESCALATED",
+  reason: string
 ): ExpenseReviewState {
-  throw new Error("Not implemented: T-EXP-002");
+  if (!reason || reason.trim().length < 3) throw new Error("Reason required, min 3 chars");
+  const allowed = REVIEW_TRANSITIONS[current];
+  if (!allowed.includes(decision as ExpenseReviewState)) {
+    throw new Error(`Invalid expense review transition ${current} -> ${decision}`);
+  }
+  return decision as ExpenseReviewState;
 }
 
-/** Throws. Task: T-EXP-003. Patterns are matched against RECORDS, never personalities. */
 export function matchesFlagPattern(
-  _record: ExpenseRecord,
-  _patternId: string
+  record: ExpenseRecord,
+  patternId: string
 ): boolean {
-  throw new Error("Not implemented: T-EXP-003");
+  // Pattern matching against RECORDS, never personalities (per ADR)
+  // Implement simple patterns:
+  switch (patternId) {
+    case "HIGH_AMOUNT":
+      return record.amount.amountMinor > 200000; // >200k IDR
+    case "REPEATED_UNVERIFIED":
+      return record.categoryCode === "UNVERIFIED_FIELD_EXPENSE";
+    case "ROUND_AMOUNT":
+      return record.amount.amountMinor % 50000 === 0 && record.amount.amountMinor >= 50000;
+    case "NO_EVIDENCE_HIGH":
+      return !record.evidenceAssetId && record.amount.amountMinor > 100000;
+    case "FREQUENT_SAME_SHIFT":
+      // This would need shift context, return false for single record check
+      return false;
+    default:
+      return false;
+  }
 }

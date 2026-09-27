@@ -20,6 +20,7 @@ export type IncidentId = Uuid;
 export type ClosingId = Uuid;
 export type LoyaltyAccountId = Uuid;
 export type RewardInstanceId = Uuid;
+export type MenuItemId = Uuid;
 
 /** Offline-creatable records carry a client-generated UUIDv7 alias, unique per organisation. */
 export type ClientRecordId = UuidV7;
