@@ -8,6 +8,7 @@ from typing import List, Optional
 from src.core.domain import (
     IParkingRepository,
     IAuditLogPort,
+    ISystemClock,
     ParkingSession,
     ParkingSlot,
     SlotStatus,
@@ -17,12 +18,19 @@ from src.core.domain import (
     PhotoEvidence
 )
 from src.modules.vehicle.service import PlateSanitizer
+from src.infra.clock import MonotonicSystemClock
 
 
 class CheckInUseCase:
-    def __init__(self, parking_repo: IParkingRepository, audit_logger: IAuditLogPort):
+    def __init__(
+        self,
+        parking_repo: IParkingRepository,
+        audit_logger: IAuditLogPort,
+        clock: Optional[ISystemClock] = None,
+    ):
         self.parking_repo = parking_repo
         self.audit_logger = audit_logger
+        self.clock = clock or MonotonicSystemClock()
 
     def execute(
         self,
@@ -51,7 +59,7 @@ class CheckInUseCase:
             raise ValueError(f"Slot {slot.slot_code} sedang tidak kosong (Status: {slot.status}).")
 
         session_id = f"ses_{uuid.uuid4().hex[:12]}"
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
 
         session = ParkingSession(
             session_id=session_id,
@@ -75,6 +83,19 @@ class CheckInUseCase:
 
         # Save Session
         self.parking_repo.save_session(session)
+
+        # OFFLINE.md: emit a transactional outbox event for background sync.
+        if hasattr(self.parking_repo, "enqueue_outbox"):
+            self.parking_repo.enqueue_outbox(
+                f"out_{session.session_id}", "VehicleCheckedIn",
+                {
+                    "session_id": session.session_id,
+                    "plate": plate.display_format,
+                    "slot_id": session.slot_id,
+                    "vehicle_type": vehicle_type.value,
+                    "shift_id": shift_id,
+                },
+            )
 
         # Audit
         self.audit_logger.record_audit(

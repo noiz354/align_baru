@@ -1,0 +1,17 @@
+[project]
+name = "parking-attendant-ops-app"
+version = "0.1.0"
+description = "Local-first parking attendant field-ops app (check-in/out, pricing, shifts, evidence)."
+requires-python = ">=3.9"
+# Zero required runtime dependencies — standard library only.
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
