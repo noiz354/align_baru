@@ -12,6 +12,8 @@
 export interface AuditEntry {
   readonly id: string;
   readonly occurredAt: string;
+  /** 1-based position in the organization's chain (T-SEC-007: gaps and reorders are detectable). */
+  readonly chainPosition: number;
   readonly actorUserId?: string;
   readonly actorRole?: string;
   readonly actionKey: string;         // permission key or a documented system action

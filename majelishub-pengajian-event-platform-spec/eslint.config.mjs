@@ -1,28 +1,67 @@
 /**
- * ESLint flat config - PHASE 0 SKELETON.
+ * ESLint 9 flat config.
  *
- * Two architectural rules are load-bearing and must exist as real rules before the first slice:
- *   T-ARCH-002  module boundaries: app -> features -> domain -> shared/server (never reversed)
- *   T-ARCH-003  no fake implementations: constant `success: true` returns and stubs whose
- *               `Not implemented: <task>` id does not exist in TASKS.md are errors
- * Plus: console.* is banned outside bootstrap (T-OBS-002) and token/code-named log fields are banned
- * (T-SEC-004). The ban list is shared with the runtime logger guard - one source of truth.
+ * Five rules are load-bearing because they encode decisions that review alone keeps losing:
+ *   majelishub/module-boundaries       T-ARCH-002 · ARCHITECTURE.md §5, ADR-0002 - the dependency
+ *                                      direction app -> features -> domain -> shared, plus the
+ *                                      client/server and Drizzle-schema boundaries.
+ *   majelishub/no-fake-implementation  T-ARCH-003 · AGENTS.md §4.1/§5 - no constant `success: true`
+ *                                      returns; every `Not implemented` stub names a real TASKS.md id.
+ *   majelishub/no-token-logging        T-SEC-004 · OBSERVABILITY.md §7 - no token/code/contact-named
+ *                                      fields in a logging call, and no interpolated message. It reads
+ *                                      the same ban list the runtime guard drops against.
  *
- * Why this file contains no rules yet: adding rules requires the parser/toolchain installation, which
- * belongs to the first slice (VS-1) per the Phase 0 dependency rule. The rule set, its fixtures and its
- * tests are specified in TASKS.md T-ARCH-002/003 and tests/unit/lint/*.
+ * All three custom rules are unit-tested against fixtures in `tests/unit/lint/**` and
+ * `tests/unit/observability/**` using this very config, so a rule that stops working after a dependency
+ * upgrade fails a test rather than silently passing.
+ *
+ * State (2026-09-27): boundaries, no-fake, the token-logging ban and the console ban are delivered.
  */
-export default [
+import tseslint from "typescript-eslint";
+import { majelishubPlugin } from "./ops/eslint/index.mjs";
+
+export default tseslint.config(
   {
-    ignores: ["node_modules/**", ".next/**", "coverage/**"],
+    ignores: ["node_modules/**", ".next/**", "coverage/**", "drizzle/**"],
   },
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaVersion: 2023,
+        sourceType: "module",
+      },
+    },
+    plugins: { majelishub: majelishubPlugin },
+    rules: {},
+  },
+  {
+    // Architecture: layering is checked where the layers live. Tests are exempt from the layer rule
+    // (they legitimately reach into every layer) but not from the no-fake rule.
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { majelishub: majelishubPlugin },
     rules: {
-      // TODO(T-ARCH-002): boundary rule (no-restricted-imports by layer)
-      // TODO(T-ARCH-003): no-fake-implementation custom rule
-      // TODO(T-OBS-002): no-console outside src/server/bootstrap/**
-      // TODO(T-SEC-004): no logging of token/code field names
+      "majelishub/module-boundaries": ["error", { requireReason: true }],
+      "majelishub/no-fake-implementation": "error",
+      "majelishub/no-token-logging": "error",
     },
   },
-];
+  {
+    files: ["tests/**/*.ts", "tests/**/*.tsx"],
+    plugins: { majelishub: majelishubPlugin },
+    rules: {
+      "majelishub/no-fake-implementation": "error",
+      "majelishub/no-token-logging": "error",
+    },
+  },
+  {
+    // OBSERVABILITY.md §5: exactly one logging interface. `src/server/bootstrap/**` is where that
+    // interface is configured, so it is the only place raw console output is allowed.
+    files: ["src/**/*.{ts,tsx}", "tests/**/*.ts", "ops/**/*.mjs"],
+    ignores: ["src/server/bootstrap/**"],
+    rules: {
+      "no-console": "error",
+    },
+  },
+);

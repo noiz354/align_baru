@@ -1,0 +1,82 @@
+/*
+ * BASE STYLESHEET - src/app/styles/base.css
+ *
+ * Where this belongs: `src/app/styles`, next to `tokens.css` (the single source of visual truth). This
+ * file applies the tokens to the document and encodes the accessibility floor; it contains no component
+ * design. The design system itself is VS-1 (docs/design/DESIGN-SYSTEM.md, T-DES-001).
+ *
+ * Non-negotiables encoded here (ACCESSIBILITY.md §WCAG "Operable", DESIGN.md CALM):
+ *   1. Visible focus: 2 px outline, high contrast, never removed - `:focus-visible` only, so pointer
+ *      users do not see a ring on every click.
+ *   2. Skip link: visually hidden until focused, then unmistakable.
+ *   3. No motion beyond a short fade, and nothing at all when the user asks for reduced motion.
+ *   4. Large-text mode moves the root font size only; every component is rem-based (styles/README.md §3).
+ *   5. Colour is never the only signal - so no state colour is defined here at all.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Large-text mode: `.large-text` on <html> raises the base, components follow (styles/README.md §3). */
+  font-size: 100%;
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+html.large-text {
+  font-size: var(--font-size-large-text-root, 125%);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-size: var(--font-size-body, 1rem);
+  line-height: var(--line-height-body, 1.5);
+  color: var(--color-text, #14181d);
+  background: var(--color-surface, #ffffff);
+  text-rendering: optimizeLegibility;
+}
+
+main {
+  display: block;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--color-focus-ring, #0b57d0);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2, 0.5rem);
+  top: var(--space-2, 0.5rem);
+  /* Hidden without display:none, so it stays focusable and announced by screen readers. */
+  transform: translateY(-200%);
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  min-height: var(--hit-target-min, 3.5rem);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #14181d);
+  border: 1px solid var(--color-border, #4a5560);
+  border-radius: var(--radius-control, 0.5rem);
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

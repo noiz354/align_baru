@@ -3,9 +3,11 @@
 This repository is written **for coding agents**. The documentation is authoritative; the code is a
 skeleton that must agree with it. Read this file before touching anything.
 
-Current phase: **specification + design + architecture + documentation + skeleton code**. No product
-behaviour is implemented. Any change that adds real business logic is out of scope until the roadmap
-slice that owns it is activated (`ROADMAP.md`).
+Current phase: **VS-1 (Phase 0 freeze lifted 2026-09-27).** The documentation set and the skeleton are
+still the authority. Two tasks are implemented — `T-ORG-001` (identity + durable rate limiting) and
+`T-SEC-001` (tenant isolation) — and both carry a `Delivered:` line in `TASKS.md` stating exactly what
+was and was not built. Any other change that adds real business logic is still out of scope until the
+roadmap slice that owns it is activated (`ROADMAP.md`) and its task block exists in `TASKS.md`.
 
 ---
 
@@ -89,9 +91,10 @@ outdated) update the document in the same PR and explain why. Never silently div
 
 1. **Never fake an implementation.** `return { success: true }` is forbidden. Unimplemented behaviour
    throws `new Error("Not implemented: T-XXX")` with the owning task ID.
-2. **Never implement beyond the phase.** No auth logic, no SQL, no QR generation, no recording, no
-   upload, no transcription, no notifications, no payments — skeletons and contracts only
-   (see the phase boundary in `README.md`).
+2. **Never implement beyond the activated task.** A slice activates specific tasks; everything outside
+   them stays a skeleton. As of VS-1 the activated surface is identity, tenancy and rate limiting
+   (`T-ORG-001`, `T-SEC-001`). Still forbidden everywhere: QR generation, recording, upload,
+   transcription, notifications, payments, and any product UI (see the phase boundary in `README.md`).
 3. **Never publish machine text.** Automated transcription is not authoritative. The review gate
    (ADR-0012) is not bypassable: machine draft → human review → approval → publication.
 4. **Never "fix" religious text automatically.** No silent correction of Qur'anic verses, hadith,
@@ -146,7 +149,9 @@ export async function validateCheckInToken(
    They must not render placeholder UI that could be mistaken for the product.
 4. **Test skeletons use `describe.todo` / `test.todo`** with the required behaviour in the title, e.g.
    `test.todo("returns ALREADY_CHECKED_IN with the original time without creating a second record")`.
-   Implementing a slice means replacing todos with real tests.
+   In the Playwright layers (E2E/a11y/load) the equivalent placeholder is
+   `test.fixme("title", async () => {})` — Playwright has no `todo`, and its `fixme` requires a body
+   (`TESTING.md` §1.4). Implementing a slice means replacing todos with real tests.
 5. **No unused abstractions.** Do not invent a port "for later" unless the docs name it.
 6. **Comments explain *where and why* the future code belongs**, never *how* the algorithm works
    (there is no algorithm yet).

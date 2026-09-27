@@ -9,19 +9,25 @@
     │  FREEZE memory                                           │
     │  TEST-TIME (read-only memory, no writes)                   │
     │    holdout tasks: cold (empty memory) vs warm (frozen)     │
+    │  IMPROVEMENT LOOP (optional, human-gated)                  │
+    │    evidence -> proposal -> isolated candidate -> evaluate  │
+    │      -> accept/reject -> apply -> verify -> rollback       │
     └────────────────────────────────────────────────────────────┘
 
 Every artifact that outlives a run is written under `runs/`:
     report.md      -- human-readable metrics + sample lessons
     memory.json    -- the persistent memory store (procedures/boundaries)
     attempts.jsonl -- full traces for benchmarking/dashboards
+    audit.jsonl    -- hash-chained audit trail of every improvement decision
+    cycles.json    -- per-cycle improvement records + loop health
+    baselines/     -- archived pre-apply memory payloads (rollback material)
 """
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 from .actor import ActorAgent
 from .curriculum import KNOWLEDGE_KEYS, CurriculumAgent
@@ -92,17 +98,20 @@ class RSIOrchestrator:
         self.escalations: list[dict] = []
         self._tasks_by_id: dict[str, Task] = {}
         self._task_counter = 0
+        self._eval_counter = 0
         self.phase_stats: dict[str, dict] = {}
+        self.improvement_loop = None
+        self.loop_health: dict = {}
 
     # ------------------------------------------------------------------ core
     def _run_task(self, task: Task, memory: PersistentMemory,
-                  write_lessons: bool) -> Attempt:
+                  write_lessons: bool, record: bool = True) -> Attempt:
         self._tasks_by_id[task.id] = task
         decision = self.routing.route(task)
 
         if decision.is_human:
-            record = self.routing.escalate(task, decision)
-            self.escalations.append(record)
+            escalation = self.routing.escalate(task, decision)
+            self.escalations.append(escalation)
             attempt = Attempt(
                 task_id=task.id, task_title=task.title, actor_id="human-workflow",
                 route="human", phase=task.phase,
@@ -111,11 +120,18 @@ class RSIOrchestrator:
                 output="escalated to human workflow", success=False,
                 score=0.0, done_confidence=0.0, escalated=True,
             )
-            self.attempts.append(attempt)
+            if record:
+                self.attempts.append(attempt)
             return attempt
 
-        actor = self.actors[self._task_counter % len(self.actors)]
-        self._task_counter += 1
+        # A dedicated counter for evaluations keeps actor assignment identical
+        # between a baseline run and a candidate run, so the comparison is fair.
+        if record:
+            actor = self.actors[self._task_counter % len(self.actors)]
+            self._task_counter += 1
+        else:
+            actor = self.actors[self._eval_counter % len(self.actors)]
+            self._eval_counter += 1
         result = actor.run(task, memory, decision.route)
         verdict: Verdict = self.verifier.verify(task, result)
 
@@ -131,8 +147,23 @@ class RSIOrchestrator:
             failure_mode=result.failure_mode,
             lessons=[lesson.content for lesson in verdict.lessons],
         )
-        self.attempts.append(attempt)
+        if record:
+            self.attempts.append(attempt)
         return attempt
+
+    def evaluate_against(self, memory: PersistentMemory,
+                         tasks: Sequence[Task]) -> list[Attempt]:
+        """Run tasks against an arbitrary memory snapshot, mutating nothing.
+
+        This is the holdout runner handed to `EvaluationEngine`: baseline and
+        candidate are measured on exactly the same tasks, with the same actor
+        assignment, and neither run writes lessons or pollutes the main trace.
+        """
+        self._eval_counter = 0
+        return [
+            self._run_task(task, memory, write_lessons=False, record=False)
+            for task in tasks
+        ]
 
     def _run_tasks(self, tasks: list[Task], memory: PersistentMemory,
                    write_lessons: bool, tag: str) -> dict:
@@ -161,12 +192,24 @@ class RSIOrchestrator:
 
     # ------------------------------------------------------------- lifecycle
     def explore(self, waves: int = 2, tasks_per_wave: int = 6,
-                drs_rounds: int = 2, drs_tasks: int = 4) -> None:
-        """BRS then DRS -- writes lessons to persistent memory."""
+                drs_rounds: int = 2, drs_tasks: int = 4,
+                improve_between_waves: bool = False,
+                improvement_limits=None, approval=None,
+                feedback: Sequence = ()) -> None:
+        """BRS then DRS -- writes lessons to persistent memory.
+
+        With `improve_between_waves=True` the bounded improvement loop runs after
+        each BRS wave, so exploration evidence is packaged, evaluated and applied
+        before the next wave starts. This is the recursive step: wave N+1 runs
+        with the memory that wave N's evidence was allowed to improve.
+        """
         for wave in range(waves):
             tasks = self.curriculum.propose_broad(tasks_per_wave, wave)
             self._run_tasks(tasks, self.memory, write_lessons=True,
                             tag=f"BRS wave {wave + 1}/{waves}")
+            if improve_between_waves:
+                self.improve(max_cycles=1, limits=improvement_limits,
+                             approval=approval, feedback=feedback)
         for round_no in range(drs_rounds):
             weak = self._weak_keys()
             tasks = self.curriculum.propose_deep(drs_tasks, weak, round_no)
@@ -186,6 +229,73 @@ class RSIOrchestrator:
         warm_stats = self._run_tasks(holdout, self.memory, write_lessons=False,
                                      tag="TEST warm (frozen memory)")
         return warm_stats
+
+    # ------------------------------------------------------- improvement loop
+    def improve(
+        self,
+        max_cycles: int | None = None,
+        limits=None,
+        approval=None,
+        feedback: Sequence = (),
+    ) -> list:
+        """Run the bounded self-improvement loop over persistent memory.
+
+        The loop is never run at test time: memory is frozen there, so any
+        write is refused. Call it after exploration and before ``freeze()``.
+        """
+        from .audit import AuditLog
+        from .evaluator import AcceptancePolicy, EvaluationEngine, EvaluationLimits
+        from .improvement import ImprovementLimits, ImprovementLoop, ApprovalPolicy
+        from .proposals import ProposalGenerator
+
+        limits = limits or ImprovementLimits()
+        if self.memory.frozen:
+            self.log("memory is frozen; improvement loop not started")
+            return []
+
+        holdout = self.curriculum.holdout(12, split="improve")
+        engine = EvaluationEngine(
+            self.evaluate_against,
+            limits=EvaluationLimits(
+                max_holdout_tasks=12,
+                max_lessons_per_candidate=limits.max_changed_lessons,
+                max_diff_lines=limits.max_diff_lines,
+            ),
+            policy=AcceptancePolicy(min_target_delta=limits.min_target_delta),
+        )
+        loop = ImprovementLoop(
+            self.memory,
+            engine,
+            holdout,
+            runs_dir=self.runs_dir,
+            limits=limits,
+            approval=approval or ApprovalPolicy(),
+            audit=AuditLog(self.runs_dir / "audit.jsonl"),
+            generator=ProposalGenerator(
+                max_lessons_per_proposal=limits.max_changed_lessons,
+            ),
+            log=self.log,
+        )
+        self.improvement_loop = loop
+        cycles = loop.run(
+            max_cycles=max_cycles,
+            attempts=self.attempts,
+            feedback=feedback,
+            tasks_by_id=self._tasks_by_id,
+        )
+        from .metrics import compute_loop_health
+
+        self.loop_health = compute_loop_health(
+            cycles, audit_counts=loop.audit.counts()
+        ).to_dict()
+        self.log(
+            "improvement loop: %d cycle(s), %d accepted, %d rejected, "
+            "%d rolled back" % (
+                len(cycles), self.loop_health["accepted"],
+                self.loop_health["rejected"], self.loop_health["rolled_back"],
+            )
+        )
+        return cycles
 
     # ---------------------------------------------------------------- report
     def report(self) -> Path:
@@ -243,7 +353,7 @@ class RSIOrchestrator:
         ]
 
         lines.append("### Sample verified lessons")
-        for lesson in self.memory._lessons[:6]:
+        for lesson in self.memory.entries()[:6]:
             lines.append(f"- `{lesson.kind}` (conf {lesson.confidence:.1f}, "
                          f"keys: {', '.join(lesson.knowledge_keys)}): {lesson.content}")
 
@@ -252,12 +362,59 @@ class RSIOrchestrator:
             for record in self.escalations:
                 lines.append(f"- **{record['title']}** -- {record['reason']}")
 
+        if self.improvement_loop is not None:
+            lines += [
+                "",
+                "## Self-improvement loop",
+                "",
+                "| Cycle | Proposals | Accepted | Rejected | Escalated "
+                "| Rolled back | Revision |",
+                "|---|---|---|---|---|---|---|",
+            ]
+            for cycle in self.improvement_loop.cycles:
+                lines.append(
+                    f"| {cycle.cycle} | {len(cycle.proposals)} "
+                    f"| {len(cycle.accepted)} | {len(cycle.rejected)} "
+                    f"| {len(cycle.escalated)} | {len(cycle.rolled_back)} "
+                    f"| {cycle.baseline_revision[:12]} -> "
+                    f"{cycle.final_revision[:12]} |"
+                )
+            health = self.loop_health
+            if health:
+                lines += [
+                    "",
+                    f"- acceptance rate **{health.get('acceptance_rate', 0) * 100:.0f}%**"
+                    f" · regression rate {health.get('regression_rate', 0) * 100:.0f}%"
+                    f" · rollback rate {health.get('rollback_rate', 0) * 100:.0f}%",
+                    f"- mean evaluation duration "
+                    f"{health.get('mean_evaluation_duration_s', 0):.3f}s"
+                    f" · median improvement delta "
+                    f"{health.get('median_improvement_delta', 0):+.3f}",
+                    f"- stagnation count {health.get('stagnation_count', 0)}"
+                    + (f" -- **{self.improvement_loop.stop_reason}**"
+                       if self.improvement_loop.stop_reason else ""),
+                ]
+                tamper = health.get("tamper_findings", 0)
+                if tamper:
+                    lines.append(
+                        f"- tamper findings blocked: **{tamper}** "
+                        "(candidates that tried to weaken the evaluation)"
+                    )
+            lines += [
+                "",
+                "Every applied improvement is reversible: the pre-apply memory "
+                "payload is archived under `runs/baseline-<revision>.json` and "
+                "every decision is in `runs/audit.jsonl`.",
+            ]
+
         lines += [
             "",
             "## Artifacts",
             "",
             "- `runs/memory.json` -- persistent memory store (procedures + boundary lessons)",
             "- `runs/attempts.jsonl` -- full ReAct traces per attempt",
+            "- `runs/audit.jsonl` -- hash-chained audit trail of improvement decisions",
+            "- `runs/cycles.json` -- per-cycle improvement records + loop health",
             "- `runs/report.md` -- this file",
             "",
         ]
@@ -265,9 +422,25 @@ class RSIOrchestrator:
         report_path.write_text("\n".join(lines), encoding="utf-8")
 
         attempts_path = self.runs_dir / "attempts.jsonl"
+        # Merge with any trace written by an earlier process instead of
+        # truncating it: a report generated from a resumed run must not erase
+        # the attempts of the run that produced the memory.
+        merged: dict[str, dict] = {}
+        if attempts_path.exists():
+            for line in attempts_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                merged[str(record.get("task_id"))] = record
+        for attempt in self.attempts:
+            merged[str(attempt.task_id)] = attempt.to_dict()
         with attempts_path.open("w", encoding="utf-8") as fh:
-            for attempt in self.attempts:
-                fh.write(json.dumps(attempt.to_dict()) + "\n")
+            for record in merged.values():
+                fh.write(json.dumps(record) + "\n")
 
         self.memory.save()
         self.log(f"report written to {report_path}")

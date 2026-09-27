@@ -2,8 +2,8 @@
 
 A greenfield manga/comic reader web application for **legally owned, licensed, or authorized** content: a browsable catalog, a fast multi-mode reader, per-user libraries, and an admin panel with a secure upload pipeline.
 
-> **Repository status: ARCHITECTURE PHASE (complete for now, implementation pending).**
-> This repository currently contains the validated stack, the full specification suite, architecture decisions (ADRs), task breakdown, and non-functional code **skeletons**. No product feature is implemented. Coding agents implement exclusively from `TASKS.md` in the order defined by `ROADMAP.md`. Read `AGENTS.md` before writing any code.
+> **Repository status (2026-09-27): VS-0 foundation implemented; VS-1…VS-11 product work pending.**
+> T-FOUND-001…012 established tooling, route shells, UI primitives, initial database migration, health endpoint, logging, error contract, compose, CI configuration and seed harness. Product routes/services remain shells; database-backed integration has not been verified in this sandbox. Follow `TASKS.md` in `ROADMAP.md` order and read `AGENTS.md` before coding. Workflows inside this folder are not discovered by GitHub Actions in the monorepo; root workflow provides only smoke checks.
 
 ## Product in one paragraph
 

@@ -1,6 +1,6 @@
 # TASKS.md — Implementation Work Plan
 
-Date: 2026-09-26 · Source of work for coding agents. Execute in ROADMAP.md vertical-slice order; a task is authorized when its slice starts. **Every task below is NOT implemented in the current (architecture) phase** — this file is the contract for later work.
+Date: 2026-09-26 · Audit 2026-09-27: **VS-0 T-FOUND-001…012 has implementation, but scratch-Postgres integration and E2E have not been verified here; VS-1…VS-11 remain pending.** The previous “every task NOT implemented” statement is stale. Execute in ROADMAP.md vertical-slice order; a task closes only after its DoD is verified, not merely because foundation code exists.
 
 Conventions:
 - Fields per task: Requirements / Goal / Depends on / Expected modules / Inputs / Expected behavior / Edge cases / Security / Testing / Manual QA / Definition of Done (→ AGENTS.md).

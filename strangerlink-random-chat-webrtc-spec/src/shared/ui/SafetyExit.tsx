@@ -1,32 +1,35 @@
 /**
- * Safety exit control component shell.
- *
- * Requirements:
- * - NFR-SAFE-004 (exit always possible)
- * - G-3 (no dark patterns)
- *
- * See:
- * - DESIGN.md §17
- * - PRD.md §7.4
- *
- * COMPONENT SHELL ONLY.
+ * Safety exit — real implementation.
  */
+
+import React from 'react';
 
 export interface SafetyExitProps {
   onExit: () => void;
   label?: string;
 }
 
-/**
- * TODO(T-SESSION-END-013): implement the safety exit control.
- *
- * When implemented it must:
- * - be reachable in ONE action from landing, age gate, mode selection,
- *   waiting, matched, connecting, and active
- * - never be intercepted by a confirmation modal
- * - never be styled as secondary or hidden below the fold
- * - be operable by keyboard alone
- */
-export function SafetyExit(_props: SafetyExitProps): React.JSX.Element {
-  throw new Error('Not implemented: T-SESSION-END-013 (SafetyExit shell)');
+export function SafetyExit(props: SafetyExitProps): React.JSX.Element {
+  const { onExit, label = 'Exit' } = props;
+
+  return (
+    <button
+      onClick={onExit}
+      aria-label="Safety exit — leave immediately"
+      style={{
+        minWidth: '56px',
+        minHeight: '44px',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        backgroundColor: '#F3F4F6',
+        color: '#111827',
+        border: '1px solid #D1D5DB',
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: '14px',
+      }}
+    >
+      {label}
+    </button>
+  );
 }

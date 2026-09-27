@@ -1,14 +1,6 @@
-/**
- * PHASE 0 — CONTRACT ONLY. Zod schemas describe the request/response shape of API.md and are the
- * single source of truth shared by route shells, clients and the offline queue. No handler logic
- * exists anywhere in this phase (ADR-0036).
- */
 import { z } from "zod";
+import { uuidSchema, uuidV7Schema, instantSchema } from "./common";
 
-/**
- * OFFLINE.md §sync — POST /api/v1/sync/batches. Task: T-OFF-001.
- * Per-aggregate ordering, per-record results, no silent drops (NFR-OFFLINE-003..007).
- */
 export const syncRecordSchema = z.object({
   aggregate: z.enum(["shift", "location_report", "sale", "payment_cash", "expense", "stock_report", "incident", "closing"]),
   clientId: uuidV7Schema,

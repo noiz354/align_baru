@@ -1,10 +1,5 @@
-/**
- * PHASE 0 — COMPONENT SHELL. Props are the contract; the render is intentionally absent and
- * throws so nothing can be mistaken for a working screen (ADR-0036, task T-FOUND-002).
- * Design rules live in DESIGN.md and docs/design/DESIGN-SYSTEM.md.
- */
+"use client";
 
-/** Per-record sync state must always be visible to the operator (NFR-OFFLINE-006). */
 export type SyncState = "LOCAL_ONLY" | "PENDING" | "SYNCING" | "SYNCED" | "REJECTED" | "DEFERRED";
 
 export interface SyncStatePillProps {
@@ -13,6 +8,35 @@ export interface SyncStatePillProps {
   readonly retryAfterSeconds?: number;
 }
 
-export function SyncStatePill(_props: SyncStatePillProps): never {
-  throw new Error("Not implemented: T-OFF-003");
+const stateMap: Record<SyncState, { label: string; color: string; bg: string }> = {
+  LOCAL_ONLY: { label: "Lokal", color: "#374151", bg: "#f3f4f6" },
+  PENDING: { label: "Antri", color: "#92400e", bg: "#fef3c7" },
+  SYNCING: { label: "Sinkron...", color: "#1e40af", bg: "#dbeafe" },
+  SYNCED: { label: "Tersinkron", color: "#065f46", bg: "#d1fae5" },
+  REJECTED: { label: "Ditolak", color: "#991b1b", bg: "#fee2e2" },
+  DEFERRED: { label: "Ditunda", color: "#9a3412", bg: "#ffedd5" },
+};
+
+export function SyncStatePill({ state, reasonMessageId, retryAfterSeconds }: SyncStatePillProps) {
+  const cfg = stateMap[state];
+  return (
+    <span
+      style={{
+        background: cfg.bg,
+        color: cfg.color,
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontWeight: 600,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+      title={reasonMessageId}
+    >
+      {cfg.label}
+      {reasonMessageId && <span style={{ fontWeight: 400 }}>• {reasonMessageId}</span>}
+      {retryAfterSeconds && <span>({retryAfterSeconds}s)</span>}
+    </span>
+  );
 }

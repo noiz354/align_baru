@@ -1,14 +1,6 @@
-/**
- * PHASE 0 — CONTRACT ONLY. Zod schemas describe the request/response shape of API.md and are the
- * single source of truth shared by route shells, clients and the offline queue. No handler logic
- * exists anywhere in this phase (ADR-0036).
- */
 import { z } from "zod";
+import { uuidSchema, uuidV7Schema, moneySchema } from "./common";
 
-/**
- * API.md §7/§8/§9 — cash, digital, provider callback.
- * Requirements: FR-PAYMENT-001..016, FR-CASH-001..006, ADR-0033 (never offline PAID).
- */
 export const cashPaymentRequestSchema = z.object({
   saleId: uuidSchema,
   amount: moneySchema,
@@ -26,14 +18,12 @@ export const digitalPaymentRequestSchema = z.object({
 });
 export type DigitalPaymentRequest = z.infer<typeof digitalPaymentRequestSchema>;
 
-/** Callback payloads are untrusted until verified (signature, reference, amount, replay). */
 export const providerCallbackEnvelopeSchema = z.object({
   provider: z.string().min(2),
   rawBody: z.string(),
   headers: z.record(z.string(), z.string())
 });
 
-/** HQ Finance reconciliation record — the only manual path to PAID (FR-PAYMENT-009). Task: T-PAY-004. */
 export const reconciliationRequestSchema = z.object({
   paymentId: uuidSchema,
   outcome: z.enum(["MATCHED", "SHORT", "OVER", "MISSING", "DISPUTED"]),

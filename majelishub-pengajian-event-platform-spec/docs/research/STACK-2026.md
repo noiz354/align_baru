@@ -51,13 +51,9 @@ records the 2026 technology validation performed before freezing the architectur
 ## 2. React + TypeScript
 
 - **Classification: SELECTED**
-- **Packages:** `react`/`react-dom` 19.2 (bundled with Next.js 16.x), `typescript` 5.9.x, `@types/node` 24.x.
-- **React 19.2 stable**. `use`, `useActionState`, transitions are stable.
+- **React 19.2 stable** (bundled with Next.js 16.x). `use`, `useActionState`, transitions are stable.
 - **TypeScript 5.9+** in `strict` mode, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` — the skeleton relies on the type system to express invariants.
 - **Why:** Compile-time domain modelling (branded IDs, discriminated unions for state machines) is the cheapest possible substitute for runtime validation of business rules.
-- **Phase 0 note:** `typescript` and `@types/node` are declared in Phase 0 because VS-0 exit criterion 2
-  (`npm run typecheck` passes on the skeleton) cannot be checked without them. They are toolchain, not
-  product dependencies: importing them in `src/**` or `tests/**` is still forbidden.
 
 ## 3. Runtime — Node.js 24 LTS
 
@@ -77,8 +73,7 @@ records the 2026 technology validation performed before freezing the architectur
 ## 5. Data access — Drizzle ORM + `pg` driver
 
 - **Classification: SELECTED**
-- **Packages:** `drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x, `pg` 8.x (driver), `@types/pg` (types only).
-- **Version line:** Drizzle ORM 0.4x; typed SQL-first schema in TypeScript.
+- **Version line:** Drizzle ORM 0.4x (`drizzle-orm`, `drizzle-kit`); typed SQL-first schema in TypeScript.
 - **Why:** no codegen step, SQL-shaped output we can read in `EXPLAIN`, first-class partial unique indexes / `ON CONFLICT` needed for idempotent check-in and attendance, small bundle, `pglite`/`node-postgres` compatible, no binary engine to ship into a container.
 - **Rejected — Prisma 7:** substantially narrowed the gap in 2026 (Rust engine removed, ≈1.6 MB client) and has better Studio tooling, but it is a second schema language, a codegen step in CI, and nested-write ergonomics we do not need; our idempotency logic is SQL-shaped.
 - **Rejected — Kysely:** excellent type safety, but fewer batteries (no schema/migration toolkit of the same maturity) for a small team.
@@ -87,8 +82,7 @@ records the 2026 technology validation performed before freezing the architectur
 ## 6. Authentication & authorization — Better Auth
 
 - **Classification: SELECTED** (see ADR-0005)
-- **Packages:** `better-auth` 1.7.x, with `better-auth/adapters/drizzle` and `better-auth/next-js`.
-- **Status:** Better Auth 1.6.x at selection (May 2026), 1.7.x installed for VS-1; active development. Auth.js/NextAuth has been in **security-patch-only maintenance since Sept 2025** under the Better Auth team and its own docs redirect new projects to Better Auth — so Auth.js is **REJECTED for greenfield**, not because it is broken (existing apps are safe).
+- **Status:** Better Auth 1.6.x (May 2026), active development. Auth.js/NextAuth has been in **security-patch-only maintenance since Sept 2025** under the Better Auth team and its own docs redirect new projects to Better Auth — so Auth.js is **REJECTED for greenfield**, not because it is broken (existing apps are safe).
 - **Why:** users live in *our* Postgres; organization plugin with roles/members maps directly onto our multi-tenant organizer model; passkey/MFA/session-revocation plugins available without a per-MAU bill; no vendor lock-in on identity data.
 - **Operational warnings recorded:** Better Auth's default rate limiter is in-memory and resets on deploy — a durable store must be configured before production (`SECURITY.md` §Rate limiting).
 - **Rejected — Clerk / Supabase Auth:** Clerk (reasonable product, per-MAU economics + identity lock-in, US-only data residency); Supabase Auth (only justified if we also adopt Supabase Postgres — we do not).
@@ -166,22 +160,24 @@ records the 2026 technology validation performed before freezing the architectur
 ## 16. Testing — Vitest 4 + Playwright + Testing Library
 
 - **Classification: SELECTED (Vitest, Playwright) — PLANNED (Vitest browser mode coverage)**
-- **Packages:** `vitest` 4.x, `@playwright/test` 1.x.
 - **Vitest 4:** stable; Jest-compatible API; native TS/ESM; browser mode **stable** since v4 with `@vitest/browser-playwright`; visual assertions via `toMatchScreenshot`.
 - **Playwright:** the browser layer for the two workflows that dominate risk — **QR check-in at a busy entrance** and **a 2-hour recording session** (needs real MediaRecorder, real device permissions, fake devices via Chromium flags, and trace/video evidence on failure).
 - **Layers:** jsdom-ish/Node unit tests → Postgres-backed integration tests → real-browser component tests → a thin Playwright E2E set over the money paths. See `TESTING.md`.
 - **Rejected:** Jest (slower cold start, worse ESM/TS story, no unified browser mode); Cypress (Playwright overtook it; worse parallelism and mobile-emulation story).
-- **Phase 0 note (updated 2026-09-27):** the test files still contain placeholders only — 338
-  `test.todo` + 80 `describe.todo` in the Vitest layers and 42 `test.fixme` in the Playwright layers,
-  with zero executable assertions. The two runners are now *declared* as devDependencies, because VS-0
-  exit criterion 2 (`npm run typecheck` passes) cannot be verified while 98 skeleton test files import
-  `vitest` and `@playwright/test` with no type declarations available. Declaring them does not start a
-  slice: `T-TEST-001` still owns making the suites run.
-- **DB-backed tests:** `@electric-sql/pglite` is a **devDependency** used to run Postgres-backed tests
-  without a container. It is the same engine compiled to WASM, so `ON CONFLICT`, partial indexes and
-  `FOR UPDATE SKIP LOCKED` behave identically — which is what lets the rate-limiter and attendance
-  invariants be tested on a contributor machine with no Docker. `T-TEST-001` remains free to point the
-  same suites at a containerised PostgreSQL 18 in CI.
+- **Phase 0 note (historical):** only `describe.todo()` skeletons existed and no test runner was
+  installed. Vitest 4 is installed as of VS-1 (see §Installation record).
+- **Integration database in environments without a container runtime — PGlite (dev-only).**
+  `@electric-sql/pglite` 0.5.8 embeds a real PostgreSQL 18 (WASM) in the test process. Classification:
+  **SELECTED as a development/CI convenience, never a runtime dependency.** It is used by
+  `tests/support/db.ts` when `INTEGRATION_DATABASE_URL` is not set; when that variable is set the same
+  suite runs against a real PostgreSQL server (the service container in `ops/docker-compose.test.yml`,
+  owned by `T-TEST-001`). It is *not* a mock: constraints, row-level security, transactions and
+  `current_setting()` behave identically, which is what makes the `T-SEC-001` isolation proof valid
+  (`TESTING.md` §1.3 forbids mocking the database for constraint behaviour). It never ships to
+  production and never appears in `dependencies`.
+  Two harnesses currently drive it — `tests/support/db.ts` (identity, isolation, audit and HTTP
+  rate-limit suites) and `tests/support/database.ts`, merged in from `main` with the durable rate-limiter
+  and session-repository suites. Unifying them is `T-TEST-001`; both are dev-only and neither is a mock.
 
 ## 17. Containerisation & CI/CD
 
@@ -212,7 +208,52 @@ records the 2026 technology validation performed before freezing the architectur
 4. No `latest` tags anywhere — Docker images, CI actions and ffmpeg are pinned by digest/version.
 5. A dependency may only be added if it removes more code than it adds, or removes an operational risk we cannot otherwise cover.
 
-## 20. Sources consulted (validation trail)
+## 20. Installation record (VS-1, 2026-09-27)
+
+The Phase 0 freeze was lifted and the SELECTED toolchain was installed, exactly as §Classification
+legend prescribes ("Installation happens when VS-1 starts"). Pinned versions (`package.json`,
+`--save-exact`), all inside the version lines this document selects:
+
+| Package | Version | Classification basis |
+|---|---|---|
+| `next` | 16.3.6 | §1 SELECTED (16.3.x line) |
+| `react`, `react-dom` | 19.3.0 | §2 SELECTED (React 19.x; the 19.2 line advanced to 19.3 — same major, §19.3) |
+| `zod` | 4.6.5 | validation schemas (`src/shared/validation/**`) |
+| `drizzle-orm` | 0.45.3 | §5 SELECTED (0.4x line) |
+| `drizzle-kit` | 0.31.11 | §5 SELECTED (migrations as reviewed SQL) |
+| `pg` | 8.23.0 | §5 SELECTED (`pg` driver) |
+| `better-auth` | 1.6.33 | §6 SELECTED (1.6.x line), ADR-0005 |
+| `typescript` | 5.9.3 | §2 SELECTED (5.9+, strict) |
+| `eslint` + `typescript-eslint` | 9.39.5 / 8.70.1 | §16, `T-ARCH-002/003` (flat config) |
+| `vitest` | 4.1.11 | §16 SELECTED (Vitest 4) |
+| `@playwright/test` | 1.63.0 | §16 SELECTED (browser download skipped here; `T-TEST-001`) |
+| `@electric-sql/pglite` | 0.5.8 | §16 dev-only integration harness (above) |
+| `@better-auth/memory-adapter` | 1.6.33 | dev-only: identity store for the `T-ORG-001` round-trip test (below) |
+| `@types/node`, `@types/react`, `@types/react-dom`, `@types/pg` | 24.19.0 / 19.3.0 / 19.3.0 / 8.23.1 | types for the above |
+
+Not installed, deliberately: any provider SDK, Redis/BullMQ, Elasticsearch, vector stores, Kubernetes
+tooling — all REJECTED or PLANNED for a later slice (§13, §14, §18).
+
+**Dev-only addition, 2026-09-27: `@better-auth/memory-adapter` 1.6.33** (a `devDependency`, never in
+`dependencies`). Classification: **test double for the identity store only.**
+`tests/integration/identity/auth-round-trip.test.ts` proves the sign-up → cookie → `getSession()` round
+trip through the production `createAuth` configuration, but injects this adapter instead of the `pg`
+pool. Reason, recorded because it constrains `T-ORG-001`: `@better-auth/drizzle-adapter` (a transitive
+dependency of `better-auth`, deliberately *not* installed) resolves Better Auth's mapped field names
+against Drizzle table **properties**, while the production `pg` pool adapter needs the real snake_case
+**column** names; with the mappings the pool requires, the Drizzle adapter emits `DEFAULT` for `users.id`
+and the insert fails the not-null constraint. Running the identity store on PostgreSQL through Drizzle is
+a recorded follow-up for `T-ORG-001`; production remains `database: getPool()`, and session/user rows in
+PostgreSQL are covered by `tests/integration/security/session-revocation.test.ts` and `session-scope.test.ts`.
+
+Runtime note for this environment: the sandbox default is Node 22 (Maintenance LTS) while `engines` and
+§3 target Node 24 Active LTS. As of 2026-09-27 the whole verification set — `tsc --noEmit`, `eslint`,
+`vitest run`, `ops/docs-lint.mjs` and `next build` — was executed on **Node.js v24.21.0** (installed from
+the npm `node@24.21.0` package, because direct downloads from `nodejs.org` are blocked by this
+environment's network egress) with npm 11.20.0. Node 22 also passes everything except that `engines`
+warns; the deployment target is Node 24 (ADR-0020).
+
+## 21. Sources consulted (validation trail)
 
 Official and primary sources (accessed 2026-09-26):
 

@@ -16,11 +16,13 @@ Requirements: all · ADR-0021 (stack), `QA.md` (manual scenarios), `docs/testing
    test. This is why `PROHIBITED: mocking the database for constraint behaviour` exists.
 4. **Skeletons first.** Phase 0 ships placeholder test files that name the required behaviours:
    `describe.todo()` / `test.todo()` in Vitest layers (unit, integration, browser) and
-   `test.fixme(title)` inside a `test.describe(...)` in the Playwright layers (E2E, a11y, load), because
-   Playwright has no `todo` API and `fixme` is its documented way to declare a test that must exist but
-   must not run yet. Implementing a slice means replacing its placeholders with real tests — the list is
-   the acceptance
-   checklist (`TASKS.md` DoD).
+   `test.fixme(title, async () => {})` inside a `test.describe(...)` in the Playwright layers (E2E, a11y,
+   load), because Playwright has no `todo` API and `fixme` is its documented way to declare a test that
+   must exist but must not run yet. Note the exact signature: Playwright's `test.fixme` accepts
+   `(title, body)`, `(title, details, body)`, or the in-test `fixme()` / `fixme(condition, description)`
+   forms — a single-string `test.fixme(title)` is **not** a valid signature and does not typecheck
+   (corrected during VS-0 exit verification, 2026-09-27). Implementing a slice means replacing its
+   placeholders with real tests — the list is the acceptance checklist (`TASKS.md` DoD).
 5. **Determinism.** Injected `Clock`, seeded randomness, no `sleep`, no implicit ordering, no
    network, no shared mutable fixtures.
 
@@ -31,7 +33,7 @@ Requirements: all · ADR-0021 (stack), `QA.md` (manual scenarios), `docs/testing
 | Unit — domain | `tests/unit/domain/**` | Vitest (node) | State machines (exhaustive allowed/forbidden transitions), invariants, capacity arithmetic, policy resolution, time resolution (ADR-0018), token formatting/parsing, provenance derivation | Pure; no I/O |
 | Unit — application | `tests/unit/**` | Vitest (node) | Services with **fake ports** (repositories, storage, provider) — behaviour, error mapping, idempotency decisions | Fakes in `tests/support/fakes` |
 | Unit — contracts | `tests/unit/contracts/**` | Vitest | Validation schemas (accept/reject), error taxonomy mapping, event payload schemas, allow-list enforcement for logger | Pure |
-| Integration | `tests/integration/**` | Vitest + real Postgres (+ MinIO container) | Repositories, constraints (`ON CONFLICT`, unique indexes, FK tenancy), transactions, outbox emission, job handler idempotency, retention behaviours, provider adapter contract tests against fixture responses | Containers, no browser |
+| Integration | `tests/integration/**` | Vitest + real Postgres — the service container when `INTEGRATION_DATABASE_URL` is set, otherwise the embedded PGlite PostgreSQL 18 (`tests/support/db.ts`); MinIO container when a suite needs storage | Repositories, constraints (`ON CONFLICT`, unique indexes, FK tenancy), transactions, outbox emission, job handler idempotency, retention behaviours, provider adapter contract tests against fixture responses | Containers, no browser |
 | Browser/component | `tests/browser/**` | Vitest browser mode (Playwright provider) | Components with real DOM behaviour: focus management, live regions, form errors, scanner state machine UI, recorder state UI, transcript editor interactions (Arabic bidi) | Chromium (+ WebKit for a subset) |
 | E2E | `tests/e2e/**` | Playwright | The two money paths + the accessibility/keyboard script + offline behaviours | Ephemeral stack (compose), fake media devices |
 | Load/soak | `tests/e2e/load/**` + scripted runners | k6 or Playwright-driven synthetic load (decision: `T-PERF-001`) | Check-in throughput, registration contention, upload concurrency | Ephemeral stack, seeded data |

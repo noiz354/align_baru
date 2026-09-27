@@ -1,0 +1,510 @@
+{
+  "limits": {
+    "max_cycles": 2,
+    "max_proposals_per_cycle": 4,
+    "max_candidates_per_cycle": 3,
+    "max_changed_lessons": 2,
+    "max_diff_lines": 200,
+    "max_wall_clock_seconds": 120.0,
+    "max_tool_calls": 2000,
+    "max_concurrent_experiments": 1,
+    "min_target_delta": 0.1,
+    "stagnation_window": 2,
+    "auto_accept_max_risk": "MEDIUM"
+  },
+  "stop_reason": null,
+  "stagnation_count": 2,
+  "cycles": [
+    {
+      "cycle": 1,
+      "started_at": 1790482290.5707443,
+      "duration_s": 0.0424,
+      "state": "RECORDING",
+      "evidence_count": 6,
+      "proposals": [
+        {
+          "id": "prop-2205a2fbffaf",
+          "source_observation": [
+            "ev-task-b0-3",
+            "ev-task-b0-4"
+          ],
+          "target_component": "memory:key:safety",
+          "hypothesis": "Memory has no verified lesson covering 'safety'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 2 holdout task(s) that require it.",
+          "expected_benefit": "holdout success rate for tasks requiring 'safety' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
+          "risk_level": "MEDIUM",
+          "risk_reasons": [
+            "security-sensitive knowledge key(s): safety"
+          ],
+          "status": "APPLIED",
+          "created_at": 1790482290.573633,
+          "rejection_reason": null,
+          "targeted_keys": [
+            "safety"
+          ],
+          "evaluation_plan": "run the frozen holdout against baseline memory and against an isolated candidate clone; compare holdout_success_rate, holdout_avg_score, holdout_escalation_rate and targeted_key_coverage; run structural + tamper checks first",
+          "rollback_plan": "restore the archived baseline memory payload (runs/baseline-<revision>.json) and re-verify the baseline holdout metrics; the candidate workspace is discarded",
+          "change_set": {
+            "id": "cs-4c1c6845",
+            "proposal_id": "prop-2205a2fbffaf",
+            "base_revision": "mem-a381c642e2c47374",
+            "reason": "add verified boundary lesson for uncovered key 'safety'",
+            "created_at": 1790482290.5733528,
+            "changes": [
+              {
+                "op": "add",
+                "lesson": {
+                  "id": "lesson-31e466142e99",
+                  "content": "[boundary] 'safety': a first-pass fix failed here during exploration. Before finalizing work that touches 'safety', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
+                  "knowledge_keys": [
+                    "safety"
+                  ],
+                  "source_task_id": "task-b0-3",
+                  "confidence": 0.75,
+                  "verified": true,
+                  "created_at": 6.735,
+                  "kind": "boundary",
+                  "version": 1,
+                  "superseded_by": null,
+                  "deprecated": false
+                },
+                "target_lesson_id": null,
+                "reason": "cover knowledge key 'safety' observed as weak in exploration"
+              }
+            ]
+          },
+          "decision": {
+            "outcome": "ACCEPT",
+            "reasons": [
+              "target metric failed_task_recovery_rate improved by +1.000 with no critical regression"
+            ]
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "id": "eval-1a0e10f9796",
+          "proposal_id": "prop-2205a2fbffaf",
+          "benchmark_version": "holdout-v1",
+          "environment": {
+            "python": "3.11.2"
+          },
+          "started_at": 1790482290.582702,
+          "duration_s": 0.0077,
+          "passed": true,
+          "critical_regressions": [],
+          "tamper_findings": [],
+          "notes": [],
+          "checks": [
+            {
+              "name": "change-set-valid",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "tamper-scan",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "benchmark-version-pinned",
+              "ok": true,
+              "detail": "holdout-v1",
+              "mandatory": true
+            }
+          ],
+          "metrics": [
+            {
+              "name": "failed_task_recovery_rate",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_success_rate",
+              "baseline": 0.9091,
+              "candidate": 1.0,
+              "delta": 0.0909,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_avg_score",
+              "baseline": 0.9606,
+              "candidate": 1.0,
+              "delta": 0.0394,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "score",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_escalation_rate",
+              "baseline": 0.0833,
+              "candidate": 0.0833,
+              "delta": 0.0,
+              "higher_is_better": false,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "targeted_key_coverage",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "memory_lessons",
+              "baseline": 6.0,
+              "candidate": 7.0,
+              "delta": 1.0,
+              "higher_is_better": false,
+              "critical": false,
+              "unit": "count",
+              "improved": false,
+              "regressed": true
+            }
+          ]
+        },
+        {
+          "id": "verify-1a0e10f97a6",
+          "proposal_id": "prop-2205a2fbffaf",
+          "benchmark_version": "holdout-v1",
+          "environment": {
+            "python": "3.11.2"
+          },
+          "started_at": 1790482290.5981193,
+          "duration_s": 0.0071,
+          "passed": true,
+          "critical_regressions": [],
+          "tamper_findings": [],
+          "notes": [],
+          "checks": [
+            {
+              "name": "post-apply-verification",
+              "ok": true,
+              "detail": "target failed_task_recovery_rate delta +1.000",
+              "mandatory": true
+            }
+          ],
+          "metrics": [
+            {
+              "name": "failed_task_recovery_rate",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_success_rate",
+              "baseline": 0.9091,
+              "candidate": 1.0,
+              "delta": 0.0909,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_avg_score",
+              "baseline": 0.9606,
+              "candidate": 1.0,
+              "delta": 0.0394,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "score",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_escalation_rate",
+              "baseline": 0.0833,
+              "candidate": 0.0833,
+              "delta": 0.0,
+              "higher_is_better": false,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "targeted_key_coverage",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "memory_lessons",
+              "baseline": 6.0,
+              "candidate": 7.0,
+              "delta": 1.0,
+              "higher_is_better": false,
+              "critical": false,
+              "unit": "count",
+              "improved": false,
+              "regressed": true
+            }
+          ]
+        }
+      ],
+      "accepted": [
+        "prop-2205a2fbffaf"
+      ],
+      "rejected": [],
+      "escalated": [],
+      "rolled_back": [],
+      "blocked": [],
+      "baseline_revision": "mem-a381c642e2c47374",
+      "final_revision": "mem-9e8bcfa661c2aa14",
+      "stop_reason": null,
+      "limit_hits": [],
+      "tool_calls": 0
+    },
+    {
+      "cycle": 2,
+      "started_at": 1790482290.633677,
+      "duration_s": 0.0255,
+      "state": "RECORDING",
+      "evidence_count": 12,
+      "proposals": [
+        {
+          "id": "prop-94018263c1cf",
+          "source_observation": [
+            "ev-task-b0-5"
+          ],
+          "target_component": "memory:key:schema",
+          "hypothesis": "Memory has no verified lesson covering 'schema'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 1 holdout task(s) that require it.",
+          "expected_benefit": "holdout success rate for tasks requiring 'schema' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
+          "risk_level": "LOW",
+          "risk_reasons": [
+            "1 operation(s), no security-sensitive key, no restricted scope, within diff budget"
+          ],
+          "status": "REJECTED",
+          "created_at": 1790482290.6380026,
+          "rejection_reason": "target metric failed_task_recovery_rate did not improve (delta +0.000)",
+          "targeted_keys": [
+            "schema"
+          ],
+          "evaluation_plan": "run the frozen holdout against baseline memory and against an isolated candidate clone; compare holdout_success_rate, holdout_avg_score, holdout_escalation_rate and targeted_key_coverage; run structural + tamper checks first",
+          "rollback_plan": "restore the archived baseline memory payload (runs/baseline-<revision>.json) and re-verify the baseline holdout metrics; the candidate workspace is discarded",
+          "change_set": {
+            "id": "cs-c432d1f3",
+            "proposal_id": "prop-94018263c1cf",
+            "base_revision": "mem-9bb207206b9ba72b",
+            "reason": "add verified boundary lesson for uncovered key 'schema'",
+            "created_at": 1790482290.6375034,
+            "changes": [
+              {
+                "op": "add",
+                "lesson": {
+                  "id": "lesson-f6be09c1f666",
+                  "content": "[boundary] 'schema': a first-pass fix failed here during exploration. Before finalizing work that touches 'schema', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
+                  "knowledge_keys": [
+                    "schema"
+                  ],
+                  "source_task_id": "task-b0-5",
+                  "confidence": 0.65,
+                  "verified": true,
+                  "created_at": 1.761,
+                  "kind": "boundary",
+                  "version": 1,
+                  "superseded_by": null,
+                  "deprecated": false
+                },
+                "target_lesson_id": null,
+                "reason": "cover knowledge key 'schema' observed as weak in exploration"
+              }
+            ]
+          },
+          "decision": {
+            "outcome": "REJECT",
+            "reasons": [
+              "target metric failed_task_recovery_rate did not improve (delta +0.000)"
+            ]
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "id": "eval-1a0e10f97d8",
+          "proposal_id": "prop-94018263c1cf",
+          "benchmark_version": "holdout-v1",
+          "environment": {
+            "python": "3.11.2"
+          },
+          "started_at": 1790482290.6484795,
+          "duration_s": 0.0061,
+          "passed": false,
+          "critical_regressions": [],
+          "tamper_findings": [],
+          "notes": [],
+          "checks": [
+            {
+              "name": "change-set-valid",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "tamper-scan",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "benchmark-version-pinned",
+              "ok": true,
+              "detail": "holdout-v1",
+              "mandatory": true
+            }
+          ],
+          "metrics": [
+            {
+              "name": "failed_task_recovery_rate",
+              "baseline": 0.0,
+              "candidate": 0.0,
+              "delta": 0.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "holdout_success_rate",
+              "baseline": 1.0,
+              "candidate": 1.0,
+              "delta": 0.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "holdout_avg_score",
+              "baseline": 1.0,
+              "candidate": 1.0,
+              "delta": 0.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "score",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "holdout_escalation_rate",
+              "baseline": 0.0833,
+              "candidate": 0.0833,
+              "delta": 0.0,
+              "higher_is_better": false,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "targeted_key_coverage",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "memory_lessons",
+              "baseline": 12.0,
+              "candidate": 13.0,
+              "delta": 1.0,
+              "higher_is_better": false,
+              "critical": false,
+              "unit": "count",
+              "improved": false,
+              "regressed": true
+            }
+          ]
+        }
+      ],
+      "accepted": [],
+      "rejected": [
+        "prop-94018263c1cf"
+      ],
+      "escalated": [],
+      "rolled_back": [],
+      "blocked": [],
+      "baseline_revision": "mem-9bb207206b9ba72b",
+      "final_revision": "mem-9bb207206b9ba72b",
+      "stop_reason": "no candidate accepted this cycle (stagnation 1/2)",
+      "limit_hits": [],
+      "tool_calls": 0
+    },
+    {
+      "cycle": 3,
+      "started_at": 1790482290.6871223,
+      "duration_s": 0.0,
+      "state": "PROPOSING",
+      "evidence_count": 20,
+      "proposals": [],
+      "evaluations": [],
+      "accepted": [],
+      "rejected": [],
+      "escalated": [],
+      "rolled_back": [],
+      "blocked": [],
+      "baseline_revision": "mem-061a72f0df0eec8d",
+      "final_revision": "mem-061a72f0df0eec8d",
+      "stop_reason": "no actionable proposals (1/2 consecutive stagnant cycles)",
+      "limit_hits": [],
+      "tool_calls": 0
+    },
+    {
+      "cycle": 4,
+      "started_at": 1790482290.6926146,
+      "duration_s": 0.0,
+      "state": "PROPOSING",
+      "evidence_count": 20,
+      "proposals": [],
+      "evaluations": [],
+      "accepted": [],
+      "rejected": [],
+      "escalated": [],
+      "rolled_back": [],
+      "blocked": [],
+      "baseline_revision": "mem-061a72f0df0eec8d",
+      "final_revision": "mem-061a72f0df0eec8d",
+      "stop_reason": "no actionable proposals (2/2 consecutive stagnant cycles)",
+      "limit_hits": [],
+      "tool_calls": 0
+    }
+  ]
+}

@@ -1,18 +1,10 @@
-/**
- * PHASE 0 — CONTRACT ONLY. Zod schemas describe the request/response shape of API.md and are the
- * single source of truth shared by route shells, clients and the offline queue. No handler logic
- * exists anywhere in this phase (ADR-0036).
- */
 import { z } from "zod";
+import { uuidSchema, uuidV7Schema, moneySchema, instantSchema } from "./common";
 
-/**
- * API.md §10 — submit expense. Requirements: FR-EXPENSE-001..014, especially the neutral
- * UNVERIFIED_FIELD_EXPENSE policy (FR-EXPENSE-002/003/012, ADR-0027): no recipient identity,
- * no claimed authority, no asserted purpose are required or stored.
- */
 export const expenseSubmitRequestSchema = z.object({
   shiftId: uuidSchema,
-  categoryId: uuidSchema,
+  categoryId: uuidSchema.optional(),
+  categoryCode: z.string().optional(),
   description: z.string().min(3).max(300),
   amount: moneySchema,
   paidFrom: z.enum(["CASH_BOX", "PERSONAL"]),

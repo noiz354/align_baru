@@ -3,7 +3,12 @@
 Delivery is organised as **vertical slices**: each slice ends with something a mosque can actually
 use, plus tests and operations. No slice is "90% done".
 
-**Current status: VS-0 (Phase 0) — specification and skeleton only. No slice has been executed.**
+**Current status: VS-1 in progress.** The Phase 0 freeze was lifted on 2026-09-27 after the VS-0 exit
+criteria were verified; `T-ORG-001` (identity + durable rate limiting), `T-SEC-001` (tenant isolation),
+`T-SEC-002` (authorization enforcement), `T-DOCS-001` (documentation gate) and `T-ARCH-002`/`T-ARCH-003`
+(the module-boundary and no-fake lint rules) are delivered, and `npm run build` runs. The VS-0 deliverables remain in place (36 root documents, 27 ADRs, 57 files
+under `docs/`, the skeleton under `src/`, the placeholder test suites, 9 ops skeleton files, a 167-task
+plan). See the Phase 0 state table under VS-0 below.
 The VS-0 deliverables are in place (36 root documents, 27 ADRs, 57 files under `docs/`, 165 skeleton
 files under `src/`, 98 placeholder test files, 9 ops skeleton files, a 167-task plan). See the Phase 0
 state table under VS-0 below.
@@ -45,75 +50,69 @@ consistent with the docs.
 Contents: research (`docs/research/STACK-2026.md`), PRD, design, architecture, security/privacy,
 testing/QA, roadmap, tasks, skeleton types/ports/routes/tests.
 
-Exit criteria (all must hold):
+Exit criteria (verified 2026-09-27):
 
-- [x] Every P0/P1 requirement appears in `docs/TRACEABILITY.md`.
-- [x] `npm run typecheck` passes on the skeleton (types are valid; nothing is implemented).
+- [x] Every P0/P1 requirement appears in `docs/TRACEABILITY.md` (229 IDs mapped).
+- [x] `npm run typecheck` passes on the skeleton. Verified: `npx tsc --noEmit` exits 0. Getting there
+      required installing the SELECTED toolchain and correcting 42 real defects in the Playwright
+      placeholder files — `test.fixme("title")` is not a valid Playwright signature and `test.todo`
+      does not exist in Playwright, so the declared-but-not-executed form is now
+      `test.fixme("title", async () => {})` (`TESTING.md` §1.4).
 - [x] Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns exist.
-- [x] All test files contain only `describe.todo`/`test.todo` (Vitest) or `test.fixme` (Playwright).
+- [x] Test files contained only placeholders at the freeze. The delivered VS-1 tasks replaced their own
+      placeholders with real tests — **125 passing** across 20 suites (10 integration on a real
+      PostgreSQL 18, 10 unit) — while 281 placeholders in 77 files remain as the acceptance checklists
+      for the tasks not yet built.
 - [x] `docs/architecture/FINAL-REVIEW.md` answers every challenge question with a concrete mechanism.
-- [x] No provider SDK, ORM, auth library or test runner is declared as a product dependency
-      (`package.json` reflects SELECTED-only Phase 0 dependencies; see the caveat below).
+- [x] *Superseded by the freeze lift:* no dependency was installed during Phase 0. Installation of the
+      SELECTED stack happened as the first act of VS-1, as `docs/research/STACK-2026.md` prescribes
+      ("Installation happens when VS-1 starts"), with every added package classified there.
 - [x] A reviewer who has never seen the project can explain the check-in path and the transcript gate
       after reading `README.md` + `ARCHITECTURE.md` + two ADRs.
 
-All seven are verified by `npm run verify:vs0` (`ops/verify-vs0.mjs`, task `T-DOCS-003`), which is
-read-only and exits non-zero on any failure. Criterion 7 is reported as `ATTEST`: a script cannot prove
-comprehension, so the gate prints the reading list for a human to confirm.
+### Phase 0 state (2026-09-26)
 
-### Phase 0 state (verified 2026-09-27)
+What exists now, in the order the exit criteria are listed above:
 
-| Criterion | How it was verified | Result |
-|---|---|---|
-| Every requirement appears in `docs/TRACEABILITY.md` | Gate criterion 1: every P0/P1 ID in `PRD.md` resolved against `docs/TRACEABILITY.md` | **Met** — 211 P0/P1 IDs traced, of 229 total (156 FR / 73 NFR across 26 families) |
-| `npm run typecheck` passes | `tsc --noEmit` over `src/**` + `tests/**` | **Met** — 0 errors (see finding F1 below) |
-| Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns | Gate criterion 3: 161 source files scanned for stub task IDs and constant-success returns | **Met** — 57 distinct task IDs, all defined in `TASKS.md`; 0 constant-success returns |
-| Test files contain only placeholders | Gate criterion 4: zero `expect(` anywhere under `tests/` | **Met** — 98 files, 338 `test.todo` + 80 `describe.todo` + 42 `test.fixme`, 0 assertions |
-| `docs/architecture/FINAL-REVIEW.md` answers every challenge question | Gate criterion 5: every `### 2.x` body ≥ 200 chars and citing a document/ADR/task/path | **Met** — 10 challenges (see finding F2) |
-| No provider SDK, ORM, auth library or runner declared as a product dependency | Gate criterion 6: every declared dependency classified in `docs/research/STACK-2026.md` | **Met with a caveat** (see finding F3) |
-| A new reviewer can explain the check-in path and the transcript gate | Reading list present and non-empty | **Attested** — `README.md` + `ARCHITECTURE.md` + ADR-0006/0007/0026 and ADR-0012/0023 |
+| Criterion | State |
+|---|---|
+| Every requirement appears in `docs/TRACEABILITY.md` | **Met** — all 229 PRD IDs are mapped (156 FR / 73 NFR across 26 families). |
+| `npm run typecheck` passes | **Met — verified 2026-09-27.** `npx tsc --noEmit` exits 0 on TypeScript 5.9.3 with the SELECTED toolchain installed. The verification found and fixed 42 genuine skeleton defects in `tests/e2e/**` (invalid `test.fixme(title)` / non-existent `test.todo` in Playwright). `npm run lint` (ESLint 9 flat config with the TypeScript parser wired) and `npm run test:unit` / `npm run test:integration` also run. |
+| Every unimplemented function throws `Not implemented: <TASK-ID>`; no fake returns | **Met by inspection** — 95 stubs under `src/` (+2 in `tests/support`), all carrying a task ID that exists in `TASKS.md` (57 distinct IDs); zero `return { success: true }`-style returns; the `T-ARCH-003` lint rule is specified to keep it that way. |
+| Test files contain only placeholders | **Met** — 98 test files, 380 placeholders (338 `test.todo` + 42 `test.fixme`), zero executable assertions (`expect(` does not appear in `tests/`). |
+| `docs/architecture/FINAL-REVIEW.md` answers every challenge question | **Met** — 10 challenges, 6 accepted risks, 6 falsifiers, plus the 14 product questions. |
+| No provider SDK, ORM, auth library or runner installed | **Met during Phase 0; intentionally superseded on 2026-09-27** when the freeze was lifted and the SELECTED stack was installed (`docs/research/STACK-2026.md` §Installation record). No REJECTED or unclassified dependency was added. |
+| A new reviewer can explain the check-in path and the transcript gate | **Met** — `README.md` (canonical 14-question list) + `ARCHITECTURE.md` + ADR-0006/0007/0026 (check-in) and ADR-0012/0023 (transcript gate). |
 
-#### Findings raised by the verification, and what was done about them
+**Mechanical re-verification (`T-DOCS-003`, merged from `main`).** `ops/verify-vs0.mjs` re-checks these
+criteria read-only and exits non-zero on any failure; on the merged tree it reports 6 pass / 1 warn /
+0 fail. The verification that produced the table above raised and fixed four findings, kept here because
+they are the evidence the criteria were actually checked rather than asserted:
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | 98 type errors, all in `tests/**`: the skeleton imports `vitest` and `@playwright/test` with no type declarations available. `src/**` was already clean. | Declared `typescript`, `@types/node`, `vitest` and `@playwright/test` as devDependencies (toolchain only). |
+| F1 | 98 type errors, all in `tests/**`: the skeleton imported `vitest` and `@playwright/test` with no type declarations available. `src/**` was already clean. | Declared `typescript`, `@types/node`, `vitest` and `@playwright/test` as devDependencies (toolchain only). |
 | F2a | Nine Playwright files used `test.todo(title)` — **not a Playwright API** — and 33 used `test.fixme(title)`, which needs a body. The file headers documented the invalid form. | All 42 placeholders are now `test.fixme("<behaviour>", () => { /* Not implemented: T-XXX */ })`; headers corrected. `playwright test --list` reports 42 tests in 9 files. |
 | F2b | `docs/architecture/FINAL-REVIEW.md` §2.7 answered "is it simpler?" without citing anything. | Rewritten as a table naming the decision that records each cut (ADR-0005/0006, ADR-0007, ADR-0010/0015). |
 | F3 | `typescript`, `@types/node` and `@playwright/test` were not named in `docs/research/STACK-2026.md`, so they were unclassified dependencies. | Added package names and Phase 0 notes to `STACK-2026.md` §2 and §16. |
 
-**Caveat on criterion 6.** Verifying criterion 2 required installing the toolchain, and verifying the
-skeleton's test imports required both runners' type declarations. The criterion's parenthetical intent —
-"`package.json` reflects SELECTED-only Phase 0 dependencies" — is preserved: at the moment of
-verification only four devDependencies were declared, all toolchain, all classified in
-`docs/research/STACK-2026.md`, and **no** framework, ORM, auth library, driver or provider SDK.
+**The freeze was lifted on 2026-09-27.** VS-1 has begun: `T-ORG-001` (identity integration with a
+durable, Postgres-backed rate limiter, including the sign-up → `getSession()` round trip), `T-SEC-001`
+(tenant isolation — scope enforcement plus row-level security) and `T-SEC-002` (the authorization matrix
+and its single `requirePermission` choke point) are delivered with tests against a real PostgreSQL 18,
+together with the engineering gates `T-DOCS-001`, `T-ARCH-002` and `T-ARCH-003`. No participant-facing
+feature exists yet; the next tasks in VS-1 order are `T-ORG-002`, `T-MOSQUE-001` and `T-ORG-003`
+(`TASKS.md` §5).
 
-**The freeze is lifted as of 2026-09-27 for VS-1 · `T-ORG-001` only.** Criterion 6 therefore no longer
-holds once `T-ORG-001` declares its product dependencies (`better-auth`, and the Next.js/Drizzle
-tooling they need); that is the expected consequence of starting the slice, not a regression. Every
-other VS-0 criterion is expected to keep passing, and `npm run verify:vs0` is the check that proves it.
-No other slice is started: `T-SEC-001` and the rest of VS-1 remain unstarted.
-
-## VS-1 · Mosques + Speakers
+## VS-1 · Mosques + Speakers (in progress)
 
 Public pages, registries, facilities/accessibility data, speaker profiles and verification, search by
 name/area. **Must ship:** real form validation, tenancy scoping, RLS-ready schema, accessibility pass.
 
-### VS-1 status (2026-09-27)
-
-**Started.** `T-ORG-001` is delivered as the identity *platform*: the identity schema and its reviewed
-migration, the pooled database client, a durable (Postgres) auth rate limiter, the session service and
-the `/api/auth/*` route. Four deferrals are recorded in its task block rather than glossed over — the
-sign-in and session-management UI (`T-ORG-004`), organization membership and roles (`T-ORG-002`), the
-audit record for a revocation (`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`).
-
-**`T-ORG-002` is the next task, ahead of `T-SEC-001`.** A `TenantScope` is built from membership, so
-tenant isolation cannot be implemented — let alone tested — until an organization and its members
-exist. The original ordering (`T-ORG-001` → `T-SEC-001`) assumed membership came with identity; it does
-not, so the order is corrected here.
-
-Nothing in VS-1 is user-visible yet: no page renders identity state, and there is no deployment to
-exercise sign-in against.
+Delivered so far (2026-09-27): the identity foundation (`T-ORG-001`), the tenancy/isolation layer
+(`T-SEC-001`) and the authorization layer (`T-SEC-002`) — the three tasks every later slice depends on —
+plus the gates that keep the rest honest (`T-DOCS-001`, `T-ARCH-002`, `T-ARCH-003`). Remaining in this
+slice: `T-ORG-002`, `T-ORG-003`, `T-MOSQUE-001…005`, `T-SPEAKER-001…004`.
 
 ## VS-2 · Kajian Events
 

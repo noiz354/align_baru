@@ -3,9 +3,11 @@
 The requirement → document → task → test chain for every stable requirement ID in `PRD.md`.
 Generated from the PRD tables; **requirement IDs are the primary key and never change**.
 
-Status legend: `SPEC` = specified in documents (this is the current state of the whole project —
-Phase 0 has no product implementation) · `SKELETON` = contracts/ports/tests exist · `IMPL` =
-implemented (no requirement is at this state yet).
+Status legend: `SPEC` = specified in documents (the state of almost the whole project) · `SKELETON` =
+contracts/ports/tests exist · `IMPL` = implemented. Since the Phase 0 freeze was lifted (2026-09-27) a
+handful of rows carry `IMPL (partial — …)`: the named mechanism exists and is tested, but the
+requirement is not yet satisfied end-to-end because the surfaces it speaks about do not exist yet. The
+qualifier is mandatory — an unqualified `IMPL` means the requirement can be demonstrated in the product.
 
 How to use: (1) find the requirement you are touching; (2) read the documents listed; (3) open the
 task block in `TASKS.md`; (4) satisfy the tests named in `TESTING.md` §3. If a row's mapping looks
@@ -64,8 +66,8 @@ Documents: docs/security/AUTHZ-MATRIX.md · SECURITY.md §4–5 · PRIVACY.md §
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
 | FR-ORG-001 | P0 | An organization (tenant) can be created with a name, type and default timezone; it owns all scoped data. | ARCHITECTURE.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
-| FR-ORG-002 | P0 | An organization can assign members to roles from the role catalogue; a member may hold several roles. | docs/security/AUTHZ-MATRIX.md | T-SEC-002 | SPEC |
-| FR-ORG-003 | P0 | No actor can read or mutate another organization's data through any API, page or export. | SECURITY.md | T-SEC-001 | SPEC |
+| FR-ORG-002 | P0 | An organization can assign members to roles from the role catalogue; a member may hold several roles. | docs/security/AUTHZ-MATRIX.md | T-SEC-002 | IMPL (partial — the nine-role catalogue is the single source of truth (`PERMISSION_KEYS`/`ROLE_KEYS`), the 53 × 9 matrix is data, and `assertCanGrantRoles` refuses self-grants, roles the actor does not hold and platform-trust roles, all proved by `tests/integration/security/permissions.test.ts`; the assignment UI/API is `T-ORG-002`) |
+| FR-ORG-003 | P0 | No actor can read or mutate another organization's data through any API, page or export. | SECURITY.md | T-SEC-001 | IMPL (partial — data layer: scope-first repositories + RLS proved by `tests/integration/security/isolation.test.ts`; no API/page/export exists yet to enumerate) |
 | FR-ORG-004 | P1 | An organization can set defaults used when creating events (timezone, registration mode, recording policy). | docs/product/EVENTS.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
 | FR-ORG-005 | P1 | Roles can be scoped to a subset of mosques/venues (a volunteer responsible for one mosque only). | docs/security/AUTHZ-MATRIX.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
 | FR-ORG-006 | P2 | Organization-level branding (logo, colour) applied to participant-facing pages. | docs/design/DESIGN-SYSTEM.md | T-ORG-001, T-ORG-002, T-ORG-003, T-SEC-001, T-SEC-002 | SPEC |
@@ -319,11 +321,11 @@ Documents: docs/design/PAGES.md · SECURITY.md §9 · OBSERVABILITY.md §8 · Ta
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| FR-AUDIT-001 | P0 | Security- and integrity-relevant actions append immutable audit events. | AUDIT, SECURITY.md | T-SEC-007 | SPEC |
-| FR-AUDIT-002 | P1 | Platform/admin actions (verification, moderation, role changes) are audited with actor, target, reason. | SECURITY.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | SPEC |
+| FR-AUDIT-001 | P0 | Security- and integrity-relevant actions append immutable audit events. | AUDIT, SECURITY.md | T-SEC-007 | IMPL (partial — `audit_events` is append-only and hash-chained: the application role holds `SELECT, INSERT` only, a trigger refuses UPDATE/DELETE/TRUNCATE, `hash` covers the whole entry including `prev_hash` and `(organization_id, chain_position)` is unique, all proved by `tests/integration/audit/chain.test.ts` against a real PostgreSQL; `requirePermission` denials and reason-required grants are buffered per request by `src/server/audit/sink.ts`. The verification sweep exists (`runAuditVerification`) but its **schedule is not wired** — no scheduler in the delivered stack, owned by T-OPS-002. Writes from product routes arrive with each route's task) |
+| FR-AUDIT-002 | P1 | Platform/admin actions (verification, moderation, role changes) are audited with actor, target, reason. | SECURITY.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | IMPL (partial — the record shape is delivered: actor, **role whose grant decided**, scope, target type, reason and request id, with no foreign-tenant identifier anywhere in the row (`tests/integration/audit/coverage.test.ts`); every reason-required permission writes one entry. The admin actions themselves (verification, moderation, role changes) arrive with their own tasks) |
 | FR-AUDIT-003 | P1 | Attendance corrections, token re-issues and transcript approvals are audited with actor and reason. | ATTENDANCE.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | SPEC |
-| FR-AUDIT-004 | P1 | Authorized administrators can query audit events by actor, target, type and time range, with results exportable. | SECURITY.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | SPEC |
-| FR-AUDIT-005 | P2 | Audit events support a retention that outlives the data they describe (see `RETENTION.md`). | RETENTION.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | SPEC |
+| FR-AUDIT-004 | P1 | Authorized administrators can query audit events by actor, target, type and time range, with results exportable. | SECURITY.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | SPEC (storage delivered by T-SEC-007; the query surface, export and the `(target_type, target_id, occurred_at)` / `(actor_id, occurred_at)` indexes it needs are T-AUDIT-001/002) |
+| FR-AUDIT-005 | P2 | Audit events support a retention that outlives the data they describe (see `RETENTION.md`). | RETENTION.md | T-ANALYTICS-001…T-ANALYTICS-004, T-MOD-001…T-MOD-004, T-AUDIT-001/002, T-SEC-007 | IMPL (partial — the foreign key to `organizations` is `ON DELETE RESTRICT` and the application role cannot delete rows, so audit outlives the data it describes by construction; the 7-year retention/archival job itself is T-AUDIT-002) |
 
 ---
 
@@ -335,16 +337,16 @@ Documents: SECURITY.md · THREAT_MODEL.md · docs/security/{AUTHZ-MATRIX,QR-SECU
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-SEC-001 | P0 | Every mutating API requires an authenticated principal unless it is an explicitly public operation (registration for an `OPEN` event). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
-| NFR-SEC-002 | P0 | Authorization is enforced **server-side** on every request, including Server Actions and route handlers; UI hiding is never a control. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
-| NFR-SEC-003 | P0 | Organization isolation is enforced on every scoped query; no endpoint accepts an unscoped id without an ownership check. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
+| NFR-SEC-001 | P0 | Every mutating API requires an authenticated principal unless it is an explicitly public operation (registration for an `OPEN` event). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — identity, sessions, the durable limiter and the sign-up → `getSession()` round trip are delivered by T-ORG-001; the public surfaces are enumerated in `src/server/auth/public-routes.ts`; no product route exists yet) |
+| NFR-SEC-002 | P0 | Authorization is enforced **server-side** on every request, including Server Actions and route handlers; UI hiding is never a control. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — `requirePermission` is the single server-side choke point and a static test proves no route acts without it or a listed public reason; no product route performs an action yet, so there is nothing more to enumerate) |
+| NFR-SEC-003 | P0 | Organization isolation is enforced on every scoped query; no endpoint accepts an unscoped id without an ownership check. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | IMPL (partial — every scoped repository requires a `TenantScope` and RLS is the proved second layer; enforcement across *every* endpoint arrives as endpoints are built) |
 | NFR-SEC-004 | P0 | Check-in tokens are opaque, high-entropy (≥128 bits), stored hashed, and compared in constant time. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-005 | P0 | QR payloads contain no PII and no raw database identifiers. | — | T-CHECKIN-003 | SPEC |
 | NFR-SEC-006 | P0 | All state-changing requests require CSRF protection (SameSite cookies + origin checks) and safe methods are idempotent. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-007 | P0 | All user-generated content is escaped/output-encoded; stored HTML is not permitted (Markdown subset only). | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-008 | P0 | All database access uses parameterised queries; raw string concatenation into SQL is forbidden. | — | T-SEC-001…T-SEC-011, T-OBS-002, T-CHECKIN-003/011/016, T-AUDIO-004 | SPEC |
 | NFR-SEC-009 | P0 | File/audio uploads are size-limited, content-type-verified by sniffing, and never executed or served from the app origin as active content. | — | T-SEC-005 | SPEC |
-| NFR-SEC-010 | P0 | Rate limits exist on registration, check-in, token validation, upload and auth endpoints; limits are durable across restarts. | — | T-REG-009 | SPEC |
+| NFR-SEC-010 | P0 | Rate limits exist on registration, check-in, token validation, upload and auth endpoints; limits are durable across restarts. | — | T-REG-009 | IMPL (partial — durable Postgres buckets with an atomic check-and-increment, shared by replicas and surviving restarts; registration/check-in/upload limits and the rejection metric arrive with their slices, T-SEC-010) |
 | NFR-SEC-011 | P0 | Secrets are supplied via environment/secret manager, never committed, and rotated by procedure (`OPERATIONS.md`). | — | T-SEC-008 | SPEC |
 | NFR-SEC-012 | P1 | A security advisory intake and patch SLA exists (critical ≤ 72h) and dependency review runs monthly. | — | T-SEC-011 | SPEC |
 
@@ -359,7 +361,7 @@ Documents: PRIVACY.md · RETENTION.md · ADR-0016/0017 · Tasks: T-PRIV-001…T-
 | NFR-PRIV-003 | P0 | Recording and publication policy is explicit per event and shown before recording starts. | — | T-PRIV-001…T-PRIV-003, T-REG-011, T-ATTEND-006, T-FEEDBACK-004, T-SEC-004, T-OPS-006 | SPEC |
 | NFR-PRIV-004 | P0 | Voice recordings are personal data: processed under a stated lawful basis, private by default. | — | T-PRIV-001 | SPEC |
 | NFR-PRIV-005 | P0 | Analytics are aggregate; no individual participant behaviour profile is built or exported. | — | T-FEEDBACK-004 | SPEC |
-| NFR-PRIV-006 | P0 | Logs and telemetry never contain raw audio, transcript content, contact details or tokens. | — | T-OBS-002, T-SEC-004 | SPEC |
+| NFR-PRIV-006 | P0 | Logs and telemetry never contain raw audio, transcript content, contact details or tokens. | — | T-OBS-002, T-SEC-004 | IMPL (partial — enforced twice over the same data file `src/shared/observability/banned-attributes.json`: the logger drops banned and unknown attributes and strips banned error properties, and `majelishub/no-token-logging` fails the build on the same names (`tests/unit/observability/token-logging.test.ts`). Not yet covered: token-shaped *values* under an allowed attribute name, which needs the check-in routes — T-CHECKIN-003) |
 | NFR-PRIV-007 | P1 | Third-party processors (hosted STT, email, hosting) are documented with data categories, region and purpose; no voice data leaves the boundary withou… | — | T-TRANSCRIPT-005 | SPEC |
 | NFR-PRIV-008 | P0 | Participant data is never sold, shared or used for advertising. | — | T-PRIV-001…T-PRIV-003, T-REG-011, T-ATTEND-006, T-FEEDBACK-004, T-SEC-004, T-OPS-006 | SPEC |
 | NFR-PRIV-009 | P1 | Any breach triggers the documented 72-hour notification procedure (UU PDP). | — | T-SEC-011, T-PRIV-002 | SPEC |
@@ -415,8 +417,8 @@ Documents: OBSERVABILITY.md · docs/operations/SLO.md · Tasks: T-OBS-001, T-OBS
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-OBS-001 | P0 | Every request carries a correlation id propagated through logs, traces and job payloads. | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
-| NFR-OBS-002 | P0 | Structured JSON logs with allow-listed attributes; no PII, audio or transcript content. | — | T-OBS-002 | SPEC |
+| NFR-OBS-001 | P0 | Every request carries a correlation id propagated through logs, traces and job payloads. | — | T-OBS-001, T-OBS-002, T-OBS-003 | IMPL (partial — the logger carries `requestId`/`traceId`/`causationId` as allow-listed attributes and `child()` binds them per request without leaking into sibling requests; nothing generates or propagates them yet, because no request pipeline exists — T-OBS-001) |
+| NFR-OBS-002 | P0 | Structured JSON logs with allow-listed attributes; no PII, audio or transcript content. | — | T-OBS-002 | IMPL (partial — `createLogger` writes JSON lines with an allow-listed attribute set, refuses non-enum string values and interpolated event names, and counts every refusal in `telemetry_dropped_attribute_total`; the security events that exist today go through it (`tests/unit/observability/logger.test.ts`). The OTLP exporter and tracing half of T-OBS-002 are not wired) |
 | NFR-OBS-003 | P0 | Metrics exist for registration outcomes, check-in outcomes/duplicates, upload failures, recording interruptions, transcription duration/failures, sto… | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
 | NFR-OBS-004 | P0 | OpenTelemetry traces (OTLP) instrument HTTP handlers, jobs and storage operations; vendor-neutral. | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
 | NFR-OBS-005 | P1 | Organizer-visible alerts are distinct from operator-visible alerts and are deduplicated (`OPERATIONAL_ALERTS`). | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
@@ -454,7 +456,7 @@ Documents: DEPLOYMENT.md · OPERATIONS.md · docs/operations/{SLO,BACKUP-RESTORE
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-OPS-001 | P0 | Single-command local development (compose: Postgres + storage + collector). | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |
+| NFR-OPS-001 | P0 | Single-command local development (compose: Postgres + storage + collector). | — | T-OPS-001…T-OPS-006, T-DOCS-001 | IMPL (partial — the verification commands all run and are green on Node 24: `typecheck`, `lint` with the project's own boundary and no-fake rules, `test`, `docs:lint` with 0 findings and `build`; the compose stack itself is `T-OPS-001`) |
 | NFR-OPS-002 | P0 | Production topology is documented, reproducible from the repository, and restorable from backup (`docs/operations/BACKUP-RESTORE.md`). | — | T-OPS-006 | SPEC |
 | NFR-OPS-003 | P0 | Rollback is possible within 10 minutes for the web tier and the worker. | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |
 | NFR-OPS-004 | P1 | All configuration is environment-driven and validated at boot with a fail-fast check. | — | T-OPS-001…T-OPS-006, T-DOCS-001 | SPEC |

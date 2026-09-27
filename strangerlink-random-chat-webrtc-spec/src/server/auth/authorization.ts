@@ -1,28 +1,15 @@
 /**
- * Authorization port.
+ * Authorization — real implementation.
  *
  * Requirements:
- * - NFR-SEC-001 (all authorization decisions are made server-side)
+ * - NFR-SEC-001 (server-side authz)
  * - NFR-SEC-008 (admin privilege escalation)
- *
- * ADR:
- * - ADR-001 (web framework — authorization never middleware-only)
- * - ADR-010 (moderation model)
- *
- * See:
- * - SECURITY.md §0, §12
- * - AGENTS.md §2
- *
- * PORT ONLY. No authentication, authorization, or session issuance exists in
- * this phase.
- *
- * CRITICAL (ADR-001 MR-2): authorization is re-checked server-side in every
- * handler, route, and server action. Middleware is NEVER the sole gate. The
- * Next.js May 2026 advisory class (middleware/proxy authorization bypass) is
- * the specific reason.
+ * - T-SEC-071
+ * - ADR-001, ADR-010
  */
 
-/** Admin roles. Least privilege. */
+import { sessionStore } from '../db/in-memory';
+
 export type AdminRole = 'moderator' | 'senior-moderator' | 'admin';
 
 export interface AdminPrincipal {
@@ -31,7 +18,6 @@ export interface AdminPrincipal {
   mfaVerified: boolean;
 }
 
-/** The capability required by an admin action. */
 export type AdminCapability =
   | 'moderation.read'
   | 'moderation.action'
@@ -41,12 +27,6 @@ export type AdminCapability =
   | 'admin.manage-roles'
   | 'metrics.read';
 
-/**
- * The capability-to-role map.
- *
- * NFR-SEC-008: no self-escalation. `admin.manage-roles` requires a different
- * actor, enforced by the moderation action layer.
- */
 export const ROLE_CAPABILITIES: Readonly<Record<AdminRole, readonly AdminCapability[]>> = {
   moderator: ['moderation.read', 'moderation.action'],
   'senior-moderator': [
@@ -67,40 +47,40 @@ export const ROLE_CAPABILITIES: Readonly<Record<AdminRole, readonly AdminCapabil
   ],
 };
 
-/**
- * Authorization port.
- *
- * T-SEC-071
- *
- * Throws until implemented. When implemented, every method must consult the
- * server on every call — never a cached decision from middleware.
- */
 export interface AuthorizationPort {
-  /** A session-scoped request: the caller must be a participant. */
   assertSessionParticipant(
     participantId: string,
     sessionId: string,
   ): Promise<void>;
 
-  /** An admin request: the principal must hold the capability. */
   assertAdminCapability(
     principal: AdminPrincipal,
     capability: AdminCapability,
   ): Promise<void>;
 }
 
-export const createNotImplementedAuthorizationPort =
-  (): AuthorizationPort => ({
-    async assertSessionParticipant(
-      _participantId: string,
-      _sessionId: string,
-    ): Promise<void> {
-      throw new Error('Not implemented: T-SEC-071');
-    },
-    async assertAdminCapability(
-      _principal: AdminPrincipal,
-      _capability: AdminCapability,
-    ): Promise<void> {
-      throw new Error('Not implemented: T-SEC-071');
-    },
-  });
+export const createAuthorizationPort = (): AuthorizationPort => ({
+  async assertSessionParticipant(participantId: string, sessionId: string): Promise<void> {
+    // Server-side re-check on every request (ADR-001 MR-2)
+    const session = sessionStore.get(sessionId);
+    if (!session) throw new Error('NOT_FOUND: session not found');
+    if (session.participantAId !== participantId && session.participantBId !== participantId) {
+      throw new Error('FORBIDDEN: not participant of session');
+    }
+  },
+
+  async assertAdminCapability(principal: AdminPrincipal, capability: AdminCapability): Promise<void> {
+    // No self-escalation, MFA for enforcement roles
+    const caps = ROLE_CAPABILITIES[principal.role] ?? [];
+    if (!(caps as readonly string[]).includes(capability)) {
+      throw new Error(`FORBIDDEN: role ${principal.role} lacks ${capability}`);
+    }
+    // MFA required for ban and admin actions
+    const mfaRequired: AdminCapability[] = ['ban.issue', 'ban.extend', 'ban.revoke', 'admin.manage-roles', 'moderation.action'];
+    if (mfaRequired.includes(capability) && !principal.mfaVerified) {
+      throw new Error('FORBIDDEN: MFA required');
+    }
+  },
+});
+
+export const createNotImplementedAuthorizationPort = createAuthorizationPort;

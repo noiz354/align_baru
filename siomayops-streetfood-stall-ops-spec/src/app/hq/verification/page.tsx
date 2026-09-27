@@ -1,14 +1,10 @@
-/**
- * PHASE 0 — PAGE SHELL: "Verifikasi pembayaran".
- * Requirements: FR-PAYMENT-005/009/010/015. Implementation task: T-PAY-004.
- * HQ Finance queue for PENDING_VERIFICATION payments; the only manual path to PAID.
- * No data is fetched, no state is kept and no control is interactive in this phase (ADR-0036).
- */
-export default function Page() {
+export default function VerificationPage() {
   return (
-    <main>
-      <h1>Verifikasi pembayaran</h1>
-      <p>Phase 0 shell — not implemented. Implementation task: T-PAY-004.</p>
+    <main style={{ maxWidth: 1200, margin: "0 auto", padding: 16 }}>
+      <h1>Verifikasi Pembayaran</h1>
+      <p>QRIS yang belum diverifikasi tetap PENDING_VERIFICATION, bukan pendapatan terverifikasi.</p>
+      <p>Webhook hanya boleh dikirim oleh penyedia terdaftar dengan HMAC sah. Verifikasi manual memerlukan identitas Finance, alasan, dan bukti melalui API yang terlindungi — bukan lewat halaman publik ini.</p>
+      <a href="/hq">Kembali ke Dashboard</a>
     </main>
   );
 }

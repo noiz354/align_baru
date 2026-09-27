@@ -1,6 +1,3 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/** Operators (OPERATORS.md). Status and assignments are domain data; nothing here observes
- *  a person beyond the records they create (no telemetry, no continuous location). */
 export type OperatorStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "INACTIVE" | "OFFBOARDED";
 
 export const OPERATOR_TRANSITIONS: Readonly<Record<OperatorStatus, readonly OperatorStatus[]>> = {
@@ -24,19 +21,42 @@ export interface OperatorAssignment {
   readonly createdBy: string;
 }
 
-/** Throws. Task: T-OP-002. */
-export function assertOperatorTransition(
-  _from: OperatorStatus,
-  _to: OperatorStatus,
-  _reason: string
-): void {
-  throw new Error("Not implemented: T-OP-002");
+export class InvalidOperatorTransitionError extends Error {
+  constructor(from: OperatorStatus, to: OperatorStatus) {
+    super(`Invalid operator transition ${from} -> ${to}`);
+    this.name = "InvalidOperatorTransitionError";
+  }
 }
 
-/** Throws. Task: T-STALL-002. Two PRIMARY assignments for one stall must never overlap. */
-export function assertAssignmentHasNoConflict(
-  _candidate: OperatorAssignment,
-  _existing: readonly OperatorAssignment[]
+export function assertOperatorTransition(
+  from: OperatorStatus,
+  to: OperatorStatus,
+  reason: string
 ): void {
-  throw new Error("Not implemented: T-STALL-002");
+  if (!reason || reason.trim().length < 3) throw new Error("Reason required for operator status change");
+  const allowed = OPERATOR_TRANSITIONS[from];
+  if (!allowed.includes(to)) {
+    throw new InvalidOperatorTransitionError(from, to);
+  }
+}
+
+export function assertAssignmentHasNoConflict(
+  candidate: OperatorAssignment,
+  existing: readonly OperatorAssignment[]
+): void {
+  // Two PRIMARY assignments for one stall must never overlap
+  if (candidate.type !== "PRIMARY") return;
+  for (const ex of existing) {
+    if (ex.stallId !== candidate.stallId) continue;
+    if (ex.type !== "PRIMARY") continue;
+    if (ex.assignmentId === candidate.assignmentId) continue;
+    const candidateFrom = candidate.validFrom.getTime();
+    const candidateTo = candidate.validTo ? candidate.validTo.getTime() : Infinity;
+    const exFrom = ex.validFrom.getTime();
+    const exTo = ex.validTo ? ex.validTo.getTime() : Infinity;
+    const overlap = candidateFrom < exTo && exFrom < candidateTo;
+    if (overlap) {
+      throw new Error(`PRIMARY assignment conflict for stall ${candidate.stallId}`);
+    }
+  }
 }

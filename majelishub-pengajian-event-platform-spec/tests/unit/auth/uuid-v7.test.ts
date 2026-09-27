@@ -9,7 +9,7 @@
  */
 import { describe, expect, test } from "vitest";
 
-import { uuidV7 } from "@/server/auth/better-auth";
+import { uuidV7 } from "@/server/crypto/uuid";
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 

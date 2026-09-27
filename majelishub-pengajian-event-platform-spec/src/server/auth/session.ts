@@ -3,87 +3,109 @@
  *
  * Where this belongs: server/auth. Participants do NOT have sessions - they hold a capability token
  * (registration access token) which is a different mechanism with narrower powers.
- * Specification: SECURITY.md §7, TASKS.md T-ORG-001, T-CHECKIN-016 (bound devices).
- * Invariants: sessions live in the database (a restart does not log anyone out); the rate limiter is
- *   backed by Postgres (the library's in-memory default is forbidden in production -
- *   docs/research/STACK-2026.md §6); idle timeout and revocation take effect on the next request;
- *   a check-in device session is bound to one event/entrance and cannot read other modules.
- * Failure cases: session store unavailable (fail closed for privileged actions) · expired session at a
- *   busy entrance (one-tap re-auth, local queue preserved) · concurrent sessions on one account
- *   (allowed, but listed and individually revocable).
- * Task ownership: T-ORG-001, T-CHECKIN-016, T-SEC-009 (passkeys/2FA for admin roles).
+ * Specification: SECURITY.md §2/§10/§12, ADR-0005, TASKS.md T-ORG-001, T-CHECKIN-016 (bound devices).
+ *
+ * Invariants implemented (T-ORG-001):
+ *   1. Sessions live in the database (`sessions`), so a restart or a deploy logs nobody out and a
+ *      revocation survives the process.
+ *   2. `getSession()` never trusts client state: it asks the identity library, which reads the session
+ *      row and its expiry. The cookie cache is disabled in `auth.ts`.
+ *   3. Roles are NOT taken from the session payload; they are read from `organization_members` on every
+ *      call, so a role change takes effect on the next request (SECURITY.md §2, AUTHZ-MATRIX §4).
+ *   4. Revocation is an audited action with a reason of at least 8 characters (SECURITY.md §12:
+ *      authorization changes record actor, target, reason).
+ *   5. No token value is returned, logged or echoed (SECURITY.md §11).
+ *
+ * Failure cases: identity store unavailable -> the error propagates and the caller fails closed for
+ * privileged actions · expired session -> null, which the caller turns into 401 · unknown session id on
+ * revocation -> NOT_FOUND (no existence disclosure) · concurrent sessions on one account are allowed and
+ * individually revocable (SECURITY.md §2).
+ *
+ * Task ownership: T-ORG-001 (delivered 2026-09-27). Device-bound check-in sessions are T-CHECKIN-016;
+ * passkeys/2FA for administrative roles are T-SEC-009; the durable audit row is T-SEC-007.
  */
-import { headers } from "next/headers";
-
-import { auth } from "@/server/auth/better-auth";
-import { db } from "@/server/db/client";
-import { deleteSessionById, listSessionsForUser, type StoredSession } from "@/server/db/repositories/sessions";
+import { eq } from "drizzle-orm";
+import { sessions } from "@/server/db/schema";
+import { getDb, type DbHandle } from "@/server/db/client";
+import { AppError } from "@/shared/contracts/errors";
+import { auth } from "@/server/auth/auth";
+import { listActiveMembershipsForUser } from "@/server/db/repositories/organizations";
+import { buildSecurityEvent, recordSecurityEvent } from "@/server/auth/authorization-events";
 
 export interface SessionSummary {
   readonly sessionId: string;
   readonly userId: string;
-  /**
-   * Organization-scoped role keys held by this principal.
-   *
-   * Empty by design today: roles are a property of organization membership, which is T-ORG-002, and
-   * the scope they resolve into is T-SEC-001. It is never a placeholder permission — an empty array
-   * means "no role is known", and `requirePermission` (T-SEC-002) will deny on that basis.
-   */
+  /** Distinct role keys across the user's ACTIVE memberships. Empty means: no scope, no access. */
   readonly roles: readonly string[];
   readonly deviceLabel?: string;
   readonly createdAt: string;
   readonly lastSeenAt: string;
 }
 
-/**
- * Resolves the caller's session from the request cookies.
- *
- * Returns `null` for an anonymous caller — that is a normal outcome on public surfaces, not an error.
- * A database failure propagates: an unauthenticated-looking response caused by an outage would let a
- * privileged caller be treated as a stranger, and the correct behaviour for a privileged surface is
- * to fail closed.
- */
-export async function getSession(): Promise<SessionSummary | null> {
-  const result = await auth().api.getSession({ headers: await headers() });
-  if (!result) return null;
+/** Minimum length for a recorded reason (AUTHZ-MATRIX §4.5). */
+const MIN_REASON_LENGTH = 8;
 
-  return {
+/**
+ * Read the current session for a request.
+ *
+ * @param headers the incoming request headers (the session cookie lives there)
+ * @returns null when there is no valid session - the caller answers 401, never a default identity
+ */
+export async function getSession(headers: Headers, handle?: DbHandle): Promise<SessionSummary | null> {
+  const result = await auth().api.getSession({ headers });
+  if (!result?.session || !result.user) return null;
+
+  const memberships = await listActiveMembershipsForUser(handle ?? getDb(), result.user.id);
+  const roles = [...new Set(memberships.flatMap((membership) => membership.roles))].sort();
+
+  const summary: SessionSummary = {
     sessionId: result.session.id,
     userId: result.user.id,
-    roles: [],
-    createdAt: result.session.createdAt.toISOString(),
-    lastSeenAt: result.session.updatedAt.toISOString(),
+    roles,
+    createdAt: toIso(result.session.createdAt),
+    lastSeenAt: toIso(result.session.updatedAt),
   };
-}
-
-/** Sessions belonging to the given user, newest first. Read-only; used by `/sesi-saya`. */
-export async function listSessions(userId: string): Promise<readonly StoredSession[]> {
-  return listSessionsForUser(db(), userId);
+  const deviceLabel = (result.session as { deviceLabel?: string | null }).deviceLabel;
+  return deviceLabel ? { ...summary, deviceLabel } : summary;
 }
 
 /**
- * Revokes one session immediately.
+ * Revoke one session.
  *
- * SECURITY: this function performs **no** authorization of its own, deliberately: T-SEC-002 invariant 1
- * says no route, action or job performs its own role comparison, and `requirePermission` is the single
- * choke point. Callers must authorize first. No route or Server Action calls this yet — the surfaces
- * that will (`/sesi-saya`, the operator session-kill) are gated by T-SEC-002 before they ship.
+ * The session row is deleted, which ends the session on its next request (SECURITY.md §2). The action
+ * requires an actor and a reason because it is an authorization change and must be reconstructable from
+ * the audit trail (SECURITY.md §12); the durable audit row is written by T-SEC-007 - until then the
+ * event is emitted through the security-event sink.
  *
- * The `reason` is mandatory and validated, because SECURITY.md §12 records a session kill as an
- * audited action. **It is not persisted yet**: the audit trail is T-SEC-007, and inventing a partial
- * audit table here would give the next slice a second, conflicting audit path. The signature already
- * carries the reason so call sites do not change when T-SEC-007 writes it.
- *
- * @throws Error when the reason is too short, or when no such session exists.
+ * @throws AppError(NOT_FOUND) when the session does not exist (no existence disclosure)
+ * @throws AppError(VALIDATION_FAILED) when the reason is shorter than 8 characters
  */
-export async function revokeSession(sessionId: string, reason: string): Promise<void> {
-  if (reason.trim().length < 8) {
-    throw new Error("a session revocation needs a reason of at least 8 characters");
+export async function revokeSession(
+  sessionId: string,
+  reason: string,
+  context: { actorUserId: string; organizationId: string },
+  handle: DbHandle = getDb(),
+): Promise<void> {
+  if (reason.trim().length < MIN_REASON_LENGTH) {
+    throw AppError.validation("Alasan pembatalan sesi minimal 8 karakter.");
   }
 
-  const removed = await deleteSessionById(db(), sessionId);
-  if (!removed) {
-    // Not an authorization statement about another tenant's data — just "there is nothing to revoke".
-    throw new Error(`session not found: ${sessionId}`);
-  }
+  const deleted = await handle.delete(sessions).where(eq(sessions.id, sessionId)).returning({ id: sessions.id });
+  if (deleted.length === 0) throw AppError.notFound("Sesi tidak ditemukan.");
+
+  recordSecurityEvent(
+    buildSecurityEvent({
+      event: "session_revoked",
+      sessionId,
+      actorUserId: context.actorUserId,
+      organizationId: context.organizationId,
+      reason: reason.trim(),
+      now: new Date(),
+    }),
+  );
+}
+
+function toIso(value: Date | string | undefined): string {
+  if (value === undefined) return new Date(0).toISOString();
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }

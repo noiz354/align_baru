@@ -46,6 +46,19 @@ python3 -m unittest discover -s tests -p "test_*.py"
 python3 demo.py
 ```
 
+## Completion boundary (audit 2026-09-27)
+
+`TASKS.md` contains 20 domain/infrastructure MVP tickets; the 64 unit tests and
+`demo.py` exercise those paths. This is **not** full PRD §4.A completion:
+there is no attendant UI, durable provider-verified QRIS settlement, or proof
+of cross-device concurrency safety. QRIS check-out now fails closed rather than
+claiming an unverified payment is PAID. `IOcrEngine.process_frame` raises
+`NotImplementedError` as an abstract port; `MockEdgeOcrEngine` is test-only,
+not a production recognizer (PRD §4.B.1 places edge OCR post-MVP).
+`VehicleWatchlistService` also remains a non-functional stub — operational
+watchlist policies in VEHICLE.md §4 are not verified. Report this as **domain
+MVP partial / full PRD incomplete**, not VERIFIED 100%.
+
 ## Key design decisions (per ADR)
 - **ADR-002 / SECURITY**: pricing uses a monotonic, tamper-resistant clock; a
   rolled-back checkout time raises `ClockTamperError`.

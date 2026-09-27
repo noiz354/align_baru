@@ -11,41 +11,52 @@ It is designed for **many mosques, communities and organizers** — not one mosq
 
 ---
 
-## ⚠️ Repository status: PHASE 0 — SPECIFICATION + SKELETON
+## ⚠️ Repository status: VS-1 IN PROGRESS (Phase 0 specification + skeleton, ten tasks delivered)
 
-**Nothing in this repository runs. There is no feature implementation, by design.**
+**The Phase 0 freeze was lifted on 2026-09-27.** The documentation set below is still the authority,
+the skeleton is still the shape of the product, and exactly ten tasks are implemented
+(`T-ARCH-002`, `T-ARCH-003`, `T-DOCS-001`, `T-DOCS-003`, `T-OBS-002`, `T-ORG-001`, `T-SEC-001`,
+`T-SEC-002`, `T-SEC-004`, `T-SEC-007`).
 
-What is here (2026-09-26):
+What is here (updated 2026-09-27):
 
 | Area | Contents |
 |---|---|
 | Requirements | `PRD.md` — 229 stable IDs (156 functional across 16 families, 73 non-functional) |
 | Documents | 36 root documents + 57 under `docs/` (research, product, design, media, transcription, security, architecture, attendance, testing, operations, 27 ADRs, traceability) |
-| Contracts and skeletons | 165 files under `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 25 API route shells (+ not-found/error shells) |
-| Tests | 102 test files: 98 placeholder files (338 `test.todo(...)` + 80 `describe.todo(...)` in Vitest layers, 42 `test.fixme(...)` in Playwright layers) and 4 with real assertions, owned by the delivered `T-ORG-001` |
-| Operations skeleton | `ops/`: compose stack, two Dockerfiles, smoke suite, docs lint gate, backup/restore, load harness notes |
-| Task plan | `TASKS.md` — 36 fully specified tasks (16 mandatory fields each) + 132 task rows for later slices |
+| Contracts and skeletons | `src/`: domain transitions for 10 state machines, 14 shared contracts, feature service stubs, server ports and repositories, 49 page shells + 26 API route shells (+ not-found/error shells) |
+| **Implemented (VS-1)** | `T-OBS-002`/`T-SEC-004` — one logging interface with a privacy allow-list, the OBSERVABILITY.md §4 metric catalogue as typed constants, and a token/code ban list enforced twice (runtime drop + `majelishub/no-token-logging`) from one data file (`src/shared/observability/**`, `ops/eslint/no-token-logging.mjs`) · `T-SEC-007` — append-only, tamper-evident audit: hash-chained `audit_events` with SELECT/INSERT-only grants, an anti-mutation trigger, a linear-time verifier and a per-request buffer wired into `requirePermission` (`src/server/audit/**`, `drizzle/0002_audit_events.sql`, `ops/db-migrate.mjs`) · `T-ORG-001` — Better Auth identity with sessions in our PostgreSQL and a **durable, Postgres-backed rate limiter**, plus the sign-up → cookie → `getSession()` round trip (`src/server/auth/*`, `src/server/http/rate-limit.ts`, `src/server/http/auth-response.ts`, `src/server/config.ts`, `src/app/api/auth/[...all]/route.ts`) · `T-SEC-001` — tenant isolation: `TenantScope` guards, `deriveScope`, scope-first repositories, per-transaction RLS session variables and policies (`src/shared/contracts/scope.ts`, `src/server/db/**`, `drizzle/0001_row_level_security.sql`) · `T-SEC-002` — the authorization matrix as data and the single `requirePermission` choke point, with a public-route allow-list (`src/server/auth/permissions.ts`, `src/server/auth/public-routes.ts`) · `T-DOCS-001` — the documentation consistency gate (`ops/docs-lint.mjs`) · `T-ARCH-002`/`T-ARCH-003` — the module-boundary and no-fake-implementation lint rules (`ops/eslint/**`, `eslint.config.mjs`) · app shell so the project builds (`src/app/layout.tsx`, `next.config.ts`) |
+| Schema + migrations | `src/server/db/schema/**` (identity, tenancy, audit) and four reviewed SQL migrations in `drizzle/` — applied by `npm run db:migrate` (`ops/db-migrate.mjs`: filename order, `schema_migrations` bookkeeping, refuses a changed checksum), never at boot (ADR-0020) |
+| Tests | **125 passing** (10 integration suites on a real PostgreSQL 18 + 10 unit suites) and 281 remaining placeholders in 77 files — the acceptance checklists for the tasks not yet built |
+| Operations | `ops/`: compose stack, two Dockerfiles, smoke suite, the working docs lint gate (`ops/docs-lint.mjs`, `T-DOCS-001`), the project's own ESLint rules (`ops/eslint/**`), the VS-0 exit gate (`ops/verify-vs0.mjs`, `T-DOCS-003`), backup/restore, load harness notes |
+| Task plan | `TASKS.md` — 37 fully specified tasks + 133 task rows for later slices |
 
-Every unimplemented function throws `Error("Not implemented: <TASK-ID>")`, where the task ID exists in
-`TASKS.md`. Prohibited in this phase: fake implementations, production UI, persistence, real
-authentication, QR generation/scanning, audio capture, transcription calls, notification delivery,
-payments, deployment. Route shells render `null`.
+Every function that is not part of those ten tasks still throws `Error("Not implemented: <TASK-ID>")`,
+where the task ID exists in `TASKS.md` — the `majelishub/no-fake-implementation` lint rule checks all 53 of
+them on every run. Still prohibited everywhere: fake implementations, production UI,
+QR generation/scanning, audio capture, transcription calls, notification delivery, payments.
 
-**VS-0 exit verification: complete (2026-09-27).** `npm run verify:vs0` reports all seven VS-0 exit
-criteria as met (criterion 7 — reviewer comprehension — is attested by a human, not a script). The
-findings it raised and how each was resolved are recorded in `ROADMAP.md` §Phase 0 state.
+**Gates that run on every change:** `npm run typecheck` · `npm run lint` (including the project's own
+`majelishub/*` rules) · `npm run test` · `npm run docs:lint` (`T-DOCS-001`) · `npm run verify:vs0`
+(`T-DOCS-003`, which re-checks the seven VS-0 exit criteria read-only — 6 pass / 1 warn / 0 fail, with
+criterion 7 attested by a human rather than faked as a PASS). The findings that verification raised, and
+how each was resolved, are recorded in `ROADMAP.md` §Phase 0 state.
 
-**The Phase 0 freeze is lifted for VS-1 only.** `T-ORG-001` (identity platform) is **delivered**:
-the identity schema and its reviewed migration, the pooled database client, a durable Postgres-backed
-auth rate limiter, the session service and the `/api/auth/*` route. It is platform work — no page
-renders identity state yet.
+```bash
+# These commands run (verified 2026-09-27, Node.js v24.21.0 / npm 11.20.0):
+npm run typecheck        # tsc --noEmit → exit 0
+npm run lint             # eslint 9 flat config + the project's own rules → exit 0
+npm run test:unit        # 8 real suites + placeholder suites
+npm run test:integration # 8 real suites against a real PostgreSQL (PGlite by default)
+npm run docs:lint        # ops/docs-lint.mjs → 0 findings
+npm run db:generate      # drizzle-kit generate → reviewed SQL in drizzle/
+npm run db:migrate       # ops/db-migrate.mjs → applies drizzle/*.sql in order (needs DATABASE_URL)
+npm run db:migrate:status # what is applied and what is pending
+npm run build            # next build → compiled, 49 pages + 26 API routes (all dynamic)
+```
 
-Not delivered, and recorded as explicit deferrals in the task block: the sign-in and session-management
-UI (`T-ORG-004`), organization membership and roles (`T-ORG-002`), the revocation audit record
-(`T-SEC-007`) and the scheduled retention sweep (`T-PRIV-003`). Manual QA was **not executed** — this
-environment has no PostgreSQL instance and no browser, and the sign-in surface does not exist yet.
-
-Next: `T-ORG-002` (organization + membership), then `T-SEC-001` (`ROADMAP.md` §VS-1 status).
+Next step: `TASKS.md` §5 — `T-ORG-002` (organizations + memberships), then `T-MOSQUE-001` (mosque
+create/edit) and `T-ORG-003` (role switching, invitation, offboarding).
 
 ---
 
@@ -157,7 +168,6 @@ feeds, follower counts, algorithmic amplification.
 ```bash
 # Phase 0: there is nothing to run yet. These are the planned commands (pinned in package.json).
 npm run typecheck   # tsc --noEmit  (skeleton types must stay valid)
-npm run verify:vs0  # the seven VS-0 exit criteria (read-only, exits non-zero on failure)
 npm run lint        # eslint 9 flat config
 npm test            # vitest (all suites are describe.todo → 0 assertions executed)
 npm run build       # next build (routes render empty shells)

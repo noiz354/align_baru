@@ -39,7 +39,11 @@ class Task:
 
 @dataclass
 class Lesson:
-    """A verified piece of experience stored in persistent memory."""
+    """A verified piece of experience stored in persistent memory.
+
+    Memory entries are versioned so a bad learned rule can be deprecated and
+    superseded instead of silently rewritten (MEMORY.md §Memory versioning).
+    """
     id: str
     content: str
     knowledge_keys: list[str]
@@ -48,9 +52,25 @@ class Lesson:
     verified: bool               # True once the Verifier observed it against execution
     created_at: float = field(default_factory=time.time)
     kind: str = "lesson"         # lesson | procedure | boundary
+    version: int = 1
+    superseded_by: str | None = None   # lesson id that replaced this one
+    deprecated: bool = False           # soft-deleted: kept for audit, ignored by reads
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Lesson":
+        known = {
+            "id", "content", "knowledge_keys", "source_task_id", "confidence",
+            "verified", "created_at", "kind", "version", "superseded_by",
+            "deprecated",
+        }
+        return cls(**{k: v for k, v in data.items() if k in known})
+
+    def supersede(self, new_lesson_id: str) -> None:
+        self.deprecated = True
+        self.superseded_by = new_lesson_id
 
 
 @dataclass

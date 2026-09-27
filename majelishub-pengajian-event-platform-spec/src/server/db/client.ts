@@ -1,103 +1,167 @@
 /**
- * Database client and transaction helpers.
+ * Database client and transaction helpers - the ONLY place SQL is issued.
  *
- * Where this belongs: server/db (infrastructure; the ONLY place SQL is issued). Domain code never sees
- * this module - it goes through repositories.
- * Specification: docs/research/STACK-2026.md §5 (Postgres 18 + Drizzle), ADR-0020 (no migrations on
- *   boot), DATA_MODEL.md §11 (14 constraint invariants), ADR-0017 (RLS session variables per tx).
- * Invariants:
+ * Where this belongs: server/db (infrastructure). Domain code never sees this module - it goes through
+ * repositories.
+ * Specification: docs/research/STACK-2026.md §5 (PostgreSQL 18 + Drizzle), ADR-0020 (no migrations on
+ * boot), DATA_MODEL.md §11 (constraint invariants), ADR-0017 (RLS session variables per transaction).
+ *
+ * Invariants implemented here (T-SEC-001):
  *   1. Migrations are applied by an explicit deploy step (`npm run db:migrate`) - never at application
  *      start-up (ADR-0020).
- *   2. Every transaction that touches tenant data sets the RLS session variables from the TenantScope.
- *   3. Statement timeouts are configured so a runaway query cannot hold an entrance hostage.
- *   4. No query is constructed by string interpolation of user input.
- * Task ownership: T-SEC-001/003 (scope + RLS), T-ARCH-001 (schema scaffolding),
- *   T-ORG-001 (the pooled client itself).
- */
-import { type SQL } from "drizzle-orm";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-
-import { optionalEnv, requiredEnv, requiredIntEnv } from "@/server/bootstrap/env";
-import * as identity from "@/server/db/schema/identity";
-
-/**
- * The schema is assembled here, one entry per module that owns tables. Only `identity` exists today;
- * each later slice registers its own schema in this object and nothing else needs to change.
- */
-export const schema = { ...identity } as const;
-
-export type Database = NodePgDatabase<typeof schema>;
-
-/**
- * The narrowest surface a repository needs: execute one statement, get rows back.
+ *   2. Every transaction that touches tenant data sets the RLS session variables from the TenantScope,
+ *      transaction-locally (`set_config(..., true)`), so nothing leaks across pooled connections.
+ *   3. The transaction then switches to the non-superuser application role, which is what makes
+ *      row-level security actually apply. RLS is the second layer; the scoped WHERE clause in the
+ *      repositories is the first (ADR-0017 layers 2 and 3).
+ *   4. A malformed or missing scope fails closed before any statement runs.
+ *   5. No query is constructed by string interpolation of user input; the only interpolated identifier
+ *      is the application role name, which `config()` has already validated as a SQL identifier.
  *
- * Both the pooled node-postgres client and the embedded Postgres used by tests satisfy it, which is
- * what lets repository tests run without a container while still executing real SQL. Repositories
- * take this rather than `Database` for exactly that reason.
+ * Failure cases: connection failure surfaces as an error to the caller (never a silent empty result);
+ * statement timeout (`statement_timeout`) prevents a runaway query from holding an entrance hostage;
+ * a transaction that throws is rolled back, which also discards the session variables.
+ *
+ * Task ownership: T-SEC-001 (scope + RLS wiring), T-ARCH-001 (schema scaffolding).
+ */
+import { sql, type SQL } from "drizzle-orm";
+import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { Pool } from "pg";
+import { assertScopeUsable, type TenantScope } from "@/shared/contracts/scope";
+import { config } from "@/server/config";
+import { schema, type Schema } from "./schema";
+
+/** Driver-agnostic handle: repositories accept this whether the driver is `pg` or (in tests) PGlite. */
+export type Db = PgDatabase<PgQueryResultHKT, Schema>;
+
+/** The transaction handle repositories receive inside `withScopedTransaction`. */
+export type ScopedTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/** Alias kept for the stubs that already name it (src/server/audit/writer.ts, T-SEC-007). */
+export type DbTransaction = ScopedTx;
+
+/**
+ * What a repository accepts: the process-wide handle or a scoped transaction. Repositories never open
+ * their own transaction and never read `process.env` - the scope and the handle are always passed in
+ * (ADR-0017 layer 2).
+ */
+export type DbHandle = Db | ScopedTx;
+
+/**
+ * The narrowest database capability a repository can take: "run this SQL, give me the rows".
+ *
+ * Both drivers satisfy it, so a repository written against `SqlExecutor` runs on the production `pg`
+ * pool and on the PGlite test harness without a cast at the call site. It is deliberately not generic in
+ * the row type - the two drivers disagree on the exact result shape - so repositories narrow the rows
+ * they read with an explicit cast, keeping the SQL and the row contract next to each other.
+ * (Introduced with the T-ORG-001 session/counter repositories merged from `main`, 2026-09-27.)
  */
 export interface SqlExecutor {
-  /**
-   * Deliberately not generic in the row type: the two drivers disagree on the exact result shape,
-   * and a generic signature here makes neither assignable. Repositories narrow the rows they read
-   * with an explicit cast instead, which keeps the SQL and the row contract next to each other.
-   */
   execute(query: SQL): Promise<{ rows: Record<string, unknown>[] }>;
 }
 
+/** Session variables the RLS policies read (drizzle/0001_row_level_security.sql). */
+export const RLS_VARIABLES = {
+  organizationId: "app.organization_id",
+  scopeKind: "app.scope",
+  mosqueId: "app.mosque_id",
+  eventId: "app.event_id",
+  userId: "app.user_id",
+} as const;
+
 let pool: Pool | undefined;
-let database: Database | undefined;
+let db: Db | undefined;
 
-/**
- * The process-wide pooled client.
- *
- * Lazy on purpose: importing this module must not require `DATABASE_URL`, so that unit tests and
- * documentation tooling can import the schema without a database. The first call opens the pool.
- *
- * Pool sizing and statement timeout come from the environment (`DATABASE_POOL_MAX`,
- * `DATABASE_STATEMENT_TIMEOUT_MS`) so an operator can tune them without a rebuild.
- */
-export function db(): Database {
-  if (database) return database;
-
-  pool = new Pool({
-    connectionString: requiredEnv("DATABASE_URL"),
-    max: requiredIntEnv("DATABASE_POOL_MAX", 10),
-    // A statement that runs away is worse than a statement that fails: at a busy entrance the
-    // connection it holds is the resource everything else is waiting for.
-    statement_timeout: requiredIntEnv("DATABASE_STATEMENT_TIMEOUT_MS", 5_000),
-    // `TRUSTED_PROXY_HOPS` is a perimeter concern and belongs to the web tier, not the pool.
-    application_name: optionalEnv("OTEL_SERVICE_NAME", "majelishub"),
-  });
-
-  database = drizzle(pool, { schema });
-  return database;
+/** The underlying `pg` pool. Needed by the identity adapter (Better Auth speaks to `pg` directly). */
+export function getPool(): Pool {
+  getDb();
+  if (!pool) throw new Error("Programming error: pool was not created");
+  return pool;
 }
 
-/** Closes the pool. Used by the worker shutdown path and by tests. */
+/** Process-wide Drizzle instance over the `pg` pool. Created lazily; never reconnects on request. */
+export function getDb(): Db {
+  if (!db) {
+    const cfg = config();
+    pool = new Pool({
+      connectionString: cfg.databaseUrl,
+      statement_timeout: cfg.databaseStatementTimeoutMs,
+      // A leaked `SET LOCAL` cannot survive a checked-in connection, but a leaked session variable can
+      // if a client is reused mid-transaction; resetting on checkout is cheap defence in depth.
+      idleTimeoutMillis: 30_000,
+    });
+    db = drizzleNodePg(pool, { schema });
+  }
+  return db;
+}
+
+/** Used by the worker/migration tooling and by tests that need to close the pool. */
 export async function closeDb(): Promise<void> {
-  if (!pool) return;
-  const closing = pool;
+  await pool?.end();
   pool = undefined;
-  database = undefined;
-  await closing.end();
-}
-
-export interface DbTransaction {
-  /** Opaque handle; repositories are the only consumers. */
-  readonly scopeId: string;
+  db = undefined;
 }
 
 /**
- * @throws Error("Not implemented: T-ARCH-001") — the transactional helper belongs to the schema
- * scaffolding task: it must also apply the RLS session variables from the scope (T-SEC-001), and
- * shipping it without that would give later slices a helper that looks safe and is not.
+ * The statements that bind a transaction to a tenant. Exported because the isolation test suite needs
+ * to prove the second layer on its own (ADR-0017 enforcement: "removes the application's WHERE clause
+ * and asserts the database still refuses").
+ */
+export function rlsStatements(scope: TenantScope, userId?: string): SQL[] {
+  assertScopeUsable(scope);
+  const statements: SQL[] = [
+    sql`SELECT set_config(${RLS_VARIABLES.organizationId}, ${scope.organizationId}, true)`,
+    sql`SELECT set_config(${RLS_VARIABLES.scopeKind}, ${scope.kind}, true)`,
+    sql`SELECT set_config(${RLS_VARIABLES.mosqueId}, ${scope.mosqueId ?? ""}, true)`,
+    sql`SELECT set_config(${RLS_VARIABLES.eventId}, ${scope.eventId ?? ""}, true)`,
+    sql`SELECT set_config(${RLS_VARIABLES.userId}, ${userId ?? scope.ownerId ?? ""}, true)`,
+  ];
+  return statements;
+}
+
+/** `SET LOCAL ROLE <app role>` - the identifier is validated by `config()` before it reaches here. */
+export function useAppRoleStatement(appRole: string): SQL {
+  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(appRole)) {
+    throw new Error("Programming error: application role name is not a valid SQL identifier");
+  }
+  return sql`SET LOCAL ROLE ${sql.raw(appRole)}`;
+}
+
+/**
+ * Run `fn` inside a transaction bound to `scope`.
+ *
+ * Order matters: session variables are set first, then the role switch, so the role change cannot
+ * observe a connection state belonging to another tenant. Everything is transaction-local; the pool
+ * never carries a tenant between requests.
+ */
+export async function withScopedTransaction<T>(
+  handle: Db,
+  scope: TenantScope,
+  fn: (tx: ScopedTx) => Promise<T>,
+  options?: { userId?: string; appRole?: string },
+): Promise<T> {
+  assertScopeUsable(scope);
+  return handle.transaction(async (tx) => {
+    for (const statement of rlsStatements(scope, options?.userId)) {
+      await tx.execute(statement);
+    }
+    const appRole = options?.appRole ?? config().databaseAppRole;
+    await tx.execute(useAppRoleStatement(appRole));
+    return fn(tx);
+  });
+}
+
+/**
+ * Same, on the process-wide connection pool.
+ *
+ * @throws Error("Not implemented: T-ARCH-001") is no longer thrown: the transaction helper is real as
+ *   of T-SEC-001. Schema scaffolding for the remaining modules is still T-ARCH-001.
  */
 export async function withTransaction<T>(
-  scope: import("@/shared/contracts/scope").TenantScope,
-  fn: (tx: DbTransaction) => Promise<T>,
+  scope: TenantScope,
+  fn: (tx: ScopedTx) => Promise<T>,
+  options?: { userId?: string },
 ): Promise<T> {
-  void scope;
-  void fn;
-  throw new Error("Not implemented: T-ARCH-001");
+  return withScopedTransaction(getDb(), scope, fn, options);
 }

@@ -1,9 +1,4 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * Sales (SALES.md). A sale line stores an immutable unitPriceSnapshot (ADR-0010); totals derive
- * ONLY from snapshots so historical amounts can never change (INV-05, FR-PRICE-004).
- */
-import type { Money, CurrencyCode } from "../../shared/money";
+import { money, addMoney, subtractMoney, type Money, type CurrencyCode } from "../../shared/money";
 
 export type SaleStatus = "DRAFT" | "COMPLETED" | "VOIDED" | "CORRECTED";
 
@@ -22,15 +17,38 @@ export interface SaleTotals {
   readonly currency: CurrencyCode;
 }
 
-/** Throws. Task: T-SALE-001. */
 export function computeSaleTotalFromSnapshots(
-  _lines: readonly SaleLineSnapshot[],
-  _discount?: Money
+  lines: readonly SaleLineSnapshot[],
+  discount?: Money
 ): SaleTotals {
-  throw new Error("Not implemented: T-SALE-001");
+  if (lines.length === 0) throw new Error("Sale must have at least one line");
+  const currency = lines[0]!.unitPriceSnapshot.currency;
+  let linesTotalMinor = 0;
+  for (const line of lines) {
+    if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
+      throw new Error(`Invalid quantity ${line.quantity}`);
+    }
+    if (line.unitPriceSnapshot.currency !== currency) {
+      throw new Error("Currency mismatch in sale lines");
+    }
+    if (!Number.isInteger(line.unitPriceSnapshot.amountMinor)) {
+      throw new Error("Money must be integer minor units");
+    }
+    linesTotalMinor += line.unitPriceSnapshot.amountMinor * line.quantity;
+  }
+  const linesTotal = money(linesTotalMinor, currency);
+  const discountTotal = discount ?? money(0, currency);
+  if (discountTotal.currency !== currency) throw new Error("Discount currency mismatch");
+  if (discountTotal.amountMinor < 0) throw new Error("Discount cannot be negative");
+  if (discountTotal.amountMinor > linesTotalMinor) throw new Error("Discount exceeds total");
+  const payableTotal = subtractMoney(linesTotal, discountTotal);
+  return { linesTotal, discountTotal, payableTotal, currency };
 }
 
-/** Throws. Task: T-SALE-002. Change is integer minor units; "uang pas" is the default shortcut. */
-export function computeChangeForCash(_payable: Money, _cashReceived: Money): Money {
-  throw new Error("Not implemented: T-SALE-002");
+export function computeChangeForCash(payable: Money, cashReceived: Money): Money {
+  if (payable.currency !== cashReceived.currency) throw new Error("Currency mismatch");
+  if (cashReceived.amountMinor < payable.amountMinor) {
+    throw new Error("Insufficient cash received");
+  }
+  return money(cashReceived.amountMinor - payable.amountMinor, payable.currency);
 }

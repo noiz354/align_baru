@@ -1,18 +1,22 @@
 /**
- * Drizzle Kit configuration (ADR-0003, STACK-2026 §5).
+ * Drizzle Kit configuration - migrations are GENERATED here and APPLIED as an explicit deploy step.
  *
- * `db:generate` writes reviewed SQL to `drizzle/`; `db:migrate` applies it. Both are explicit deploy
- * steps — nothing in the application applies a migration on boot (ADR-0020).
+ * ADR-0020: no migration is ever applied at application boot. `npm run db:generate` writes reviewed SQL
+ * into `drizzle/`; `npm run db:migrate` runs it with the owner role (DATABASE_MIGRATION_URL), which is a
+ * different credential from the application role (DATA_MODEL.md §12, DEPLOYMENT.md §3).
  *
- * `DATABASE_URL` is only needed by commands that talk to a database (`db:migrate`, `db:studio`).
- * `db:generate` works from the schema file alone.
+ * Task ownership: T-ARCH-001 (schema scaffolding), T-SEC-001 (tenancy schema + RLS).
  */
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/server/db/schema/identity.ts",
+  schema: "./src/server/db/schema/index.ts",
   out: "./drizzle",
+  dbCredentials: {
+    // Owner role: the only credential allowed to change the schema.
+    url: process.env["DATABASE_MIGRATION_URL"] ?? process.env["DATABASE_URL"] ?? "",
+  },
   strict: true,
   verbose: true,
 });

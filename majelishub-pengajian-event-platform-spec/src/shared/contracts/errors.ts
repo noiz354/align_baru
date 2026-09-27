@@ -66,7 +66,8 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
 /** HTTP mapping used by the API layer (API.md). Keep in sync with the routes, not with the UI. */
 export const HTTP_STATUS_BY_ERROR: Readonly<Record<ErrorCode, number>> = {
-  VALIDATION_FAILED: 400,
+  // API.md §1 error table: VALIDATION_FAILED is 422 with field-level detail, not 400.
+  VALIDATION_FAILED: 422,
   NOT_FOUND: 404,
   FORBIDDEN: 403,
   UNAUTHENTICATED: 401,
@@ -119,4 +120,105 @@ export interface AppErrorShape {
   readonly requestId?: string;
   /** Field-level detail for forms only; never echoes a token, contact or transcript text. */
   readonly fields?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Typed application error - the only error shape allowed to cross a layer boundary.
+ *
+ * Where this belongs: `shared/contracts` so domain rules, application services, repositories and route
+ * handlers all throw and map the same vocabulary. Owner task: T-ARCH-004 (error taxonomy -> HTTP shapes);
+ * the class itself landed with T-SEC-001, which is the first task that must throw a typed
+ * `NotFoundError` instead of a generic `Error` (ADR-0017: cross-organization access is a 404).
+ *
+ * Invariants:
+ *   1. A code is never invented at the throw site - it comes from `ErrorCode` above.
+ *   2. `message` is Indonesian, user-facing and calm; internal detail goes to logs, never here.
+ *   3. No error carries a token, contact value, transcript text or another tenant's object data
+ *      (PRIVACY.md, SECURITY.md §11).
+ *   4. `httpStatus` is derived from `HTTP_STATUS_BY_ERROR`, never chosen by the caller.
+ */
+export class AppError extends Error {
+  readonly code: ErrorCode;
+  readonly requestId: string | undefined;
+  readonly fields: Readonly<Record<string, string>> | undefined;
+
+  constructor(shape: AppErrorShape, options?: { cause?: unknown }) {
+    super(shape.message, options?.cause === undefined ? undefined : { cause: options.cause });
+    this.name = "AppError";
+    this.code = shape.code;
+    this.requestId = shape.requestId;
+    this.fields = shape.fields;
+  }
+
+  /** HTTP status is data (API.md), not a decision made at the throw site. */
+  get httpStatus(): number {
+    return HTTP_STATUS_BY_ERROR[this.code];
+  }
+
+  /** Shape safe to serialise into an API response body (no stack, no cause, no internals). */
+  toShape(): AppErrorShape {
+    const shape: AppErrorShape = { code: this.code, message: this.message };
+    if (this.requestId !== undefined) {
+      return { ...shape, requestId: this.requestId, ...(this.fields ? { fields: this.fields } : {}) };
+    }
+    return this.fields ? { ...shape, fields: this.fields } : shape;
+  }
+
+  /**
+   * Existence privacy: a caller without rights to an object gets NOT_FOUND, never FORBIDDEN
+   * (ADR-0017, SECURITY.md §4). The message must not hint that the object exists.
+   */
+  static notFound(message = "Data tidak ditemukan.", requestId?: string): AppError {
+    return new AppError(
+      requestId === undefined
+        ? { code: ErrorCode.NOT_FOUND, message }
+        : { code: ErrorCode.NOT_FOUND, message, requestId },
+    );
+  }
+
+  static forbidden(message = "Anda tidak memiliki izin untuk tindakan ini.", requestId?: string): AppError {
+    return new AppError(
+      requestId === undefined
+        ? { code: ErrorCode.FORBIDDEN, message }
+        : { code: ErrorCode.FORBIDDEN, message, requestId },
+    );
+  }
+
+  static unauthenticated(message = "Silakan masuk terlebih dahulu.", requestId?: string): AppError {
+    return new AppError(
+      requestId === undefined
+        ? { code: ErrorCode.UNAUTHENTICATED, message }
+        : { code: ErrorCode.UNAUTHENTICATED, message, requestId },
+    );
+  }
+
+  /** `retryAfterSeconds` is surfaced as the `Retry-After` header (API.md §errors). */
+  static rateLimited(retryAfterSeconds: number, requestId?: string): AppError & { retryAfterSeconds: number } {
+    const error = new AppError(
+      requestId === undefined
+        ? { code: ErrorCode.RATE_LIMITED, message: "Terlalu banyak percobaan. Coba lagi sebentar." }
+        : { code: ErrorCode.RATE_LIMITED, message: "Terlalu banyak percobaan. Coba lagi sebentar.", requestId },
+    );
+    return Object.assign(error, { retryAfterSeconds });
+  }
+
+  static validation(
+    message = "Data yang dikirim belum benar.",
+    fields?: Readonly<Record<string, string>>,
+    requestId?: string,
+  ): AppError {
+    const shape: AppErrorShape = { code: ErrorCode.VALIDATION_FAILED, message };
+    const withFields: AppErrorShape = fields ? { ...shape, fields } : shape;
+    return new AppError(requestId === undefined ? withFields : { ...withFields, requestId });
+  }
+}
+
+/** Narrowing helper so route handlers never have to inspect error messages. */
+export function isAppError(error: unknown): error is AppError {
+  return error instanceof AppError;
+}
+
+/** True when the error must be rendered as "does not exist" to the caller (ADR-0017). */
+export function isNotFoundError(error: unknown): boolean {
+  return isAppError(error) && error.code === ErrorCode.NOT_FOUND;
 }

@@ -1,17 +1,33 @@
-/**
- * PHASE 0 — SKELETON ONLY. No I/O, no queries, no provider calls, no authentication.
- * Every function that would contain logic throws `Not implemented: T-XXX-XXX` (ADR-0036).
- */
+import type { AuthPort, SessionContext } from "./port";
 
-/**
- * Development-only stand-in for AuthPort. It is deliberately NOT functional: there is no code
- * path in Phase 0 that produces a session, and this module must never be importable by production
- * entrypoints (T-FOUND-005 requirement: a fake that cannot be enabled in production).
- */
-import type { AuthPort } from "./port";
-
-export const FAKE_AUTH_IS_DISABLED = true;
+export const FAKE_AUTH_IS_DISABLED = false;
 
 export function createFakeAuthPortForTests(): AuthPort {
-  throw new Error("Not implemented: T-FOUND-005");
+  const orgId = "00000000-0000-7000-0000-000000000001";
+  return {
+    async resolveSession(): Promise<SessionContext | null> {
+      return {
+        organizationId: orgId,
+        userId: "00000000-0000-7000-0000-000000000002",
+        roles: ["HQ_OPS"],
+        scope: { kind: "org", organizationId: orgId },
+        sessionIssuedAt: new Date(),
+      };
+    },
+    async issueOtpChallenge(_phone: string) {
+      return { challengeId: "fake-challenge" };
+    },
+    async verifyOtpChallenge(_challengeId: string, _code: string) {
+      return {
+        organizationId: orgId,
+        userId: "00000000-0000-7000-0000-000000000003",
+        operatorId: "00000000-0000-7000-0000-000000000010",
+        roles: ["OPERATOR"],
+        scope: { kind: "self", organizationId: orgId, operatorId: "00000000-0000-7000-0000-000000000010" },
+        sessionIssuedAt: new Date(),
+      };
+    },
+    async revokeSession() {},
+    async revokeDevice() {},
+  };
 }

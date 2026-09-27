@@ -105,6 +105,24 @@ class HarnessTests(unittest.TestCase):
         self.assertIn("unit_tests", result.checks)
 
 
+    def test_exhausted_step_budget_cannot_report_success(self):
+        task = Task(id="task-budget", title="T", category="debug", difficulty=0.4,
+                    required_knowledge=[], spec="bounded")
+        class NeverFinish:
+            def next_action(self, ctx):
+                from rsi.types import Action
+                return Action(kind="thought", content="still thinking")
+            def final_checks(self):
+                return {"unit_tests": True, "acceptance": True}
+            def failure_mode(self):
+                return None
+        from rsi.tools import MockToolset
+        result = ReActHarness(max_steps=2).run(task, NeverFinish(), MockToolset(will_pass=True), [])
+        self.assertEqual(len(result.steps), 2)
+        self.assertEqual(result.failure_mode, "step-budget")
+        self.assertEqual(result.checks, {"step_budget": False})
+
+
 class OrchestratorTests(unittest.TestCase):
     def test_warm_beats_cold_on_holdout(self):
         with tempfile.TemporaryDirectory() as tmp:

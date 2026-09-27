@@ -49,6 +49,24 @@ class TestCheckInCheckOutFlow(unittest.TestCase):
         shift = self.store.get_shift("shf1")
         self.assertEqual(shift.cash_collected_system, 3000.0)
 
+    def test_qris_request_does_not_fake_payment_or_release_slot(self):
+        session = self._checkin()
+        self.clock.advance(timedelta(hours=2))
+        with self.assertRaisesRegex(ValueError, "verified provider settlement"):
+            self.checkout.execute(session.session_id, "att1", "QRIS")
+        self.assertEqual(self.store.get_session(session.session_id).state, SessionState.ACTIVE)
+        self.assertEqual(self.store.get_slot("s1").status, SlotStatus.OCCUPIED)
+        self.assertEqual(self.store.get_shift("shf1").cash_collected_system, 0)
+        self.assertEqual(self.store.get_shift("shf1").qris_collected_system, 0)
+
+    def test_unknown_or_unapproved_waiver_cannot_close_session(self):
+        session = self._checkin()
+        for method, waived in (("TRANSFER", False), ("WAIVED", False), ("CASH", True)):
+            with self.subTest(method=method, waived=waived):
+                with self.assertRaises(ValueError):
+                    self.checkout.execute(session.session_id, "att1", method, is_waived=waived)
+        self.assertEqual(self.store.get_session(session.session_id).state, SessionState.ACTIVE)
+
     def test_duplicate_active_plate_rejected(self):
         self._checkin("B 1234 ABC")
         with self.assertRaises(ValueError):
@@ -94,6 +112,16 @@ class TestLostTicket(unittest.TestCase):
                 session.session_id, "att1", "spv1", "0000",
                 "Budi", "3171...", "evi_stnk", "evi_ktp",
             )
+
+    def test_lost_ticket_qris_is_not_falsely_paid(self):
+        session = self.checkin.execute("B 1234 ABC", VehicleType.MOTORCYCLE, "BLACK", "s1", "att1", "shf1")
+        with self.assertRaisesRegex(ValueError, "QRIS is not configured"):
+            self.lost.verify_and_checkout(
+                session.session_id, "att1", "spv1", "1234",
+                "Budi", "3171010101010001", "evi_stnk", "evi_ktp", payment_method="QRIS",
+            )
+        self.assertEqual(self.store.get_session(session.session_id).state, SessionState.ACTIVE)
+        self.assertEqual(self.store.get_slot("s1").status, SlotStatus.OCCUPIED)
 
     def test_lost_ticket_success(self):
         session = self.checkin.execute("B 1234 ABC", VehicleType.MOTORCYCLE, "BLACK", "s1", "att1", "shf1")
