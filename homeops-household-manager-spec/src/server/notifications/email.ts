@@ -7,7 +7,10 @@
  *
  * Status: unimplemented by design. Owning task: T-NOTIF-009.
  */
-export type EmailDeliveryResult = { readonly outcome: 'delivered' | 'transient_failure' | 'permanent_failure'; readonly errorClass?: string };
+export type EmailDeliveryResult = {
+  readonly outcome: 'delivered' | 'transient_failure' | 'permanent_failure';
+  readonly errorClass?: string;
+};
 
 export async function sendEmail(_input: {
   readonly to: string;

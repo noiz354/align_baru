@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Household creation is the first real transaction in the product (T-HH-001).
 

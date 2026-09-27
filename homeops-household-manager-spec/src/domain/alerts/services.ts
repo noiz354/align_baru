@@ -1,11 +1,13 @@
 // HomeOps - domain skeleton (specification phase). Service contracts only.
 
 import type { Clock } from '../../shared/time/clock';
-import type { Id, Instant, ResolutionReason } from '../../shared/types';
-import type { Alert } from './types';
+import type { Id, Instant } from '../../shared/types';
+import type { ResolutionReason } from '../../shared/errors/codes';
+import type { Alert, AlertEvaluationResult } from './types';
+import type { AlertRepository } from './ports';
 
 export type AlertDeps = {
-  readonly alerts: import('./ports').AlertRepository;
+  readonly alerts: AlertRepository;
   readonly clock: Clock;
 };
 
@@ -21,8 +23,13 @@ export type AlertDeps = {
  */
 export async function applyAlertPlan(
   _deps: AlertDeps,
-  _input: { readonly householdId: Id; readonly plan: import('./types').AlertEvaluationResult },
-): Promise<{ readonly created: number; readonly refreshed: number; readonly resolved: number; readonly escalated: number }> {
+  _input: { readonly householdId: Id; readonly plan: AlertEvaluationResult },
+): Promise<{
+  readonly created: number;
+  readonly refreshed: number;
+  readonly resolved: number;
+  readonly escalated: number;
+}> {
   throw new Error('Not implemented: T-ALERT-004');
 }
 
@@ -52,7 +59,12 @@ export async function acknowledgeAlert(
  */
 export async function snoozeAlert(
   _deps: AlertDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly alertId: Id; readonly snoozedUntil: Instant },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly alertId: Id;
+    readonly snoozedUntil: Instant;
+  },
 ): Promise<Alert> {
   throw new Error('Not implemented: T-ALERT-016');
 }
@@ -68,7 +80,13 @@ export async function snoozeAlert(
  */
 export async function resolveAlertManually(
   _deps: AlertDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly alertId: Id; readonly reason: ResolutionReason; readonly note?: string },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly alertId: Id;
+    readonly reason: ResolutionReason;
+    readonly note?: string;
+  },
 ): Promise<Alert> {
   throw new Error('Not implemented: T-ALERT-017');
 }
@@ -83,7 +101,12 @@ export async function resolveAlertManually(
  */
 export async function reassignAlertRecipient(
   _deps: AlertDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly alertId: Id; readonly recipientMemberId: Id },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly alertId: Id;
+    readonly recipientMemberId: Id;
+  },
 ): Promise<Alert> {
   throw new Error('Not implemented: T-ALERT-018');
 }

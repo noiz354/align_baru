@@ -15,7 +15,12 @@ export type PushDeliveryResult =
 
 export async function sendPush(_input: {
   readonly endpointHash: string;
-  readonly payload: { readonly title: string; readonly body: string; readonly href: string; readonly tag: string };
+  readonly payload: {
+    readonly title: string;
+    readonly body: string;
+    readonly href: string;
+    readonly tag: string;
+  };
 }): Promise<PushDeliveryResult> {
   throw new Error('Not implemented: T-NOTIF-008');
 }

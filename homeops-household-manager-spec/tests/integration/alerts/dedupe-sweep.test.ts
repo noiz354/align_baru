@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // T-ALERT-033 - the fatigue guard suite. If this suite fails, the product nags.
 

@@ -3,9 +3,10 @@
 import type { Clock } from '../../shared/time/clock';
 import type { Id, IssueSeverity, IssueStatus } from '../../shared/types';
 import type { Issue, IssueComment } from './types';
+import type { IssueRepository } from './ports';
 
 export type IssueDeps = {
-  readonly issues: import('./ports').IssueRepository;
+  readonly issues: IssueRepository;
   readonly clock: Clock;
 };
 
@@ -69,7 +70,13 @@ export async function transitionIssue(
  */
 export async function addIssueComment(
   _deps: IssueDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly issueId: Id; readonly body: string; readonly attachmentId?: Id },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly issueId: Id;
+    readonly body: string;
+    readonly attachmentId?: Id;
+  },
 ): Promise<IssueComment> {
   throw new Error('Not implemented: T-ISSUE-008');
 }

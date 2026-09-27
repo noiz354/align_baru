@@ -14,9 +14,11 @@ import type { Level } from '../../domain/resources/types';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-RES-004 - requirements, ADR, design, and tests are listed there.
  */
-export async function updateLevelAction(
-  _input: { readonly resourceId: string; readonly level: Level; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly resourceId: string; readonly band: 'OK' | 'LOW' | 'CRITICAL' }>> {
+export async function updateLevelAction(_input: {
+  readonly resourceId: string;
+  readonly level: Level;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly resourceId: string; readonly band: 'OK' | 'LOW' | 'CRITICAL' }>> {
   throw new Error('Not implemented: T-RES-004');
 }
 
@@ -27,9 +29,10 @@ export async function updateLevelAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-RES-006 - requirements, ADR, design, and tests are listed there.
  */
-export async function restockAction(
-  _input: { readonly resourceId: string; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly resourceId: string }>> {
+export async function restockAction(_input: {
+  readonly resourceId: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly resourceId: string }>> {
   throw new Error('Not implemented: T-RES-006');
 }
 
@@ -40,8 +43,9 @@ export async function restockAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-SHOP-003 - requirements, ADR, design, and tests are listed there.
  */
-export async function markShoppingItemBoughtAction(
-  _input: { readonly itemId: string; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly itemId: string; readonly restockedResourceId?: string }>> {
+export async function markShoppingItemBoughtAction(_input: {
+  readonly itemId: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly itemId: string; readonly restockedResourceId?: string }>> {
   throw new Error('Not implemented: T-SHOP-003');
 }

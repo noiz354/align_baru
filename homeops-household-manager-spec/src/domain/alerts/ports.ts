@@ -9,13 +9,16 @@ export type AlertRepository = {
   /** Non-terminal rows only; the partial unique index on dedupeKey lives here (I-ALERT-001). */
   findByDedupeKey(householdId: Id, dedupeKey: string): Promise<Alert | null>;
   listOpen(householdId: Id): Promise<readonly Alert[]>;
-  listByHousehold(householdId: Id, options: {
-    readonly states?: readonly AlertState[];
-    readonly types?: readonly string[];
-    readonly recipientMemberId?: Id;
-    readonly limit: number;
-    readonly cursor?: string;
-  }): Promise<{ readonly alerts: readonly Alert[]; readonly nextCursor?: string }>;
+  listByHousehold(
+    householdId: Id,
+    options: {
+      readonly states?: readonly AlertState[];
+      readonly types?: readonly string[];
+      readonly recipientMemberId?: Id;
+      readonly limit: number;
+      readonly cursor?: string;
+    },
+  ): Promise<{ readonly alerts: readonly Alert[]; readonly nextCursor?: string }>;
   countOpenAttention(householdId: Id): Promise<number>;
   insert(alert: Alert): Promise<void>;
   update(alert: Alert): Promise<void>;

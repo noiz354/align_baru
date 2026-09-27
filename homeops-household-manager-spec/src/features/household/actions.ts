@@ -28,9 +28,11 @@ export async function createHouseholdAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-HH-002 - requirements, ADR, design, and tests are listed there.
  */
-export async function updateHouseholdSettingsAction(
-  _input: { readonly name?: string; readonly timezone?: string; readonly settings?: Record<string, unknown> },
-): Promise<OperationResult<{ readonly updated: true }>> {
+export async function updateHouseholdSettingsAction(_input: {
+  readonly name?: string;
+  readonly timezone?: string;
+  readonly settings?: Record<string, unknown>;
+}): Promise<OperationResult<{ readonly updated: true }>> {
   throw new Error('Not implemented: T-HH-002');
 }
 

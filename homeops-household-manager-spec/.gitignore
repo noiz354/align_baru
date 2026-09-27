@@ -1,0 +1,25 @@
+# HomeOps project-level ignores (root ../../.gitignore covers the monorepo defaults).
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# test artefacts
+.vitest/
+.playwright/
+playwright-report/
+test-results/
+blob-report/
+
+# local config & secrets — never committed (SECURITY.md §10)
+.env
+.env.local
+.env.*.local
+
+# runtime data
+attachments/
+backups/
+*.log

@@ -50,11 +50,12 @@
 
 | Aspect | Rule |
 | --- | --- |
-| Fixtures | Builders in `tests/**/fixtures` (to be created in VS-0): `makeHousehold()`, `makeRoom()`, `makeChore()`, `makeOccurrence()`, plus a frozen `TestClock` |
+| Fixtures | Builders in `tests/factories/index.ts` (VS-0): `household()`, `member()`, `householdSettings()`, `invitation()`; a factory for a domain that is not implemented yet throws `Not implemented: T-XXX-NNN` instead of returning plausible-looking data. A frozen clock lives in `tests/helpers/clock.ts` (`testClock()`) |
 | Two households | Every integration suite seeds household A and household B so isolation can be asserted |
-| Database | Ephemeral Postgres per test run (docker compose service); migrations applied once, data truncated per test |
-| Determinism | No `Date.now()`; ids from a deterministic counter-based generator in tests |
-| Cleanup | Transaction rollback per test where possible; explicit truncate otherwise |
+| Database | Worker-scoped scratch database via `tests/helpers/db.ts` (`withScratchDatabase()`, `resetFixtures()`); migrations applied once, data truncated and reseeded per test. A suite skips itself with `describe.skipIf(!isDatabaseAvailable())` when no scratch database is configured |
+| Determinism | No `Date.now()`; the clock comes from `testClock()` and named DST instants (`JAKARTA_NO_DST`, `BERLIN_DST_FORWARD_02_30`, `BERLIN_DST_BACK_02_30_FIRST`/`_SECOND`, `AUCKLAND_DST_BACK`, `NEW_YORK_DST_BACK_MIDNIGHT`). Integration ids use `newId()` (uuidv7) |
+| Cleanup | Explicit truncate + reseed (`resetFixtures()`); integration runs single-file-serial so the scratch database is never shared mid-test |
+| Port doubles | `tests/helpers/in-memory.ts` provides in-memory doubles for the ports implemented so far (household, members, invitations, activity, idempotency, rate limits, outbox). Each double enforces household scoping and records calls; `PENDING_DOUBLES` names the ports whose double belongs to a later task, so a missing double is never silently substituted by a stub that returns empty data |
 | PII | Fixtures use obviously fake data (`Ayu Test`, `aki@example.test`) — never real names |
 
 ## 5. Naming conventions

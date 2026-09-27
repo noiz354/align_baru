@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The highest-value unit suite in the project (TESTING.md risk map).
 

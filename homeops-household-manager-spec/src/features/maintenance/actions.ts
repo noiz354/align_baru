@@ -13,17 +13,15 @@ import type { OperationResult } from '../../shared/errors/result';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-MNT-005 - requirements, ADR, design, and tests are listed there.
  */
-export async function recordServiceAction(
-  _input: {
-    readonly planId: string;
-    readonly performedOn: string;
-    readonly performedByMemberId?: string;
-    readonly vendorNote?: string;
-    readonly summary: string;
-    readonly costNote?: string;
-    readonly clientRequestId: string;
-  },
-): Promise<OperationResult<{ readonly recordId: string; readonly nextServiceAt: string }>> {
+export async function recordServiceAction(_input: {
+  readonly planId: string;
+  readonly performedOn: string;
+  readonly performedByMemberId?: string;
+  readonly vendorNote?: string;
+  readonly summary: string;
+  readonly costNote?: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly recordId: string; readonly nextServiceAt: string }>> {
   throw new Error('Not implemented: T-MNT-005');
 }
 
@@ -34,8 +32,9 @@ export async function recordServiceAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-MNT-009 - requirements, ADR, design, and tests are listed there.
  */
-export async function setPlanLifecycleAction(
-  _input: { readonly planId: string; readonly action: 'PAUSE' | 'RESUME' },
-): Promise<OperationResult<{ readonly paused: boolean }>> {
+export async function setPlanLifecycleAction(_input: {
+  readonly planId: string;
+  readonly action: 'PAUSE' | 'RESUME';
+}): Promise<OperationResult<{ readonly paused: boolean }>> {
   throw new Error('Not implemented: T-MNT-009');
 }

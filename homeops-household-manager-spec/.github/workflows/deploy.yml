@@ -1,0 +1,260 @@
+# HomeOps — deploy pipeline (T-PLAT-022, DEPLOYMENT.md §3/§4/§5, ADR-016, NFR-REL-003).
+#
+# The order in DEPLOYMENT.md §3.4 is normative and this workflow does not rearrange it:
+#   pull → run migrations (explicit, pre-switch) → start the new container → health check → traffic.
+# Migrations never run on container start (NFR-REL-002). The previous image tag is recorded before
+# the switch so rollback is a redeploy, not a rebuild (target ≤ 10 min). A failed health check aborts
+# the deploy and triggers the rollback job. Every run records git SHA + migration version + operator.
+#
+# Credentials: the deploy secrets live in a GitHub *environment* (`staging` or `production`) so they
+# are scoped per target and protected by required reviewers; nothing is available to PR builds.
+
+name: deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deploy target
+        type: choice
+        default: staging
+        options: [staging, production]
+      image_tag:
+        description: 'Redeploy an existing image tag instead of building (rollback path)'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+# A deploy is never cancelled mid-switch: two half-applied releases is the failure mode §5 exists for.
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository_owner }}/homeops
+
+jobs:
+  ci:
+    name: ci-gate
+    # DEPLOYMENT.md §4 first checkbox: CI green on the release commit.
+    if: ${{ !github.event.inputs.image_tag }}
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    name: image
+    needs: ci
+    if: ${{ always() && !github.event.inputs.image_tag && (needs.ci.result == 'success') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        name: Resolve tags
+        run: |
+          SHA_TAG="${GITHUB_SHA}"
+          SEMVER="${GITHUB_REF_NAME#v}"
+          echo "sha=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "building ${REGISTRY}/${IMAGE}:${SHA_TAG} and :${SEMVER}"
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          push: true
+          # The SHA tag is what deploy references; the semver tag is what release notes cite.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  deploy:
+    name: deploy
+    needs: image
+    if: ${{ always() && (needs.image.result == 'success' || github.event.inputs.image_tag) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    env:
+      # A redeploy (rollback path) uses the tag the operator named; otherwise the SHA tag just built.
+      IMAGE_TAG: >-
+        ${{ github.event.inputs.image_tag ||
+        format('ghcr.io/{0}/homeops:{1}', github.repository_owner, needs.image.outputs.sha) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare scoped SSH credentials
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          # Host key verification stays on: a MITM'd deploy is worse than a failed one.
+          echo "SSH_OPTS=-i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+      - name: Backup immediately before deploy (DEPLOYMENT.md §4)
+        run: |
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "RELEASE_SHA=${GITHUB_SHA:0:12}" bash -s <<'REMOTE'
+          set -euo pipefail
+          cd "${HOMEOP_DIR:-/opt/homeops}"
+          # The compose project's own .env holds POSTGRES_USER/POSTGRES_DB on the host.
+          [ -f .env ] && set -a && . ./.env && set +a
+          STAMP="$(date -u +%F-%H%M%S)"
+          mkdir -p "${BACKUP_DIR:-/backups}"
+          DUMP="${BACKUP_DIR:-/backups}/pre-deploy-${STAMP}-${RELEASE_SHA}.dump"
+          echo "backup: dumping to ${DUMP}"
+          docker compose exec -T postgres pg_dump --format=custom --no-owner \
+            -U "${POSTGRES_USER}" "${POSTGRES_DB}" > "$DUMP"
+          # Verify the artifact is readable before trusting it (BACKUP-RESTORE.md §3 step 2).
+          docker compose exec -T postgres pg_restore --list /dev/stdin < "$DUMP" > /dev/null
+          echo "backup: OK ${DUMP} ($(wc -c < "$DUMP") bytes)"
+          REMOTE
+      - name: Record the running image, migrate, switch
+        run: |
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "IMAGE_TAG=${IMAGE_TAG}" bash -s <<'REMOTE'
+          set -euo pipefail
+          cd "${HOMEOP_DIR:-/opt/homeops}"
+
+          # 1. Retain the previous image tag for rollback (DEPLOYMENT.md §3.4, §5).
+          PREVIOUS="$(docker compose ps -q web | xargs -r docker inspect --format '{{.Config.Image}}' || true)"
+          if [ -n "$PREVIOUS" ]; then
+            printf '%s\n' "$PREVIOUS" > .previous-image-tag
+            echo "deploy: previous image retained — ${PREVIOUS}"
+          else
+            echo "deploy: no running web container; nothing to roll back to"
+          fi
+
+          # 2. Pull the new image.
+          export IMAGE_TAG
+          docker compose pull web
+
+          # 3. Migrations are an explicit pre-switch step (NFR-REL-002: never on container start).
+          echo "deploy: applying migrations"
+          docker compose run --rm -T web npm run db:migrate
+
+          # 4. Start the new container.
+          docker compose up -d web
+
+          # 5. Health check; abort (and let the rollback job run) if it does not come up.
+          for attempt in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${APP_PORT:-3000}/api/health" > /dev/null; then
+              echo "deploy: healthy after ${attempt}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "deploy: FAILED health check after 60s" >&2
+          docker compose logs --tail 80 web >&2 || true
+          exit 1
+          REMOTE
+
+  verify:
+    name: verify
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    steps:
+      - name: Prepare scoped SSH credentials
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          echo "SSH_OPTS=-i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+      - name: Readiness, one observed tick, and the deploy record (DEPLOYMENT.md §3.5/§4)
+        id: record
+        run: |
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<'REMOTE' | tee "$RUNNER_TEMP/deploy-record.txt"
+          set -euo pipefail
+          cd "${HOMEOP_DIR:-/opt/homeops}"
+          [ -f .env ] && set -a && . ./.env && set +a
+          PORT="${APP_PORT:-3000}"
+          echo "readiness: $(curl -fsS "http://127.0.0.1:${PORT}/api/health?deep=1" || echo 'UNAVAILABLE')"
+          # §4: the scheduler is observed, not assumed — one manual tick of every job.
+          docker compose run --rm -T web npm run scheduler:tick
+          echo "migration: $(docker compose exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+            -tAc 'select version from schema_migration order by applied_at desc limit 1')"
+          echo "image: $(docker compose ps -q web | xargs -r docker inspect --format '{{.Config.Image}}')"
+          REMOTE
+      - name: Deploy log entry
+        run: |
+          {
+            echo "## Deploy record"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| git SHA | \`${GITHUB_SHA}\` |"
+            echo "| ref | \`${GITHUB_REF_NAME}\` |"
+            echo "| environment | \`${{ github.event.inputs.environment || 'production' }}\` |"
+            echo "| operator | \`${{ github.actor }}\` |"
+            echo "| timestamp (UTC) | $(date -u +%FT%TZ) |"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/deploy-record.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    name: rollback
+    needs: [deploy, verify]
+    if: ${{ failure() && (needs.deploy.result != 'skipped') }}
+    runs-on: ubuntu-24.04
+    # NFR-REL-003: rollback inside 10 minutes. The job is short by design — it redeploys a retained
+    # tag, it does not rebuild (DEPLOYMENT.md §5).
+    timeout-minutes: 10
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    steps:
+      - name: Prepare scoped SSH credentials
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          echo "SSH_OPTS=-i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+      - name: Redeploy the retained previous image
+        run: |
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<'REMOTE'
+          set -euo pipefail
+          cd "${HOMEOP_DIR:-/opt/homeops}"
+          [ -f .previous-image-tag ] || { echo "rollback: no retained previous tag — manual intervention required (RUNBOOK §7)"; exit 1; }
+          export IMAGE_TAG="$(cat .previous-image-tag)"
+          echo "rollback: redeploying ${IMAGE_TAG}"
+          docker compose up -d web
+          for attempt in $(seq 1 30); do
+            curl -fsS "http://127.0.0.1:${APP_PORT:-3000}/api/health" > /dev/null && { echo "rollback: healthy"; exit 0; }
+            sleep 2
+          done
+          echo "rollback: FAILED — the previous image is not healthy either; follow RUNBOOK §7 (restore from backup)" >&2
+          exit 1
+          REMOTE
+      - name: Note the migration rule
+        # DEPLOYMENT.md §5: code rolls back only if the migration was additive; otherwise roll
+        # forward with a fix. Never "unexecute" a migration in place.
+        run: |
+          {
+            echo "## Rollback"
+            echo ""
+            echo "The previous image was redeployed. If this release applied a **non-additive**"
+            echo "migration, rolling the code back is not safe — roll forward with a fix instead"
+            echo "(DEPLOYMENT.md §5). Check the deploy record above for the migration version."
+          } >> "$GITHUB_STEP_SUMMARY"

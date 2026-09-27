@@ -13,9 +13,10 @@ import type { OperationResult } from '../../shared/errors/result';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-TRASH-004 - requirements, ADR, design, and tests are listed there.
  */
-export async function markContainerFullAction(
-  _input: { readonly containerId: string; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly containerId: string; readonly state: string }>> {
+export async function markContainerFullAction(_input: {
+  readonly containerId: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly containerId: string; readonly state: string }>> {
   throw new Error('Not implemented: T-TRASH-004');
 }
 
@@ -26,8 +27,10 @@ export async function markContainerFullAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-TRASH-008 - requirements, ADR, design, and tests are listed there.
  */
-export async function completeCollectionAction(
-  _input: { readonly containerId: string; readonly note?: string; readonly clientRequestId: string },
-): Promise<OperationResult<{ readonly containerId: string; readonly state: string }>> {
+export async function completeCollectionAction(_input: {
+  readonly containerId: string;
+  readonly note?: string;
+  readonly clientRequestId: string;
+}): Promise<OperationResult<{ readonly containerId: string; readonly state: string }>> {
   throw new Error('Not implemented: T-TRASH-008');
 }

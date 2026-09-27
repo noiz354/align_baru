@@ -6,7 +6,10 @@ import type { Room, RoomEvidence, StatusOverride } from './types';
 
 export type RoomRepository = {
   findById(householdId: Id, roomId: Id): Promise<Room | null>;
-  listByHousehold(householdId: Id, options?: { readonly includeArchived?: boolean }): Promise<readonly Room[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly includeArchived?: boolean },
+  ): Promise<readonly Room[]>;
   insert(room: Room): Promise<void>;
   update(room: Room): Promise<void>;
   archive(householdId: Id, roomId: Id): Promise<void>;

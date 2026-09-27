@@ -19,6 +19,9 @@ export async function authorizeOperation(
   _ctx: HouseholdContext,
   _operation: OperationName,
   _target?: { readonly kind: string; readonly id: string },
-): Promise<{ readonly allowed: true } | { readonly allowed: false; readonly code: 'FORBIDDEN' | 'ROLE_NOT_PERMITTED' | 'NOT_FOUND' }> {
+): Promise<
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly code: 'FORBIDDEN' | 'ROLE_NOT_PERMITTED' | 'NOT_FOUND' }
+> {
   throw new Error('Not implemented: T-AUTH-005');
 }

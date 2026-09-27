@@ -13,9 +13,10 @@ import type { OperationResult } from '../../shared/errors/result';
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-MEM-002 - requirements, ADR, design, and tests are listed there.
  */
-export async function inviteMemberAction(
-  _input: { readonly email?: string; readonly role: 'ADMIN' | 'MEMBER' | 'HELPER' },
-): Promise<OperationResult<{ readonly inviteUrl: string; readonly expiresAt: string }>> {
+export async function inviteMemberAction(_input: {
+  readonly email?: string;
+  readonly role: 'ADMIN' | 'MEMBER' | 'HELPER';
+}): Promise<OperationResult<{ readonly inviteUrl: string; readonly expiresAt: string }>> {
   throw new Error('Not implemented: T-MEM-002');
 }
 
@@ -26,9 +27,10 @@ export async function inviteMemberAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-MEM-003 - requirements, ADR, design, and tests are listed there.
  */
-export async function changeMemberRoleAction(
-  _input: { readonly memberId: string; readonly role: 'ADMIN' | 'MEMBER' | 'HELPER' | 'OWNER' },
-): Promise<OperationResult<{ readonly updated: true }>> {
+export async function changeMemberRoleAction(_input: {
+  readonly memberId: string;
+  readonly role: 'ADMIN' | 'MEMBER' | 'HELPER' | 'OWNER';
+}): Promise<OperationResult<{ readonly updated: true }>> {
   throw new Error('Not implemented: T-MEM-003');
 }
 
@@ -39,8 +41,8 @@ export async function changeMemberRoleAction(
  * Status: unimplemented by design (specification phase - AGENTS.md section 1).
  * Owning task: T-MEM-004 - requirements, ADR, design, and tests are listed there.
  */
-export async function removeMemberAction(
-  _input: { readonly memberId: string },
-): Promise<OperationResult<{ readonly removed: true }>> {
+export async function removeMemberAction(_input: {
+  readonly memberId: string;
+}): Promise<OperationResult<{ readonly removed: true }>> {
   throw new Error('Not implemented: T-MEM-004');
 }

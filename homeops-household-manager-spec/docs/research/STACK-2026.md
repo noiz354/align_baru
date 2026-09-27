@@ -130,6 +130,38 @@ Every candidate is classified as exactly one of:
 3. Any place where an experimental API would have been convenient (`ViewTransition`, OTel logs SDK, `next-pwa`) is explicitly *not* used.
 4. Pinning discipline: `package.json` ranges are indicative; **VS-0 (`T-PLAT-001`) produces the lockfile and records exact versions in DECISIONS.md**. Version ambiguity found during research (Drizzle 0.4x-vs-1.0; Better Auth line) is resolved by pinning at VS-0, not by guessing here.
 
+### 11.1 Packages installed at VS-0 (`T-PLAT-001`)
+
+§11.4 requires VS-0 to record exact versions. These are the concrete packages behind the SELECTED
+candidates above, resolved from the npm registry on **2026-09-27** and pinned exactly (no `^`) in
+`package.json`; the lockfile is the source of truth for transitive versions.
+
+| Package | Version | Implements candidate | Class |
+| --- | --- | --- | --- |
+| `next` | 16.3.6 | Next.js (App Router) §2 — floor ≥ 16.2.6 satisfied | SELECTED |
+| `react`, `react-dom` | 19.3.0 | React §2 — floor ≥ 19.2.4 satisfied | SELECTED |
+| `typescript` | 6.0.3 | TypeScript §1 (6.0.x, last JS-based compiler) | SELECTED |
+| `tsx` | 4.23.15 | tsx §1 — ops scripts only (`migrate`, `seed`, `tick`) | OPTIONAL |
+| `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | Tailwind CSS §2 — 4.2.x line, CSS-first `@theme` tokens | SELECTED |
+| `drizzle-orm` | 0.45.3 | Drizzle ORM §3 — 0.4x line (the 1.0 ambiguity named in §11.4) | SELECTED |
+| `drizzle-kit` | 0.31.11 | Drizzle ORM §3 — migration generation only, dev dependency | SELECTED |
+| `postgres` | 3.4.9 | postgres.js §3 — the single driver, imported only under `src/server/db` | SELECTED |
+| `zod` | 4.6.5 | Zod §4 — boundary schemas | SELECTED |
+| `better-auth` | 1.7.6 | Better Auth §5 — the version-line ambiguity named in §11.4 | SELECTED |
+| `vitest` | 4.1.11 | Vitest §7 — 4.1.x stable line | SELECTED |
+| `@playwright/test` | 1.63.0 | Playwright §7 — 1.62.x line at research time; 1.63.0 is the current patch line | SELECTED |
+| `eslint` | 10.11.0 | ESLint (flat config) — linting, no stylistic rules | SELECTED |
+| `typescript-eslint` | 8.70.1 | ESLint — TS parser + type-aware rules; replaces `@typescript-eslint/*` splits | SELECTED |
+| `prettier` | 3.9.9 | **Formatter (new row).** ESLint 10 dropped stylistic rules, so formatting is a separate concern: Prettier owns whitespace/quotes/width, ESLint owns correctness. Rejected alternative: `eslint-plugin-prettier` (runs the formatter as a lint rule — slow, and it turns taste into errors). | SELECTED |
+| `@types/node`, `@types/react`, `@types/react-dom` | 24 / 19.3.0 | TypeScript §1 — explicit types (TS 6 defaults `types: []`) | SELECTED |
+
+Not installed at VS-0, per §0 and §10: OpenTelemetry SDK (PLANNED, `src/server/telemetry/tracing.ts`
+is a no-op-able seam), `axe-core` (PLANNED, wired in VS-0 harness/VS-16 assertions), `@testing-library/*`
+(component tests start in VS-1 when the first component exists), `pg-boss` (proposed ADR-018), any
+object-storage SDK (proposed ADR-017), any email provider SDK (proposed ADR-019), `eslint-config-next`
+(its rule set targets Pages-Router conventions and conflicts with the flat config + boundary rules of
+`T-PLAT-006`; Next's own docs treat it as optional).
+
 ## 12. References
 
 - Node.js release schedule & "Evolving the Node.js Release Schedule" — <https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule>
