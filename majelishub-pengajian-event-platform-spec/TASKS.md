@@ -87,6 +87,27 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 
 ---
 
+### T-DOCS-003 — VS-0 exit verification gate
+
+- **Requirement IDs:** NFR-OPS-001, NFR-REL-001 (reproducible verification)
+- **Goal:** Make the claim "the repository is a truthful specification" mechanically checkable, so the VS-0 exit criteria cannot silently rot as soon as the first slice lands.
+- **ADR:** ADR-0001 (record architecture decisions), ADR-0021 (testing stack)
+- **Product documents:** `ROADMAP.md` §VS-0 (the seven exit criteria), `README.md` §Repository status, `AGENTS.md` §4/§5 (skeleton honesty)
+- **Expected modules:** `ops/verify-vs0.mjs` (script), `package.json` (`verify:vs0`), `docs/research/STACK-2026.md` (dependency classification)
+- **Dependencies:** none (Phase 0 deliverable)
+- **Expected behavior:** `node ops/verify-vs0.mjs` checks the seven VS-0 exit criteria and exits non-zero on any failure; `--json` emits machine-readable output for CI. It is read-only: it never rewrites a document or a source file, and a finding is fixed in the offending document rather than by widening an exclusion list.
+- **Invariants:** the gate reports honestly — a criterion it cannot prove is reported as `ATTEST` (criterion 7), never as `PASS`.
+- **Security:** none (no data access); it does read `package.json` to check dependency discipline.
+- **Privacy:** none.
+- **Concurrency:** not applicable (CI-only).
+- **Failure cases:** a false positive must be fixed by correcting the document, or — if the check itself is too narrow — by making the check more precise, with the reason recorded.
+- **Tests:** the gate is exercised by `npm run verify:vs0`; a deliberate violation (a stub naming an unknown task, a `test.todo` in a Playwright file) must make it fail.
+- **Manual QA:** run the gate, then introduce each violation in a scratch tree and confirm it is reported.
+- **Definition of Done:** the gate exists, is wired into `package.json`, and the repository passes it as of the Phase 0 freeze (2026-09-27: 7/7, with criterion 7 attested by hand).
+- **Delivered:** 2026-09-27 — VS-0 exit verification, `ops/verify-vs0.mjs`. Findings fixed in the same change: the Playwright placeholder form (`test.fixme(title)` → `test.fixme(title, () => {})`, `test.todo` does not exist in Playwright), `docs/architecture/FINAL-REVIEW.md` §2.7 (no cited mechanism), `docs/research/STACK-2026.md` §2/§16 (package names and Phase 0 notes).
+
+---
+
 ### T-ARCH-002 — Enforce module boundaries with lint rules
 
 - **Requirement IDs:** NFR-OPS-001, NFR-PERF-003 (keeps the domain framework-free)

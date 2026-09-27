@@ -31,7 +31,12 @@ Every unimplemented function throws `Error("Not implemented: <TASK-ID>")`, where
 authentication, QR generation/scanning, audio capture, transcription calls, notification delivery,
 payments, deployment. Route shells render `null`.
 
-Next step (not started): `ROADMAP.md` VS-0 exit verification, then VS-1 · `T-ORG-001` + `T-SEC-001`.
+**VS-0 exit verification: complete (2026-09-27).** `npm run verify:vs0` reports all seven VS-0 exit
+criteria as met (criterion 7 — reviewer comprehension — is attested by a human, not a script). The
+findings it raised and how each was resolved are recorded in `ROADMAP.md` §Phase 0 state.
+
+**The Phase 0 freeze is lifted for VS-1 · `T-ORG-001` only.** In progress: identity integration
+(`T-ORG-001`). Not started: `T-SEC-001` and the rest of VS-1 (`TASKS.md` §5).
 
 ---
 
@@ -143,6 +148,7 @@ feeds, follower counts, algorithmic amplification.
 ```bash
 # Phase 0: there is nothing to run yet. These are the planned commands (pinned in package.json).
 npm run typecheck   # tsc --noEmit  (skeleton types must stay valid)
+npm run verify:vs0  # the seven VS-0 exit criteria (read-only, exits non-zero on failure)
 npm run lint        # eslint 9 flat config
 npm test            # vitest (all suites are describe.todo → 0 assertions executed)
 npm run build       # next build (routes render empty shells)

@@ -51,9 +51,13 @@ records the 2026 technology validation performed before freezing the architectur
 ## 2. React + TypeScript
 
 - **Classification: SELECTED**
-- **React 19.2 stable** (bundled with Next.js 16.x). `use`, `useActionState`, transitions are stable.
+- **Packages:** `react`/`react-dom` 19.2 (bundled with Next.js 16.x), `typescript` 5.9.x, `@types/node` 24.x.
+- **React 19.2 stable**. `use`, `useActionState`, transitions are stable.
 - **TypeScript 5.9+** in `strict` mode, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` — the skeleton relies on the type system to express invariants.
 - **Why:** Compile-time domain modelling (branded IDs, discriminated unions for state machines) is the cheapest possible substitute for runtime validation of business rules.
+- **Phase 0 note:** `typescript` and `@types/node` are declared in Phase 0 because VS-0 exit criterion 2
+  (`npm run typecheck` passes on the skeleton) cannot be checked without them. They are toolchain, not
+  product dependencies: importing them in `src/**` or `tests/**` is still forbidden.
 
 ## 3. Runtime — Node.js 24 LTS
 
@@ -160,11 +164,17 @@ records the 2026 technology validation performed before freezing the architectur
 ## 16. Testing — Vitest 4 + Playwright + Testing Library
 
 - **Classification: SELECTED (Vitest, Playwright) — PLANNED (Vitest browser mode coverage)**
+- **Packages:** `vitest` 4.x (declared 3.x at verification time — see the Phase 0 note), `@playwright/test` 1.x.
 - **Vitest 4:** stable; Jest-compatible API; native TS/ESM; browser mode **stable** since v4 with `@vitest/browser-playwright`; visual assertions via `toMatchScreenshot`.
 - **Playwright:** the browser layer for the two workflows that dominate risk — **QR check-in at a busy entrance** and **a 2-hour recording session** (needs real MediaRecorder, real device permissions, fake devices via Chromium flags, and trace/video evidence on failure).
 - **Layers:** jsdom-ish/Node unit tests → Postgres-backed integration tests → real-browser component tests → a thin Playwright E2E set over the money paths. See `TESTING.md`.
 - **Rejected:** Jest (slower cold start, worse ESM/TS story, no unified browser mode); Cypress (Playwright overtook it; worse parallelism and mobile-emulation story).
-- **Phase 0 note:** only `describe.todo()` skeletons exist. No test runner is installed.
+- **Phase 0 note (updated 2026-09-27):** the test files still contain placeholders only — 338
+  `describe.todo`/`test.todo` in the Vitest layers and 42 `test.fixme` in the Playwright layers, with
+  zero executable assertions. The two runners are now *declared* as devDependencies, because VS-0 exit
+  criterion 2 (`npm run typecheck` passes) cannot be verified while 98 skeleton test files import
+  `vitest` and `@playwright/test` with no type declarations available. Declaring them does not start a
+  slice: `T-TEST-001` still owns making the suites run.
 
 ## 17. Containerisation & CI/CD
 
