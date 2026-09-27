@@ -58,10 +58,11 @@ class ReActHarness:
             else:
                 steps.append(f"error: unknown action kind {action.kind!r}")
 
-        # Step budget exhausted -- still return whatever the planner knows.
+        # A planner that never finished has not proven any acceptance checks.
+        # Fail closed: do not let a true cached planner check publish a lesson.
         return SolveResult(
             output="(step budget exhausted)",
             steps=steps,
-            checks=planner.final_checks(),
-            failure_mode=planner.failure_mode() or "step-budget",
+            checks={"step_budget": False},
+            failure_mode="step-budget",
         )
