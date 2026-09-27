@@ -1,17 +1,8 @@
 /**
- * Checkbox component shell.
- *
- * Requirements:
- * - FR-ENTRY-002 (affirmative gate)
- * - FR-ENTRY-007 (keyboard operable, screen-reader labelled)
- * - NFR-A11Y-001
- *
- * See:
- * - docs/safety/AGE-GATING.md §1
- * - ACCESSIBILITY.md §1
- *
- * COMPONENT SHELL ONLY.
+ * Checkbox component — real implementation.
  */
+
+import React from 'react';
 
 export interface CheckboxProps {
   label: string;
@@ -19,17 +10,27 @@ export interface CheckboxProps {
   onChange: (checked: boolean) => void;
   describedBy?: string;
   disabled?: boolean;
+  id?: string;
 }
 
-/**
- * TODO(T-SESSION-002): implement the checkbox.
- *
- * When implemented it must:
- * - render a native <input type="checkbox"> with an associated label
- * - default to UNCHECKED (FR-ENTRY-002)
- * - support `aria-describedby` for the disclaimer text
- * - be operable with Space and focusable with Tab
- */
-export function Checkbox(_props: CheckboxProps): React.JSX.Element {
-  throw new Error('Not implemented: T-SESSION-002 (Checkbox component shell)');
+export function Checkbox(props: CheckboxProps): React.JSX.Element {
+  const { label, checked, onChange, describedBy, disabled, id } = props;
+  const checkboxId = id || `checkbox-${label.replace(/\s+/g, '-').toLowerCase()}`;
+
+  return (
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '8px 0' }}>
+      <input
+        type="checkbox"
+        id={checkboxId}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        aria-describedby={describedBy}
+        style={{ width: '20px', height: '20px', marginTop: '2px' }}
+      />
+      <label htmlFor={checkboxId} style={{ fontSize: '16px', lineHeight: '1.5', cursor: 'pointer' }}>
+        {label}
+      </label>
+    </div>
+  );
 }

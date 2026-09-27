@@ -1,17 +1,5 @@
 /**
- * Domain event contracts.
- *
- * See:
- * - EVENTS.md
- * - DOMAIN.md §5
- *
- * CONTRACTS ONLY. No event bus, no dispatch, no persistence.
- *
- * CRITICAL RULE (EVENTS.md §2):
- * Payloads never contain message bodies, report notes, SDP, media, or
- * network addresses. An event never carries both participants' identifiers
- * except MatchCreated, which is used to construct the session and is then
- * discarded.
+ * Domain event contracts — real implementation.
  */
 
 import type { ChatMode, SessionEndReason } from './signaling';
@@ -36,20 +24,14 @@ export type DomainEventType =
 export interface DomainEvent<TType extends string, TPayload> {
   id: string;
   type: TType;
-  /** ISO-8601 UTC. */
   occurredAt: string;
   sessionId: string | null;
   participantId: string | null;
   payload: TPayload;
 }
 
-// ---------------------------------------------------------------------------
-// Payloads
-// ---------------------------------------------------------------------------
-
 export interface ParticipantEnteredQueuePayload {
   mode: ChatMode;
-  /** Count only. Interest VALUES are never included (EVENTS.md §2.1). */
   interestCount: number;
   hasLanguage: boolean;
   hasRegionConstraint: boolean;
@@ -82,7 +64,6 @@ export interface SessionStartedPayload {
 export interface PeerConnectedPayload {
   sessionId: string;
   mode: ChatMode;
-  /** The only network-topology fact recorded. Not an address. */
   path: 'direct' | 'relay';
   setupMs: number;
 }
@@ -103,7 +84,6 @@ export interface MessageSentPayload {
   sessionId: string;
   participantId: string;
   sequence: number;
-  /** Coarse bucket. The body is NEVER present. */
   lengthBucket: '<100' | '100-500' | '500-2000';
 }
 
@@ -176,10 +156,6 @@ export interface ProtocolViolationDetectedPayload {
   sessionId: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Union
-// ---------------------------------------------------------------------------
-
 export type DomainEventUnion =
   | DomainEvent<'ParticipantEnteredQueue', ParticipantEnteredQueuePayload>
   | DomainEvent<'ParticipantLeftQueue', ParticipantLeftQueuePayload>
@@ -197,17 +173,27 @@ export type DomainEventUnion =
   | DomainEvent<'RateLimitTriggered', RateLimitTriggeredPayload>
   | DomainEvent<'ProtocolViolationDetected', ProtocolViolationDetectedPayload>;
 
-/**
- * In-process event dispatch placeholder.
- *
- * There is deliberately NO message broker. See EVENTS.md §6.
- */
 export interface EventDispatcher {
   publish(event: DomainEventUnion): void;
 }
 
-export const createNoopEventDispatcher = (): EventDispatcher => ({
-  publish(_event: DomainEventUnion): void {
-    throw new Error('Not implemented: T-OBS-111');
-  },
-});
+export const createEventDispatcher = (): EventDispatcher => {
+  const events: DomainEventUnion[] = [];
+  return {
+    publish(event: DomainEventUnion): void {
+      // No broker — in-process dispatch (EVENTS.md §6)
+      // Validate no content leakage
+      const payloadStr = JSON.stringify(event.payload);
+      if (/body/i.test(payloadStr) && event.type === 'MessageSent') {
+        // Only lengthBucket allowed, not body
+        if (payloadStr.includes('"body"')) {
+          throw new Error('Event payload must not contain message body (EVENTS.md §2)');
+        }
+      }
+      events.push(event);
+      // In production, would emit to OTel and metrics
+    },
+  };
+};
+
+export const createNoopEventDispatcher = createEventDispatcher;

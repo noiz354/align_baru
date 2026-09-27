@@ -1,46 +1,50 @@
 /**
- * Participant service port.
+ * Participant service — real implementation.
  *
  * Requirements:
- * - FR-ENTRY-004
+ * - FR-ENTRY-004 (pseudonymous, no personal data)
  * - NFR-PRIV-001, NFR-PRIV-002
+ * - T-SESSION-001
  *
- * ADR:
- * - ADR-007 (session model)
- * - ADR-014 (anonymity model)
- *
- * See:
- * - DOMAIN.md §2.1
- * - PRIVACY.md §1, §2
- *
- * SERVICE PORT ONLY.
- *
- * A participant is created with NO credential and NO personal data. There
- * are no accounts, no profiles, and no login.
+ * ADR: ADR-007, ADR-014
  */
 
 import type { Participant } from '../../domain/participant/participant';
+import { participantStore } from '../../server/db/in-memory';
+import { generateId } from '../../shared/utils/id';
 
 export interface ParticipantService {
   createParticipant(consentVersion: number): Promise<Participant>;
   getParticipant(participantId: string): Promise<Participant | null>;
 }
 
-/**
- * T-SESSION-001 — Create a pseudonymous participant identity.
- *
- * Throws until implemented. When implemented it must:
- * - accept no user-supplied personal information
- * - generate a uuidv7 server-side
- * - produce an identity that is not linkable to an account, device, or person
- * - degrade gracefully when browser storage is unavailable (EC-23)
- */
-export const createNotImplementedParticipantService =
-  (): ParticipantService => ({
-    async createParticipant(_consentVersion: number): Promise<Participant> {
-      throw new Error('Not implemented: T-SESSION-001');
-    },
-    async getParticipant(_participantId: string): Promise<Participant | null> {
-      throw new Error('Not implemented: T-SESSION-001');
-    },
-  });
+export const createParticipantService = (): ParticipantService => ({
+  async createParticipant(_consentVersion: number): Promise<Participant> {
+    // No personal data accepted — only server-generated uuidv7
+    // consentVersion is recorded as safety event elsewhere, not as PII
+    const p = participantStore.create();
+    return p;
+  },
+  async getParticipant(participantId: string): Promise<Participant | null> {
+    return participantStore.get(participantId);
+  },
+});
+
+// Legacy factory name for compatibility with skeleton
+export const createNotImplementedParticipantService = createParticipantService;
+
+// Additional domain service with restriction/ban marking
+export const participantDomainService = {
+  createParticipant(): Participant {
+    return participantStore.create();
+  },
+  get(participantId: string): Participant | null {
+    return participantStore.get(participantId);
+  },
+  markRestricted(participantId: string): void {
+    participantStore.setStatus(participantId, 'RESTRICTED');
+  },
+  markBanned(participantId: string): void {
+    participantStore.setStatus(participantId, 'BANNED');
+  },
+};

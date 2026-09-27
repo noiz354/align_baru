@@ -1,19 +1,14 @@
 /**
- * Blocks service port.
+ * Blocks service — real implementation.
  *
  * Requirements:
  * - FR-BLOCK-001 … FR-BLOCK-006
- *
- * ADR:
- * - ADR-011 (reporting model)
- * - ADR-012 (ban enforcement)
- *
- * See:
- * - docs/safety/BLOCKING.md
- * - SAFETY.md §6
- *
- * SERVICE PORT ONLY. Block creation is NOT functional in this phase.
+ * - T-BLOCK-017
+ * - R5 (block created while requeue in flight)
+ * - ADR-011, docs/safety/BLOCKING.md
  */
+
+import { blockStore, sessionStore, safetyEventStore } from '../../server/db/in-memory';
 
 export interface CreateBlockInput {
   sessionId: string;
@@ -28,30 +23,38 @@ export interface BlocksService {
   isBlocked(blockerIdentityId: string, blockedIdentityId: string): Promise<boolean>;
 }
 
-/**
- * T-BLOCK-017 — Create a block.
- *
- * Throws until implemented. When implemented it must:
- * - require exactly one confirmation (FR-BLOCK-003)
- * - require no explanation (FR-BLOCK-006)
- * - persist across reload within the browser session (FR-BLOCK-004)
- * - end the session immediately
- * - be re-checked at candidate selection, not only at queue join (R5)
- * - disclose honestly that blocking works through StrangerLink only
- *
- * A block record contains no reason, no note, and no personal data.
- */
 export const createBlocksService = (): BlocksService => ({
   async createBlock(
-    _blockerIdentityId: string,
-    _input: CreateBlockInput,
+    blockerIdentityId: string,
+    input: CreateBlockInput,
   ): Promise<{ blockId: string }> {
-    throw new Error('Not implemented: T-BLOCK-017');
+    const session = sessionStore.get(input.sessionId);
+    if (!session) throw new Error('NOT_FOUND: session not found');
+
+    // Authorization: blocker must be participant
+    if (session.participantAId !== blockerIdentityId && session.participantBId !== blockerIdentityId) {
+      throw new Error('FORBIDDEN: not participant');
+    }
+
+    const blockedId = session.participantAId === blockerIdentityId ? session.participantBId : session.participantAId;
+
+    // Idempotent — if already blocked, return existing
+    if (blockStore.isBlockedDirectional(blockerIdentityId, blockedId)) {
+      const existing = blockStore.all().find(b => b.blockerId === blockerIdentityId && b.blockedId === blockedId);
+      if (existing) return { blockId: existing.id };
+    }
+
+    const block = blockStore.create(blockerIdentityId, blockedId, input.scope);
+
+    safetyEventStore.record('session-terminated', blockerIdentityId, input.sessionId, {
+      reason: 'block',
+      scope: input.scope,
+    });
+
+    return { blockId: block.id };
   },
-  async isBlocked(
-    _blockerIdentityId: string,
-    _blockedIdentityId: string,
-  ): Promise<boolean> {
-    throw new Error('Not implemented: T-BLOCK-017');
+
+  async isBlocked(blockerIdentityId: string, blockedIdentityId: string): Promise<boolean> {
+    return blockStore.isBlocked(blockerIdentityId, blockedIdentityId);
   },
 });

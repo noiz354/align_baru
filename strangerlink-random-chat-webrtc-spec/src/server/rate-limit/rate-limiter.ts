@@ -1,24 +1,17 @@
 /**
- * Rate limiting port.
+ * Rate limiting — real implementation.
  *
  * Requirements:
- * - FR-SAFE-001 (server-side limits)
- * - FR-ABUSE-001
- * - FR-SAFE-002 (cooldown)
+ * - FR-SAFE-001, FR-ABUSE-001
+ * - T-ABUSE-061, T-ABUSE-062
+ * - ADR-003, ADR-012
+ * - ABUSE_PREVENTION.md §2, SECURITY.md §9
  *
- * ADR:
- * - ADR-003 (realtime transport)
- * - ADR-012 (ban enforcement)
- *
- * See:
- * - ABUSE_PREVENTION.md §2, §2.3
- * - SECURITY.md §9
- *
- * PORT ONLY. No rate limiting is implemented in this phase.
- *
- * CRITICAL (ADR-012 MR-2): a shared-IP signal can only ever trigger a rate
- * limit or a cooldown. It can NEVER trigger a standalone ban.
+ * All limits per identity, not per connection (T-24).
+ * Every trigger records SafetyEvent.
  */
+
+import { rateLimitStore, safetyEventStore, riskSignalStore } from '../db/in-memory';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -26,12 +19,6 @@ export interface RateLimitResult {
   retryAfterMs: number | null;
 }
 
-/**
- * The complete rate-limit schedule.
- *
- * See ABUSE_PREVENTION.md §2. All limits are server-side and per IDENTITY,
- * not per connection (T-24).
- */
 export const RATE_LIMITS = {
   websocketFramesPerSecond: 30,
   websocketFrameBurst: 60,
@@ -52,12 +39,6 @@ export const RATE_LIMITS = {
   connectionAttemptsPerMinute: 10,
 } as const;
 
-/**
- * The progressive cooldown ladder.
- *
- * See ABUSE_PREVENTION.md §2.3. Cooldowns are shown honestly to the user and
- * are never disguised as network errors (DESIGN.md §12).
- */
 export const COOLDOWN_LADDER = [
   { triggersWithin60s: 3, durationMs: 30_000 },
   { triggersWithin60s: 5, durationMs: 300_000 },
@@ -66,16 +47,6 @@ export const COOLDOWN_LADDER = [
   { escalated: true, durationMs: 3_600_000 },
 ] as const;
 
-/**
- * Rate limiter port.
- *
- * T-ABUSE-061
- *
- * Throws until implemented. When implemented it must:
- * - key limits on the participant identity, never the connection
- * - record a `SafetyEvent` of type `rate-limit-triggered` on every trigger
- * - never be weakened for performance (PERFORMANCE.md §8)
- */
 export interface RateLimiterPort {
   check(
     identityId: string,
@@ -85,32 +56,33 @@ export interface RateLimiterPort {
   cooldownRemaining(identityId: string): Promise<number>;
 }
 
-export const createNotImplementedRateLimiterPort = (): RateLimiterPort => ({
-  async check(
-    _identityId: string,
-    _limitName: keyof typeof RATE_LIMITS,
-  ): Promise<RateLimitResult> {
-    throw new Error('Not implemented: T-ABUSE-061');
+export const createRateLimiterPort = (): RateLimiterPort => ({
+  async check(identityId: string, limitName: keyof typeof RATE_LIMITS): Promise<RateLimitResult> {
+    const res = rateLimitStore.check(identityId, limitName);
+    if (!res.allowed) {
+      safetyEventStore.record('rate-limit-triggered', identityId, null, {
+        limitName,
+        retryAfterMs: res.retryAfterMs ?? 0,
+      });
+    }
+    return res;
   },
-  async applyCooldown(_identityId: string, _durationMs: number): Promise<void> {
-    throw new Error('Not implemented: T-ABUSE-062');
+  async applyCooldown(identityId: string, durationMs: number): Promise<void> {
+    rateLimitStore.applyCooldown(identityId, durationMs);
+    safetyEventStore.record('rate-limit-triggered', identityId, null, {
+      limitName: 'cooldown',
+      durationMs,
+    });
   },
-  async cooldownRemaining(_identityId: string): Promise<number> {
-    throw new Error('Not implemented: T-ABUSE-062');
+  async cooldownRemaining(identityId: string): Promise<number> {
+    return rateLimitStore.cooldownRemaining(identityId);
   },
 });
 
-/**
- * The IP-derived risk signal.
- *
- * A one-way hash of a COARSE signal. NOT a device fingerprint.
- * Retained 7 days rolling (RETENTION.md Tier 6).
- *
- * Permitted use: rate limiting and cooldowns ONLY.
- */
+export const createNotImplementedRateLimiterPort = createRateLimiterPort;
+
 export interface RiskSignal {
   hash: string;
-  /** Coarse only. Never a precise geolocation. */
   regionCode: string | null;
   expiresAt: Date;
 }
@@ -120,11 +92,25 @@ export interface RiskSignalPort {
   findActive(hash: string): Promise<RiskSignal | null>;
 }
 
-export const createNotImplementedRiskSignalPort = (): RiskSignalPort => ({
-  async record(_identityId: string, _rawSignal: string): Promise<RiskSignal> {
-    throw new Error('Not implemented: T-ABUSE-062');
+export const createRiskSignalPort = (): RiskSignalPort => ({
+  async record(identityId: string, rawSignal: string): Promise<RiskSignal> {
+    // Coarse, one-way hash, 7 days, rate-limit/cooldown only — never standalone ban (ADR-012 MR-2)
+    const rec = riskSignalStore.record(identityId, rawSignal);
+    return {
+      hash: rec.hash,
+      regionCode: rec.regionCode,
+      expiresAt: rec.expiresAt,
+    };
   },
-  async findActive(_hash: string): Promise<RiskSignal | null> {
-    throw new Error('Not implemented: T-ABUSE-062');
+  async findActive(hash: string): Promise<RiskSignal | null> {
+    const found = riskSignalStore.findActive(hash);
+    if (!found) return null;
+    return {
+      hash: found.hash,
+      regionCode: found.regionCode,
+      expiresAt: found.expiresAt,
+    };
   },
 });
+
+export const createNotImplementedRiskSignalPort = createRiskSignalPort;
