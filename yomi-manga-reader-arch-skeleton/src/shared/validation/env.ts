@@ -46,4 +46,5 @@
 // §3), which is not installed in the architecture phase. Dependent
 // skeletons reference `Env` by name only (no field access), so the empty
 // body is sufficient for typechecking and documents the crossing.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- deliberate placeholder, see above
 export interface Env {}
