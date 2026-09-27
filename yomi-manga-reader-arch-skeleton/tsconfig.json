@@ -15,7 +15,8 @@
     "noEmit": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
   },
   "include": ["src", "tests", "scripts"]
 }

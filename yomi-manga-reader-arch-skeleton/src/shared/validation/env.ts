@@ -5,7 +5,7 @@
  * Requirements: NFR-OPS-002, NFR-SEC-009, NFR-OBS-006 (redaction).
  * Task: T-FOUND-002 (implementation — Zod schema + `loadEnv()`).
  *
- * Rules the implementation MUST follow:
+ * Rules the implementation MUST follow (all verified by `UNIT-ENV-*`):
  * - Zod schema covering EVERY variable in DEPLOYMENT.md §3 (required vs
  *   optional exactly as the table states).
  * - Fail fast: invalid/missing ⇒ refuse to boot with a message that names
@@ -15,11 +15,62 @@
  * - Extra unknown variables: warn, do not fail.
  * - Per-environment defaults only for non-secret items (limits etc.).
  *
- * Zod is PLANNED (zod 4.x, research registry SELECTED) and NOT installed
- * during the architecture phase — this file defines the shape contract
- * without importing it (the implementation at T-FOUND-002 adds the
- * `loadEnv()` validator; this interface becomes its return type).
+ * ── Redaction is structural, not a convention ──────────────────────────────
+ * A Zod `ZodError` is never allowed out of this module and is never attached
+ * as `cause`: only two things are copied out of it, `issue.path` (the variable
+ * NAME) and `issue.message` (a static, hand-written or Zod-generated string
+ * that does not contain the input). Raw values live in exactly one place — the
+ * `input` argument of `loadEnv` — and never reach an Error, a message, a
+ * warning, or a log line. URL parsing is wrapped so Node's `TypeError
+ * [ERR_INVALID_URL]`, which DOES carry the offending value on its `input`
+ * property, can never escape either.
+ *
+ * ── Documented readings of DEPLOYMENT.md §3 (spec-questions, see ROADMAP) ──
+ * 1. "empty = telemetry off" and the `APP_BASE_PATH` example "(empty)" are
+ *    implemented as ONE rule: a blank value (empty or whitespace-only) means
+ *    UNSET. Required variables then fail as missing, optional ones take their
+ *    default. Values are never silently trimmed.
+ * 2. `RATE_LIMIT_SEARCH_PER_MIN` "etc." is expanded to the seven
+ *    `RATE_LIMIT_*` families of API_CONTRACT §6, named with the unit the
+ *    limit is actually enforced in (NFR-SEC-005/006: login/search/generic per
+ *    minute; register/reset/upload per hour).
+ * 3. No document states a beacon ceiling, so `RATE_LIMIT_BEACON_PER_MIN` has
+ *    NO default — inventing one would be fabricating a requirement. The
+ *    generic limit (NFR-SEC-006) is the backstop.
+ * 4. `MAIL_*` (VS-9) are all-or-nothing: a half-configured mailer would fail
+ *    at send time, so it fails at boot instead, naming every member of the
+ *    group that is missing.
+ * 5. `S3_ENDPOINT` gets the same https-in-production rule as `APP_ORIGIN`:
+ *    the S3 secret key travels on that connection (NFR-SEC-009).
+ * 6. `ENV_VARIABLE_NAMES` is exported so the inventory can be diffed against
+ *    DEPLOYMENT.md §3 by a test rather than by reading this file.
+ *
+ * spec-question: a boot-time configuration failure is not an API error, and
+ * API_CONTRACT.md §6 has no `CONFIG_*` code; adding one would edit
+ * `shared/contracts/errors.ts` (T-FOUND-009's file, outside this task's write
+ * scope), so this module throws its own `ConfigurationError`.
  */
+import { z } from 'zod';
+
+/* ── public types ─────────────────────────────────────────────────────────── */
+
+/** The raw source of configuration: `process.env` in production. */
+export type EnvSource = Record<string, string | undefined>;
+
+/** DEPLOYMENT.md §3 `NODE_ENV` (required — no default; the deploy sets it). */
+export type NodeEnv = 'development' | 'test' | 'production';
+
+/** One refused variable: its NAME and what is wrong with it — never its value. */
+export interface EnvIssue {
+  readonly variable: string;
+  readonly problem: string;
+}
+
+/** Injection seam for the warning sink (default: the lint-allowed console). */
+export interface LoadEnvOptions {
+  /** Receives one message per batch of unknown variables. */
+  readonly onWarn?: (message: string) => void;
+}
 
 /**
  * The validated, frozen environment object every module may consume.
@@ -27,6 +78,8 @@
  * Field semantics per DEPLOYMENT.md §3 (one line each, non-normative summary):
  * - nodeEnv: 'development' | 'test' | 'production'
  * - appOrigin: URL (CSRF origin check, CSP, cookies — NFR-SEC-004/011)
+ * - appBasePath: reverse-proxy path, `undefined` when the app is at the root
+ * - nextTelemetryDisabled: Next.js' own telemetry switch (data policy)
  * - sessionSecret: 256-bit secret (NEVER logged — redaction contract)
  * - databaseUrl: PostgreSQL DSN (server/db only consumes)
  * - storage: { endpoint, region, bucket, accessKeyId, secretAccessKey } —
@@ -36,15 +89,555 @@
  * - otel: { endpoint?, serviceName? } — empty endpoint = telemetry off
  * - mail: { from?, host?, port?, user?, pass? } — required from VS-9
  * - rateLimits: per NFR-SEC-005/006 (override table)
- *
- * TODO(T-FOUND-002): `loadEnv(input: Record<string, string | undefined>)`
- * returning a frozen `Env`, or throwing a redacted ConfigurationError.
- * Do not implement in the architecture phase.
  */
-// The interface is intentionally a documented placeholder: its fields are
-// specified by the Zod schema at T-FOUND-002 (single source: DEPLOYMENT.md
-// §3), which is not installed in the architecture phase. Dependent
-// skeletons reference `Env` by name only (no field access), so the empty
-// body is sufficient for typechecking and documents the crossing.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- deliberate placeholder, see above
-export interface Env {}
+export interface Env {
+  readonly nodeEnv: NodeEnv;
+  readonly appOrigin: URL;
+  readonly appBasePath: string | undefined;
+  readonly nextTelemetryDisabled: boolean;
+  readonly sessionSecret: string;
+  readonly databaseUrl: string;
+  readonly storage: {
+    readonly endpoint: URL;
+    readonly region: string;
+    readonly bucket: string;
+    readonly accessKeyId: string;
+    readonly secretAccessKey: string;
+  };
+  readonly uploadLimits: {
+    readonly maxTotalBytes: number;
+    readonly maxFileBytes: number;
+    readonly maxFiles: number;
+  };
+  readonly otel: {
+    readonly endpoint: URL | undefined;
+    readonly serviceName: string | undefined;
+  };
+  readonly mail: {
+    readonly from: string | undefined;
+    readonly host: string | undefined;
+    readonly port: number | undefined;
+    readonly user: string | undefined;
+    readonly pass: string | undefined;
+  };
+  readonly rateLimits: {
+    readonly loginPerMin: number;
+    readonly registerPerHour: number;
+    readonly resetPerHour: number;
+    readonly searchPerMin: number;
+    readonly uploadPerHour: number;
+    readonly beaconPerMin: number | undefined;
+    readonly genericPerMin: number;
+  };
+}
+
+/* ── inventory (DEPLOYMENT.md §3, single source) ──────────────────────────── */
+
+/** Required by DEPLOYMENT.md §3 — unset ⇒ refuse to boot. */
+const REQUIRED_VARIABLES: readonly string[] = [
+  'NODE_ENV',
+  'APP_ORIGIN',
+  'SESSION_SECRET',
+  'DATABASE_URL',
+  'S3_ENDPOINT',
+  'S3_REGION',
+  'S3_BUCKET',
+  'S3_ACCESS_KEY_ID',
+  'S3_SECRET_ACCESS_KEY',
+  'NEXT_TELEMETRY_DISABLED',
+];
+
+/** The DEPLOYMENT.md §3 inventory, one entry per variable. */
+export const ENV_VARIABLE_NAMES: readonly string[] = Object.freeze([
+  ...REQUIRED_VARIABLES,
+  'APP_BASE_PATH',
+  'UPLOAD_MAX_TOTAL_BYTES',
+  'UPLOAD_MAX_FILE_BYTES',
+  'UPLOAD_MAX_FILES',
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_SERVICE_NAME',
+  'MAIL_FROM',
+  'MAIL_HOST',
+  'MAIL_PORT',
+  'MAIL_USER',
+  'MAIL_PASS',
+  'RATE_LIMIT_LOGIN_PER_MIN',
+  'RATE_LIMIT_REGISTER_PER_HOUR',
+  'RATE_LIMIT_RESET_PER_HOUR',
+  'RATE_LIMIT_SEARCH_PER_MIN',
+  'RATE_LIMIT_UPLOAD_PER_HOUR',
+  'RATE_LIMIT_BEACON_PER_MIN',
+  'RATE_LIMIT_GENERIC_PER_MIN',
+]);
+
+const KNOWN_VARIABLES = new Set(ENV_VARIABLE_NAMES);
+
+/**
+ * Variables the shell, the CI runner, Node and Next.js inject into every
+ * process. They are not part of the Yomi contract, so warning about them on
+ * every boot would drown the one warning that matters.
+ */
+const RUNTIME_VARIABLES: ReadonlySet<string> = new Set([
+  'CI',
+  'HOME',
+  'HOSTNAME',
+  'LANG',
+  'LC_ALL',
+  'LOGNAME',
+  'NODE_EXTRA_CA_CERTS',
+  'NODE_OPTIONS',
+  'NODE_PATH',
+  'PATH',
+  'PWD',
+  'SHELL',
+  'TERM',
+  'TMPDIR',
+  'TZ',
+  'TTY',
+  'USER',
+]);
+
+/** Prefixes of runtime noise families (`npm_config_*`). */
+const RUNTIME_PREFIXES: readonly string[] = ['npm_config_'];
+
+/* ── failure type ─────────────────────────────────────────────────────────── */
+
+/**
+ * Thrown by `loadEnv` when the environment is unusable. Carries variable
+ * NAMES and static problems only — never a value (NFR-OBS-006).
+ *
+ * Requirements: NFR-OPS-002 (fail fast, typed), NFR-OBS-006 (redaction).
+ * Task: T-FOUND-002.
+ */
+export class ConfigurationError extends Error {
+  readonly issues: readonly EnvIssue[];
+
+  constructor(issues: readonly EnvIssue[]) {
+    super(formatFailure(issues));
+    this.name = 'ConfigurationError';
+    this.issues = Object.freeze([...issues]);
+  }
+}
+
+/**
+ * Renders the boot failure. The ONLY inputs are the variable name and a
+ * static problem string; no code path in this module can hand it a value.
+ *
+ * Requirements: NFR-OBS-006, NFR-SEC-009. Task: T-FOUND-002.
+ */
+function formatFailure(issues: readonly EnvIssue[]): string {
+  const lines = issues.map((issue) => `  - ${issue.variable}: ${issue.problem}`);
+  return [
+    `Yomi refused to start: ${issues.length} environment variable(s) are missing or invalid.`,
+    ...lines,
+    'No variable value is included in this report, by design (NFR-OBS-006).',
+  ].join('\n');
+}
+
+/* ── validation schema (DEPLOYMENT.md §3 row by row) ──────────────────────── */
+
+/** Static problem text for a required variable that is unset or blank. */
+const REQUIRED_PROBLEM = 'is required and must not be empty (DEPLOYMENT.md §3)';
+
+/**
+ * Builds a field that parses an absolute URL of the given schemes into a
+ * `URL`. `accept` narrows it further; every message is a literal, so a
+ * refused value can never reach the message.
+ *
+ * Requirements: NFR-OPS-002. Task: T-FOUND-002.
+ */
+function urlField(problems: {
+  readonly malformed: string;
+  readonly rejected: string;
+  readonly protocols: readonly string[];
+  readonly accept?: (url: URL) => boolean;
+}) {
+  return z.string().transform((value, ctx) => {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      // Node's own ERR_INVALID_URL carries the value on `.input` — it is
+      // dropped here and never propagated (NFR-OBS-006).
+      ctx.addIssue({ code: 'custom', message: problems.malformed });
+      return z.NEVER;
+    }
+    if (!problems.protocols.includes(url.protocol) || problems.accept?.(url) === false) {
+      ctx.addIssue({ code: 'custom', message: problems.rejected });
+      return z.NEVER;
+    }
+    return url;
+  });
+}
+
+/**
+ * A URL with no embedded credentials (a secret in a URL is a leak vector).
+ *
+ * Requirements: NFR-SEC-009. Task: T-FOUND-002.
+ */
+const noCredentials = (url: URL): boolean => url.username === '' && url.password === '';
+
+/**
+ * `APP_ORIGIN` is a bare origin: no path, no query, no fragment, no userinfo.
+ *
+ * Requirements: NFR-SEC-004 (origin check), NFR-OPS-002. Task: T-FOUND-002.
+ */
+const isBareOrigin = (url: URL): boolean =>
+  noCredentials(url) && url.pathname === '/' && url.search === '' && url.hash === '';
+
+const httpUrl = urlField({
+  malformed: 'must be an absolute http(s) URL',
+  rejected: 'must be an absolute http(s) URL without embedded credentials',
+  protocols: ['http:', 'https:'],
+  accept: noCredentials,
+});
+
+/**
+ * The DSN stays a raw string (`Env.databaseUrl`): `server/db` owns it and its
+ * credentials are expected inside it, so only the shape is checked here.
+ *
+ * Requirements: NFR-SEC-009, NFR-OPS-002. Task: T-FOUND-002.
+ */
+const postgresDsn = z.string().refine((value) => {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'postgres:' || url.protocol === 'postgresql:') &&
+      url.host !== '' &&
+      url.pathname.length > 1
+    );
+  } catch {
+    return false;
+  }
+}, 'must be an absolute postgres:// or postgresql:// DSN (NFR-SEC-009)');
+
+/**
+ * The DEPLOYMENT.md §3 contract, one field per table row, in table order.
+ *
+ * Requirements: NFR-OPS-002. Task: T-FOUND-002.
+ */
+const envSchema = z.object({
+  // ── runtime mode ──────────────────────────────────────────────────────────
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+
+  // ── origin, cookies, CSRF, CSP (NFR-SEC-004/011) ─────────────────────────
+  APP_ORIGIN: urlField({
+    malformed: 'must be an absolute http(s) URL',
+    rejected: 'must be a bare origin: scheme + host only, no path, query, fragment or credentials',
+    protocols: ['http:', 'https:'],
+    accept: isBareOrigin,
+  }),
+  APP_BASE_PATH: z
+    .string()
+    .regex(/^\/[^\s?#]*$/, 'must start with "/" and contain no whitespace, "?" or "#"')
+    .optional(),
+
+  // ── secrets (NFR-SEC-009): never defaulted, never logged ─────────────────
+  SESSION_SECRET: z
+    .string()
+    .regex(/^[0-9a-fA-F]+$/, 'must be hexadecimal (DEPLOYMENT.md §3: 256-bit hex)')
+    .min(64, 'must be at least 64 hex characters (256 bits)'),
+  DATABASE_URL: postgresDsn,
+
+  // ── object storage (ADR-004): S3 / R2 in prod, MinIO in dev ─────────────
+  S3_ENDPOINT: httpUrl,
+  S3_REGION: z.string().regex(/^[A-Za-z0-9-]+$/, 'must be a region id (R2 uses "auto")'),
+  S3_BUCKET: z
+    .string()
+    .regex(
+      /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/,
+      'must be a valid bucket name (lowercase, 3–63 chars)',
+    ),
+  S3_ACCESS_KEY_ID: z.string().regex(/^\S+$/, 'must not contain whitespace'),
+  S3_SECRET_ACCESS_KEY: z.string().regex(/^\S+$/, 'must not contain whitespace'),
+
+  // ── upload limits (NFR-SEC-007; enforcement at T-UPLOAD-014) ─────────────
+  UPLOAD_MAX_TOTAL_BYTES: z.coerce.number().int().min(1).default(524_288_000),
+  UPLOAD_MAX_FILE_BYTES: z.coerce.number().int().min(1).default(104_857_600),
+  UPLOAD_MAX_FILES: z.coerce.number().int().min(1).default(500),
+
+  // ── telemetry (NFR-OBS-001/004): unset endpoint = off (dev default) ─────
+  OTEL_EXPORTER_OTLP_ENDPOINT: httpUrl.optional(),
+  OTEL_SERVICE_NAME: z.string().regex(/^\S+$/, 'must not contain whitespace').default('yomi-app'),
+
+  // ── mail (FR-AUTH-004), live from VS-9 ────────────────────────────────────
+  MAIL_FROM: z.string().min(1, 'must not be empty').optional(),
+  MAIL_HOST: z.string().regex(/^\S+$/, 'must not contain whitespace').optional(),
+  MAIL_PORT: z.coerce.number().int().min(1).max(65_535).optional(),
+  MAIL_USER: z.string().regex(/^\S+$/, 'must not contain whitespace').optional(),
+  MAIL_PASS: z.string().min(1, 'must not be empty').optional(),
+
+  // ── rate limits (NFR-SEC-005/006): the documented ceilings are the default
+  RATE_LIMIT_LOGIN_PER_MIN: z.coerce.number().int().min(1).default(10),
+  RATE_LIMIT_REGISTER_PER_HOUR: z.coerce.number().int().min(1).default(5),
+  RATE_LIMIT_RESET_PER_HOUR: z.coerce.number().int().min(1).default(3),
+  RATE_LIMIT_SEARCH_PER_MIN: z.coerce.number().int().min(1).default(30),
+  RATE_LIMIT_UPLOAD_PER_HOUR: z.coerce.number().int().min(1).default(2),
+  RATE_LIMIT_BEACON_PER_MIN: z.coerce.number().int().min(1).optional(),
+  RATE_LIMIT_GENERIC_PER_MIN: z.coerce.number().int().min(1).default(300),
+
+  // ── data policy: Next.js' own telemetry stays off ────────────────────────
+  NEXT_TELEMETRY_DISABLED: z.enum(['1', '0']).transform((value) => value === '1'),
+});
+
+/** Parsed shape of {@link envSchema}. */
+type ParsedEnv = z.infer<typeof envSchema>;
+
+/**
+ * The five `MAIL_*` variables as one all-or-nothing group (VS-9). The readers
+ * keep the policy check honest without a stringly-typed index into the schema.
+ */
+const MAIL_MEMBERS = {
+  MAIL_FROM: (env: ParsedEnv) => env.MAIL_FROM,
+  MAIL_HOST: (env: ParsedEnv) => env.MAIL_HOST,
+  MAIL_PORT: (env: ParsedEnv) => env.MAIL_PORT,
+  MAIL_USER: (env: ParsedEnv) => env.MAIL_USER,
+  MAIL_PASS: (env: ParsedEnv) => env.MAIL_PASS,
+} satisfies Record<string, (env: ParsedEnv) => unknown>;
+
+/* ── loader ───────────────────────────────────────────────────────────────── */
+
+/**
+ * Validates `input` against DEPLOYMENT.md §3 and returns the frozen `Env`.
+ *
+ * Order of operations (each step is observable in the failure output):
+ * 1. blank (`''` / whitespace-only) values are dropped — blank means unset;
+ * 2. the Zod schema refuses missing/invalid variables, naming each one;
+ * 3. cross-variable policy runs (https in production, mail group, limits);
+ * 4. unknown variables are warned about, never fatal;
+ * 5. the result is deeply frozen (the parsed `URL`s included).
+ *
+ * Never throws anything but {@link ConfigurationError}, and never puts a
+ * value into that error, a warning, or a log line (NFR-OBS-006).
+ *
+ * Requirements: NFR-OPS-002, NFR-SEC-009, NFR-OBS-006.
+ * Task: T-FOUND-002. Tests: `UNIT-ENV-*` (tests/unit/env.config.test.ts).
+ */
+export function loadEnv(input: EnvSource = defaultSource(), options: LoadEnvOptions = {}): Env {
+  const present = dropBlanks(input);
+  const parsed = envSchema.safeParse(present);
+  if (!parsed.success) {
+    // Copy out names and static messages only; the ZodError is dropped here.
+    throw new ConfigurationError(
+      parsed.error.issues.map((issue) => ({
+        variable: issue.path.map(String).join('.') || '<environment>',
+        problem: isUnset(issue.path, input) ? REQUIRED_PROBLEM : issue.message,
+      })),
+    );
+  }
+
+  const policyIssues = checkPolicy(parsed.data);
+  if (policyIssues.length > 0) {
+    throw new ConfigurationError(policyIssues);
+  }
+
+  const unknown = findUnknownVariables(Object.keys(input));
+  if (unknown.length > 0) {
+    (options.onWarn ?? warnToConsole)(
+      `Yomi: unknown environment variable(s) ignored: ${unknown.join(', ')} ` +
+        '(not part of DEPLOYMENT.md §3).',
+    );
+  }
+
+  return freezeEnv(parsed.data);
+}
+
+/**
+ * The real process environment, read through a narrowing cast.
+ *
+ * Why the cast: T-FOUND-001's `tsconfig.json` does not pull `@types/node` into
+ * the program (typescript 6.0.3, no `types` field), so neither the `process`
+ * global nor `node:process` resolves. Editing the toolchain config is outside
+ * this task's write scope, so the single Node-global reference of the env
+ * contract lives here — one place, cast, documented. When the toolchain adds
+ * `"types": ["node"]` (or a generated `next-env.d.ts` pulls it in), this
+ * becomes `process.env` verbatim.
+ *
+ * Requirements: NFR-OPS-002. Task: T-FOUND-002.
+ */
+function defaultSource(): EnvSource {
+  return (globalThis as { process?: { env?: EnvSource } }).process?.env ?? {};
+}
+
+/**
+ * Drops blank values. `FOO=''` and `FOO='   '` are UNSET (DEPLOYMENT §3 ships
+ * both spellings for "off"/"empty"); every other value is passed through
+ * untouched, so a secret is never silently rewritten.
+ *
+ * Requirements: NFR-OPS-002. Task: T-FOUND-002.
+ */
+function dropBlanks(input: EnvSource): Record<string, string> {
+  const present: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === 'string' && value.trim() !== '') {
+      present[key] = value;
+    }
+  }
+  return present;
+}
+
+/** True when the issue is about a variable that was unset (or blank). */
+function isUnset(path: readonly PropertyKey[], input: EnvSource): boolean {
+  const name = String(path[0] ?? '');
+  const raw = input[name];
+  return raw === undefined || raw.trim() === '';
+}
+
+/**
+ * Cross-variable rules that a per-field schema cannot express. Returns issues
+ * for every variable involved, so an operator sees all of them at once.
+ *
+ * Requirements: NFR-OPS-002, NFR-SEC-009. Task: T-FOUND-002.
+ */
+function checkPolicy(env: ParsedEnv): EnvIssue[] {
+  const issues: EnvIssue[] = [];
+  const production = env.NODE_ENV === 'production';
+
+  if (production && env.APP_ORIGIN.protocol !== 'https:') {
+    issues.push({
+      variable: 'APP_ORIGIN',
+      problem: 'must use https when NODE_ENV=production (NFR-SEC-009)',
+    });
+  }
+  if (production && env.S3_ENDPOINT.protocol !== 'https:') {
+    issues.push({
+      variable: 'S3_ENDPOINT',
+      problem:
+        'must use https when NODE_ENV=production: the S3 key travels on this connection (NFR-SEC-009)',
+    });
+  }
+  if (env.UPLOAD_MAX_FILE_BYTES > env.UPLOAD_MAX_TOTAL_BYTES) {
+    issues.push({
+      variable: 'UPLOAD_MAX_FILE_BYTES',
+      problem: 'must not exceed UPLOAD_MAX_TOTAL_BYTES (NFR-SEC-007)',
+    });
+  }
+
+  const mailSet = Object.entries(MAIL_MEMBERS)
+    .filter(([, read]) => read(env) !== undefined)
+    .map(([name]) => name);
+  if (mailSet.length > 0 && mailSet.length < Object.keys(MAIL_MEMBERS).length) {
+    for (const name of Object.keys(MAIL_MEMBERS)) {
+      issues.push(
+        mailSet.includes(name)
+          ? {
+              variable: name,
+              problem: 'is ignored: the MAIL_* group must be set completely (VS-9)',
+            }
+          : {
+              variable: name,
+              problem: 'is required when any other MAIL_* variable is set (VS-9)',
+            },
+      );
+    }
+  }
+
+  return issues;
+}
+
+/** Unknown variables, minus the shell/CI/Node/Next runtime noise. */
+function findUnknownVariables(keys: readonly string[]): string[] {
+  return keys
+    .filter(
+      (key) =>
+        !KNOWN_VARIABLES.has(key) &&
+        !RUNTIME_VARIABLES.has(key) &&
+        !RUNTIME_PREFIXES.some((prefix) => key.startsWith(prefix)),
+    )
+    .sort();
+}
+
+/**
+ * Default warning sink. `console.error` is the only console the product lint
+ * config allows; T-FOUND-008 replaces this with the pino facade — that is why
+ * the sink is injectable (`LoadEnvOptions.onWarn`).
+ *
+ * Requirements: NFR-OBS-001. Task: T-FOUND-002.
+ */
+function warnToConsole(message: string): void {
+  console.error(message);
+}
+
+/**
+ * Deep-freezes the parsed configuration.
+ *
+ * `Object.freeze(new URL(...))` alone is cosmetic: URL's components are
+ * prototype accessors backed by internal slots, so `url.href = …` still
+ * mutates the object (verified on Node 24). Every mutable component is
+ * therefore shadowed by an own non-writable data property BEFORE the freeze,
+ * which makes `appOrigin` genuinely immutable.
+ *
+ * Requirements: NFR-OPS-002. Task: T-FOUND-002.
+ */
+function freezeEnv(env: ParsedEnv): Env {
+  const frozen: Env = {
+    nodeEnv: env.NODE_ENV,
+    appOrigin: freezeUrl(env.APP_ORIGIN),
+    appBasePath: env.APP_BASE_PATH,
+    nextTelemetryDisabled: env.NEXT_TELEMETRY_DISABLED,
+    sessionSecret: env.SESSION_SECRET,
+    databaseUrl: env.DATABASE_URL,
+    storage: Object.freeze({
+      endpoint: freezeUrl(env.S3_ENDPOINT),
+      region: env.S3_REGION,
+      bucket: env.S3_BUCKET,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    }),
+    uploadLimits: Object.freeze({
+      maxTotalBytes: env.UPLOAD_MAX_TOTAL_BYTES,
+      maxFileBytes: env.UPLOAD_MAX_FILE_BYTES,
+      maxFiles: env.UPLOAD_MAX_FILES,
+    }),
+    otel: Object.freeze({
+      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT
+        ? freezeUrl(env.OTEL_EXPORTER_OTLP_ENDPOINT)
+        : undefined,
+      serviceName: env.OTEL_SERVICE_NAME,
+    }),
+    mail: Object.freeze({
+      from: env.MAIL_FROM,
+      host: env.MAIL_HOST,
+      port: env.MAIL_PORT,
+      user: env.MAIL_USER,
+      pass: env.MAIL_PASS,
+    }),
+    rateLimits: Object.freeze({
+      loginPerMin: env.RATE_LIMIT_LOGIN_PER_MIN,
+      registerPerHour: env.RATE_LIMIT_REGISTER_PER_HOUR,
+      resetPerHour: env.RATE_LIMIT_RESET_PER_HOUR,
+      searchPerMin: env.RATE_LIMIT_SEARCH_PER_MIN,
+      uploadPerHour: env.RATE_LIMIT_UPLOAD_PER_HOUR,
+      beaconPerMin: env.RATE_LIMIT_BEACON_PER_MIN,
+      genericPerMin: env.RATE_LIMIT_GENERIC_PER_MIN,
+    }),
+  };
+  return Object.freeze(frozen);
+}
+
+/** URL components that are settable through `URL.prototype` accessors. */
+const URL_COMPONENTS: readonly string[] = [
+  'href',
+  'protocol',
+  'username',
+  'password',
+  'host',
+  'hostname',
+  'port',
+  'pathname',
+  'search',
+  'hash',
+];
+
+/** Shadows every mutable `URL` accessor, then freezes the object. */
+function freezeUrl(url: URL): URL {
+  for (const component of URL_COMPONENTS) {
+    Object.defineProperty(url, component, {
+      value: Reflect.get(url, component),
+      writable: false,
+      enumerable: true,
+      configurable: false,
+    });
+  }
+  return Object.freeze(url);
+}
