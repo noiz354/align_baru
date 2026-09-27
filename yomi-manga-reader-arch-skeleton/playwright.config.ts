@@ -13,6 +13,15 @@ const BASE_URL = process.env['E2E_BASE_URL'] ?? `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Convention, and the reason this is pinned rather than left to Playwright's
+  // default (`*.@(spec|test).ts`): `tests/e2e/` holds two kinds of file today.
+  // The seven `*.e2e.test.ts` files are Vitest `describe.todo` placeholders
+  // belonging to the tasks that own E2E-CATALOG/READER/AUTH/… — under the
+  // default matcher Playwright tried to load them and `npm run test:e2e` failed
+  // to start. Real E2E specs use `*.e2e.spec.ts`, so a placeholder is never
+  // mistaken for a runnable spec. When its task lands, that file is rewritten
+  // as a `*.e2e.spec.ts`.
+  testMatch: '**/*.e2e.spec.ts',
   // A flake blocks the milestone; zero tolerance (AGENTS.md §3). One retry in CI
   // to absorb genuine infrastructure races, none locally so a local flake is loud.
   retries: process.env['CI'] ? 1 : 0,

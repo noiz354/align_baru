@@ -27,6 +27,15 @@
  * T-FOUND-008 owns the server-side logger facade anyway.
  * TODO(T-OBS-001, T-FOUND-008): log the typed AppError server-side with the
  * request id, so the digest a user is asked to quote resolves to a log line.
+ * That invariant is asserted as a source check in
+ * tests/e2e/shell-a11y.e2e.test.ts, because the boundary cannot be reached on
+ * a healthy app and would otherwise be asserted by nobody.
+ *
+ * Shape: cause, then what to do, then the actions — ACCESSIBILITY.md §6, in
+ * the order a reader needs it. The home link carries `.btn` for the same
+ * reason as in not-found.tsx: the element stays a real `<a>` (announced as a
+ * link, middle-click intact) and only picks up the 44×44 px floor that
+ * NFR-A11Y-010 commits to; as a bare inline link it was 19 px tall.
  *
  * TODO(T-FOUND-003): `global-error.tsx` (the boundary that replaces the root
  * layout when the layout itself throws) is not wired in this phase: it cannot
@@ -49,14 +58,20 @@ export default function GlobalError({
     <FocusRegion labelledBy="error-title">
       <h1 id="error-title">Something went wrong</h1>
       <p>
-        This page could not be shown. Nothing was changed. Trying again often works; if it does not,
-        the reader may be temporarily unavailable.
+        <strong>Cause.</strong> This page could not be shown. Nothing was changed, and it is not
+        something you did.
+      </p>
+      <p>
+        <strong>What you can do.</strong> Try again — that often works. If it does not, the reader
+        may be temporarily unavailable and the catalog is the safer place to be.
       </p>
       <p className="page-actions">
         <Button variant="primary" onClick={reset}>
           Try again
         </Button>{' '}
-        <UiLink href="/">Go to the home page</UiLink>
+        <UiLink className="btn" href="/">
+          Go to the home page
+        </UiLink>
       </p>
       {error.digest === undefined ? null : (
         <p className="note">
