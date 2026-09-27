@@ -1,7 +1,7 @@
 /**
  * Type surface of the project's own ESLint plugin, so TypeScript tests can import the `.mjs` rules
  * without enabling `allowJs` for production code. Keep in sync with `ops/eslint/index.mjs`.
- * Owning tasks: T-ARCH-002, T-ARCH-003.
+ * Owning tasks: T-ARCH-002, T-ARCH-003, T-SEC-004.
  */
 export interface MajelishubRuleModule {
   readonly meta: {
@@ -19,6 +19,7 @@ export declare const majelishubPlugin: {
   readonly rules: {
     readonly "module-boundaries": MajelishubRuleModule;
     readonly "no-fake-implementation": MajelishubRuleModule;
+    readonly "no-token-logging": MajelishubRuleModule;
   };
 };
 

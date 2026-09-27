@@ -1,0 +1,156 @@
+{
+  "$comment": [
+    "The ban list for telemetry field names - the single source of truth shared by the runtime guard",
+    "and the build-time gate, so the two cannot drift (TASKS.md T-SEC-004 invariant).",
+    "Specification: OBSERVABILITY.md §7, docs/security/QR-SECURITY.md, ADR-0006, PRIVACY.md §4.",
+    "",
+    "Read from two places:",
+    "  1. src/shared/observability/attributes.ts  -> drops and counts at runtime",
+    "  2. ops/eslint/no-token-logging.mjs         -> fails the build",
+    "tests/unit/observability/token-logging.test.ts asserts both classify the same names identically.",
+    "",
+    "MATCHING: the field name is split into words on camelCase, snake_case and kebab-case boundaries",
+    "(`checkinToken` -> [checkin, token], `invitation_code` -> [invitation, code]) and a pattern matches",
+    "when it EQUALS one of those words. Substring matching was tried first and rejected: `uri` matches",
+    "favoURItE and secURIty, which would ban ordinary attributes and train people to disable the rule.",
+    "`except` lists whole names that contain a banned word but are explicitly allowed; they must also be",
+    "in ALLOWED_ATTRIBUTES (src/shared/observability/attributes.ts), which the runtime asserts at startup.",
+    "The allow-list is checked before any of this, which is why `errorCode` survives `code`."
+  ],
+  "matchMode": "identifier-word",
+  "banned": [
+    {
+      "match": "token",
+      "reason": "Check-in, capability and invitation tokens are credentials (ADR-0006)"
+    },
+    {
+      "match": "code",
+      "except": [
+        "errorCode"
+      ],
+      "reason": "Short codes and invitation codes are credentials; `errorCode` is an opaque enum value and is required by OBSERVABILITY.md §5"
+    },
+    {
+      "match": "codes",
+      "reason": "Short codes and invitation codes are credentials (ADR-0006)"
+    },
+    {
+      "match": "secret",
+      "reason": "Secrets never leave the secret store (SECURITY.md §9)"
+    },
+    {
+      "match": "password",
+      "reason": "Credentials (SECURITY.md §9)"
+    },
+    {
+      "match": "passwd",
+      "reason": "Credentials (SECURITY.md §9)"
+    },
+    {
+      "match": "credential",
+      "reason": "Passkey/assertion material (SECURITY.md §9)"
+    },
+    {
+      "match": "credentials",
+      "reason": "Passkey/assertion material (SECURITY.md §9)"
+    },
+    {
+      "match": "authorization",
+      "reason": "Bearer credentials (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "cookie",
+      "reason": "Session cookies are credentials (SECURITY.md §2)"
+    },
+    {
+      "match": "presigned",
+      "reason": "Presigned URLs are bearer credentials (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "url",
+      "reason": "URLs carry tokens and presigned credentials; log the opaque id instead"
+    },
+    {
+      "match": "uri",
+      "reason": "URIs carry tokens and presigned credentials; log the opaque id instead"
+    },
+    {
+      "match": "email",
+      "reason": "Personal data (PRIVACY.md §4, OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "phone",
+      "reason": "Personal data (PRIVACY.md §4)"
+    },
+    {
+      "match": "contact",
+      "reason": "Contact data and contact hashes are personal data (PRIVACY.md §4)"
+    },
+    {
+      "match": "name",
+      "except": [
+        "errorName"
+      ],
+      "reason": "Names are personal data; ids are opaque (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "address",
+      "reason": "Personal data / precise location (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "location",
+      "reason": "Precise geolocation is not collected at all for participants (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "latitude",
+      "reason": "Precise geolocation is not collected at all (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "longitude",
+      "reason": "Precise geolocation is not collected at all (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "ip",
+      "reason": "Raw IP addresses are personal data; hash with a rotating salt if an abuse signal needs it"
+    },
+    {
+      "match": "transcript",
+      "except": [
+        "transcriptId"
+      ],
+      "reason": "Transcript text is content personal to the speaker (OBSERVABILITY.md §7); the opaque id is a documented join key"
+    },
+    {
+      "match": "feedback",
+      "reason": "Feedback text is content personal to the participant (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "description",
+      "reason": "Event descriptions are content (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "body",
+      "reason": "Request bodies are never logged (OBSERVABILITY.md §5 rule 2)"
+    },
+    {
+      "match": "payload",
+      "reason": "Provider payloads may contain content (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "audio",
+      "reason": "Audio bytes and content dimensions are content (OBSERVABILITY.md §7)"
+    },
+    {
+      "match": "image",
+      "reason": "Personal data (PRIVACY.md §4)"
+    },
+    {
+      "match": "message",
+      "reason": "Free text carries the invalid input value; log errorCode instead (OBSERVABILITY.md §5 rule 3)"
+    },
+    {
+      "match": "query",
+      "reason": "Query strings carry tokens and codes (docs/security/QR-SECURITY.md)"
+    }
+  ]
+}

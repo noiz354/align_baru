@@ -4,9 +4,8 @@
  * Where this belongs: server/auth, next to the guards and session code that produce the events.
  * T-SEC-001 requires that a denied cross-organization attempt is recorded, T-SEC-002 requires that
  * every denial and every reason-required grant is recorded; T-SEC-007 owns the durable, hash-chained
- * audit table and T-OBS-002 owns the production logger. Until those land, the default sink writes one
- * JSON line to stdout - a real implementation, not a placeholder - and this module is the only place
- * these shapes are produced.
+ * audit table (delivered) and T-OBS-002 owns the production logger (delivered), which is what the default
+ * sink below writes through. This module is the only place these shapes are produced.
  *
  * Content rules (SECURITY.md §11/§12, OBSERVABILITY.md §7):
  *   - Identifiers of the ACTOR and their own organization only. The identifier of an object that was
@@ -22,6 +21,8 @@
  * Task ownership: T-SEC-001 (denial events), T-SEC-002 (permission decisions), T-ORG-001 (session
  * revocation), T-SEC-007 (durability), T-OBS-002 (transport).
  */
+
+import { createLogger } from "@/shared/observability/logger";
 
 export type AuthorizationOutcome =
   | "DENIED_CROSS_ORGANIZATION"
@@ -83,8 +84,48 @@ export interface SecurityEventSink {
   (event: SecurityEvent): void;
 }
 
+/**
+ * The interim telemetry sink: the shared logger, so these events obey the same allow-list and drop
+ * counter as everything else (T-OBS-002). The durable copy goes to `audit_events` through the audit
+ * buffer (T-SEC-007) - telemetry and evidence are different stores with different retention
+ * (RETENTION.md).
+ *
+ * Only opaque identifiers and enum outcomes are logged. The operator's `reason` is deliberately absent:
+ * it is free text, it belongs in the audit record, and OBSERVABILITY.md §5 rule 2 forbids payloads.
+ */
+const logger = createLogger("authorization");
+
 const defaultSink: SecurityEventSink = (event) => {
-  process.stdout.write(`${JSON.stringify(event)}\n`);
+  switch (event.event) {
+    case "authorization_denied":
+      logger.warn("authorization.denied", {
+        outcome: event.outcome,
+        organizationId: event.organizationId,
+        permissionKey: event.permission ?? "unknown",
+        ...("actorUserId" in event && event.actorUserId ? { actorUserId: event.actorUserId } : {}),
+      });
+      return;
+    case "authorization_reason_recorded":
+      logger.info("authorization.reason_recorded", {
+        organizationId: event.organizationId,
+        permissionKey: event.permission,
+        actorUserId: event.actorUserId,
+        ...("actorRole" in event && event.actorRole ? { action: event.actorRole } : {}),
+      });
+      return;
+    case "session_revoked":
+      logger.info("session.revoked", {
+        organizationId: event.organizationId,
+        sessionId: event.sessionId,
+        actorUserId: event.actorUserId,
+        result: "REVOKED",
+      });
+      return;
+    default: {
+      const unhandled: never = event;
+      logger.error("authorization.unknown_event", { errorCode: "INTERNAL" }, unhandled);
+    }
+  }
 };
 
 let sink: SecurityEventSink = defaultSink;
@@ -163,9 +204,9 @@ export function recordSecurityEvent(event: SecurityEvent): void {
   try {
     sink(event);
   } catch {
-    process.stdout.write(
-      `${JSON.stringify({ event: "security_event_sink_failed", errorCode: "INTERNAL", at: new Date().toISOString() })}\n`,
-    );
+    // The sink itself failed (a registered sink that throws). The outcome must not be masked by
+    // telemetry, so this is reported and swallowed - the logger never throws, so it is safe here.
+    logger.error("security.event_sink_failed", { errorCode: "INTERNAL", result: "ERROR" });
   }
 }
 

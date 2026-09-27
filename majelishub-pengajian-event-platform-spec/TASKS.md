@@ -318,8 +318,30 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Concurrency:** not applicable.
 - **Failure cases:** a rejected attribute increments `telemetry_dropped_attribute_total` and is reported, never silently dropped.
 - **Tests:** `tests/unit/observability/token-logging.test.ts` — fixtures logging a token field are reported by the rule and stripped by the logger; a runtime test asserts the error serializer omits token fields.
-- **Manual QA:** QA-07 telemetry leak check with a token-shaped string in a request; confirm zero occurrences in logs and a dropped-attribute metric.
+- **Manual QA:** QA-07 telemetry leak check with a token-shaped string in a request; confirm zero occurrences in logs and a dropped-attribute metric. **Not testable here — reason:** no request path accepts a token yet (T-CHECKIN-001 is a stub). The equivalent is verified without a request: a token value passed to the logger under an allowed key is dropped, counted as `kind=banned` and absent from the serialised line, and a token-named property on an error object is stripped (`tests/unit/observability/token-logging.test.ts`).
 - **Definition of Done:** rule + runtime guard active, tests green, the shared ban list exported as the single source of truth.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` —
+  - **One ban list, two enforcers.** `src/shared/observability/banned-attributes.json` holds 31 word
+    patterns with the reason each is banned; `src/shared/observability/attributes.ts` (runtime) and
+    `ops/eslint/no-token-logging.mjs` (build gate) both read that file. Matching splits an identifier into
+    words on camelCase/snake_case/kebab boundaries and compares whole words: substring matching was tried
+    first and rejected, because `uri` matches `favourite` and `security` — a rule people must disable
+    protects nothing. The allow-list is checked first, which is why `errorCode` and `transcriptId` pass.
+  - **Lint rule** `majelishub/no-token-logging` (enabled for `src/**` and `tests/**` in
+    `eslint.config.mjs`) reports `bannedField` (`{ token: … }`), `bannedValue` (`{ result: checkinToken }` —
+    an allowed key does not launder a banned value), `interpolatedMessage` and `nonLiteralMessage`, and
+    reports `banListUnreadable` rather than passing silently when the ban list cannot be read.
+  - **Runtime guard** in the logger (T-OBS-002) plus `serializeErrorForTelemetry`, which drops the error
+    `message` and any own property whose name is banned, so a hand-rolled error cannot smuggle a token.
+  - **Tests** `tests/unit/observability/token-logging.test.ts` (6): the seven violation shapes are flagged,
+    the allow-listed lookalikes are not, token-named attributes are stripped at runtime with the counter
+    incremented, token fields and values are absent from serialised errors, and — the invariant that
+    matters — both enforcers classify the same 25-name fixture list identically and every allow-listed name
+    survives the ban list.
+  - **Still open:** the shared `logger` ban list covers field *names*; the metric **label values** are
+    protected only by the catalogue's declared low-cardinality label keys, and a value-level scan (e.g. a
+    token-shaped string under an allowed name) is not implemented — it belongs with the check-in routes
+    (T-CHECKIN-003) that would have such a value to leak.
 
 ---
 
@@ -418,8 +440,35 @@ mitigation or enforcement rule. They must exist with these exact IDs.
 - **Concurrency:** logger is safe under concurrent job execution; trace/span context does not bleed between requests.
 - **Failure cases:** exporter unreachable → the app continues (telemetry never breaks the product); malformed payload → dropped and counted; missing config → logged once at boot with a clear message.
 - **Tests:** `tests/unit/observability/logger.test.ts` (allow-list, drop counting, no content fields), `tests/integration/observability/tracing.test.ts` (spans exist for a request→job chain), `tests/unit/lint/console-ban.test.ts`.
-- **Manual QA:** run one registration and one check-in locally; inspect the log output and confirm every line contains only allow-listed attributes and that a correlation id is present.
+- **Manual QA:** run one registration and one check-in locally; inspect the log output and confirm every line contains only allow-listed attributes and that a correlation id is present. **Not testable here — reason:** no registration or check-in route exists yet (they are T-REG-*/T-CHECKIN-* stubs), so there is no end-to-end line to inspect. What is verified instead: the documented check-in line shape from OBSERVABILITY.md §5 is asserted field by field in `tests/unit/observability/logger.test.ts`, and the security events that do flow today go through this logger.
 - **Definition of Done:** the three APIs exist with tests; the metric catalogue is implemented as typed constants; `telemetry_dropped_attribute_total` is emitted and asserted to be zero in normal flows.
+- **Delivered:** 2026-09-27, branch `arena/01a0e05d-align-baru` — **two of the three APIs** (logger,
+  metrics), with tracing still open:
+  - `src/shared/observability/logger.ts` — one JSON-line interface (`debug/info/warn/error/child`), an
+    injectable sink, and four structural refusals: attribute names outside `ALLOWED_ATTRIBUTES` are
+    dropped, values that are not string/number/boolean are dropped, string values containing whitespace or
+    longer than 128 characters are dropped (identifiers and enums only), and an event name that is not a
+    dotted lowercase identifier is refused — so a message built by interpolation cannot carry a value.
+    A log call never throws; a failing sink is reported once and swallowed. `error()` logs `errorName`,
+    `errorCode` and — server-side only — a stack, and **never** the error's `message`, which is where the
+    invalid input value usually is.
+  - `src/shared/observability/metrics.ts` — the whole OBSERVABILITY.md §4 catalogue as typed constants
+    (`METRIC_CATALOGUE`, 44 metrics) with each metric's declared label keys, so an undeclared label or an
+    unknown metric name is a compile error and a runtime throw. `telemetry_dropped_attribute_total{kind}`
+    is the guardrail counter, and the logger asserts it is **zero** in a normal flow.
+  - `src/server/auth/authorization-events.ts` now writes through this logger instead of raw
+    `process.stdout.write`, so the events that exist today obey the same allow-list. The operator's
+    `reason` stays out of telemetry (free text; it lives in the audit record).
+  - `tests/unit/observability/logger.test.ts` (6 tests): unknown/banned attributes dropped and counted with
+    the `kind` distinguishing the two, free text and payloads refused, the documented check-in line emitted
+    field by field, child bindings not leaking into the parent, a throwing sink not breaking the caller,
+    and the error message never logged.
+  - **Still open, honestly:** `tracing.ts` and the OTel `--import` instrumentation are **not** delivered —
+    `@opentelemetry/api` is classified in STACK-2026/ADR-0019 but not installed, and `spans exist for a
+    request→job chain` cannot be asserted without a collector or the container harness (T-TEST-001). The
+    metrics module likewise holds counters in-process (`metricsSnapshot()`) with no OTLP exporter; wiring
+    both is the remainder of this task. Sampling per route class is also not implemented, because there are
+    no routes yet.
 
 ---
 

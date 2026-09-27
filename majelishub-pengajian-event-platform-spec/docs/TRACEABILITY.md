@@ -361,7 +361,7 @@ Documents: PRIVACY.md · RETENTION.md · ADR-0016/0017 · Tasks: T-PRIV-001…T-
 | NFR-PRIV-003 | P0 | Recording and publication policy is explicit per event and shown before recording starts. | — | T-PRIV-001…T-PRIV-003, T-REG-011, T-ATTEND-006, T-FEEDBACK-004, T-SEC-004, T-OPS-006 | SPEC |
 | NFR-PRIV-004 | P0 | Voice recordings are personal data: processed under a stated lawful basis, private by default. | — | T-PRIV-001 | SPEC |
 | NFR-PRIV-005 | P0 | Analytics are aggregate; no individual participant behaviour profile is built or exported. | — | T-FEEDBACK-004 | SPEC |
-| NFR-PRIV-006 | P0 | Logs and telemetry never contain raw audio, transcript content, contact details or tokens. | — | T-OBS-002, T-SEC-004 | SPEC |
+| NFR-PRIV-006 | P0 | Logs and telemetry never contain raw audio, transcript content, contact details or tokens. | — | T-OBS-002, T-SEC-004 | IMPL (partial — enforced twice over the same data file `src/shared/observability/banned-attributes.json`: the logger drops banned and unknown attributes and strips banned error properties, and `majelishub/no-token-logging` fails the build on the same names (`tests/unit/observability/token-logging.test.ts`). Not yet covered: token-shaped *values* under an allowed attribute name, which needs the check-in routes — T-CHECKIN-003) |
 | NFR-PRIV-007 | P1 | Third-party processors (hosted STT, email, hosting) are documented with data categories, region and purpose; no voice data leaves the boundary withou… | — | T-TRANSCRIPT-005 | SPEC |
 | NFR-PRIV-008 | P0 | Participant data is never sold, shared or used for advertising. | — | T-PRIV-001…T-PRIV-003, T-REG-011, T-ATTEND-006, T-FEEDBACK-004, T-SEC-004, T-OPS-006 | SPEC |
 | NFR-PRIV-009 | P1 | Any breach triggers the documented 72-hour notification procedure (UU PDP). | — | T-SEC-011, T-PRIV-002 | SPEC |
@@ -417,8 +417,8 @@ Documents: OBSERVABILITY.md · docs/operations/SLO.md · Tasks: T-OBS-001, T-OBS
 
 | ID | Pri | Requirement (abbreviated) | PRD doc ref | Owning task(s) | Status |
 |---|---|---|---|---|---|
-| NFR-OBS-001 | P0 | Every request carries a correlation id propagated through logs, traces and job payloads. | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
-| NFR-OBS-002 | P0 | Structured JSON logs with allow-listed attributes; no PII, audio or transcript content. | — | T-OBS-002 | SPEC |
+| NFR-OBS-001 | P0 | Every request carries a correlation id propagated through logs, traces and job payloads. | — | T-OBS-001, T-OBS-002, T-OBS-003 | IMPL (partial — the logger carries `requestId`/`traceId`/`causationId` as allow-listed attributes and `child()` binds them per request without leaking into sibling requests; nothing generates or propagates them yet, because no request pipeline exists — T-OBS-001) |
+| NFR-OBS-002 | P0 | Structured JSON logs with allow-listed attributes; no PII, audio or transcript content. | — | T-OBS-002 | IMPL (partial — `createLogger` writes JSON lines with an allow-listed attribute set, refuses non-enum string values and interpolated event names, and counts every refusal in `telemetry_dropped_attribute_total`; the security events that exist today go through it (`tests/unit/observability/logger.test.ts`). The OTLP exporter and tracing half of T-OBS-002 are not wired) |
 | NFR-OBS-003 | P0 | Metrics exist for registration outcomes, check-in outcomes/duplicates, upload failures, recording interruptions, transcription duration/failures, sto… | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
 | NFR-OBS-004 | P0 | OpenTelemetry traces (OTLP) instrument HTTP handlers, jobs and storage operations; vendor-neutral. | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
 | NFR-OBS-005 | P1 | Organizer-visible alerts are distinct from operator-visible alerts and are deduplicated (`OPERATIONAL_ALERTS`). | — | T-OBS-001, T-OBS-002, T-OBS-003 | SPEC |
