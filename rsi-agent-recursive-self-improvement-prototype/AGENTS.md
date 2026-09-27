@@ -37,17 +37,35 @@ dibagi ke dalam agent terspesialisasi yang sejajar dengan arsitektur loop:
   (diamati terhadap eksekusi), freeze memblokir write (`MemoryFrozenError`),
   resume mengarsipkan memory lama ke `memory.prev.json` agar tidak warm-start bocor.
 
+### 6. Agent: `ImprovementLoop` (v0.2)
+- **Tanggung Jawab**: Menjalankan bounded self-improvement atas memory:
+  evidence → `ImprovementProposal` → kandidat terisolasi (`CandidateWorkspace`)
+  → evaluasi baseline-vs-candidate → accept/reject/escalate → apply →
+  verifikasi → rollback. Iterasi dibatasi `ImprovementLimits`; keputusan tercatat
+  di hash-chained `audit.jsonl`; proposal HIGH/CRITICAL wajib human approval.
+- **Batasan**: Hanya mengubah `runs/memory.json` (dan regen `SKILL.md`/`CLAUDE.md`;
+  file lain — `rsi/`, `tests/`, `SECURITY.md`, dll — protected path, CRITICAL,
+  tidak pernah auto-applied).
+
 ---
 
 ## Cara menjalankan
 
 ```bash
 python3 demo.py                              # run offline penuh (mock LLM + mock Jev)
-python3 demo.py --waves 3 --drs-rounds 3 --holdout 12 --seed 7
+python3 demo.py --improve --max-cycles 2     # + bounded improvement loop
 python3 demo.py --resume                     # lanjut dari runs/memory.json yang ada
 python3 demo.py --backend openai             # actor LLM nyata (OPENAI_API_KEY)
 python3 demo.py --jev typesafe               # judge Jev nyata (TYPESAFE_API_KEY)
-python3 -m unittest discover -s tests -v     # 10 test, semua offline
+python3 -m unittest discover -s tests -v     # 141 test, semua offline
+python3 -m rsi.cli run --improve             # CLI: run + loop + dashboard
+python3 -m rsi.cli improve                   # jalankan loop pada memory yang ada
+python3 -m rsi.cli benchmark                 # snapshot metrik antar eksperimen-arm
+python3 -m rsi.cli dashboard                 # buat runs/dashboard.html
+python3 -m rsi.cli skills --out-dir .        # export SKILL.md / CLAUDE.md
+python3 -m rsi.cli rao --target-dir .        # RAO: self-assess + tulis ulang skill file
+python3 -m rsi.cli audit --verify            # verifikasi hash-chain audit
+python3 -m rsi.cli status                    # state satu layar dari runs/
 ```
 
 ## Konvensi
@@ -58,7 +76,9 @@ python3 -m unittest discover -s tests -v     # 10 test, semua offline
   menghasilkan hasil sama.
 - Lifecycle: exploration (tulis memory) → freeze → test-time read-only; proses
   baru selalu mulai dengan memory yang bisa ditulis lagi.
-- Artefak `runs/` (`report.md`, `memory.json`, `attempts.jsonl`) adalah output
-  yang dihasilkan ulang — jangan diedit manual.
+- Artefak `runs/` (`report.md`, `memory.json`, `attempts.jsonl`, `audit.jsonl`,
+  `cycles.json`, `baseline-mem-*.json`, `applied.json`) adalah output yang
+  dihasilkan ulang — jangan diedit manual. `audit.jsonl` hash-chained; editing
+  memutuskan chain dan terdeteksi oleh `rsi.cli audit --verify` / dashboard.
 - Kunci API (`OPENAI_API_KEY`, `TYPESAFE_API_KEY`) hanya lewat environment,
   tidak pernah di-commit.

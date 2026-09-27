@@ -1,0 +1,103 @@
+{
+  "lessons": [
+    {
+      "id": "lesson-6cda7ff2",
+      "content": "[procedure] 'Fix failing test in payment retry logic': applying debugging, logging, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "debugging",
+        "logging",
+        "edge-cases"
+      ],
+      "source_task_id": "task-b0-0",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790482290.5654788,
+      "kind": "procedure",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-4d4b6158",
+      "content": "[boundary] 'Add pagination to /users endpoint': hidden constraint around 'api-design' defeated a first-pass fix. Before finalizing work in this area, probe api-design boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "api-design",
+        "http"
+      ],
+      "source_task_id": "task-b0-1",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790482290.5663767,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-d52bd3fe",
+      "content": "[boundary] 'Raise coverage for invoice proration': hidden constraint around 'fixtures' defeated a first-pass fix. Before finalizing work in this area, probe fixtures boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "fixtures",
+        "pytest"
+      ],
+      "source_task_id": "task-b0-2",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790482290.5672848,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-a726117b",
+      "content": "[boundary] 'Extract currency conversion into a service': hidden constraint around 'refactor' defeated a first-pass fix. Before finalizing work in this area, probe refactor boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "refactor",
+        "typing"
+      ],
+      "source_task_id": "task-b0-3",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790482290.5681002,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-8121a89c",
+      "content": "[boundary] 'Add --dry-run flag to migration CLI': hidden constraint around 'argparse' defeated a first-pass fix. Before finalizing work in this area, probe argparse boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "argparse",
+        "cli"
+      ],
+      "source_task_id": "task-b0-4",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790482290.568919,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-5c941479",
+      "content": "[boundary] 'Normalize address table and write migration': hidden constraint around 'migrations' defeated a first-pass fix. Before finalizing work in this area, probe migrations boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "migrations",
+        "sql"
+      ],
+      "source_task_id": "task-b0-5",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790482290.5697315,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    }
+  ],
+  "frozen": false,
+  "revision": "mem-a381c642e2c47374"
+}
