@@ -89,6 +89,13 @@ class PricingBreakdown:
 
 
 @dataclass
+class GeoCoordinates:
+    latitude: float
+    longitude: float
+    accuracy_meters: float = 0.0
+
+
+@dataclass
 class ParkingSlot:
     slot_id: str
     slot_code: str
@@ -96,6 +103,18 @@ class ParkingSlot:
     allowed_type: VehicleType
     status: SlotStatus
     current_session_id: Optional[str] = None
+    # Relative layout coordinates for "nearest empty slot" recommendation (TASK-202).
+    position_x: float = 0.0
+    position_y: float = 0.0
+
+
+@dataclass
+class Zone:
+    zone_id: str
+    name: str
+    facility_id: str = ""
+    position_x: float = 0.0
+    position_y: float = 0.0
 
 
 @dataclass
@@ -133,3 +152,25 @@ class IParkingRepository(Protocol):
 
 class IAuditLogPort(Protocol):
     def record_audit(self, action: str, entity_type: str, entity_id: str, actor_id: str, details: Dict[str, Any]) -> None: ...
+
+
+class ISystemClock(Protocol):
+    """Trusted time source (ADR-002 / SECURITY).
+
+    Implementations must derive time from a monotonic hardware counter so that
+    an attendant cannot roll the device clock backwards to zero-out parking
+    duration. `now()` always returns an aware UTC datetime.
+    """
+
+    def now(self) -> datetime: ...
+
+
+class IShiftRepository(Protocol):
+    """Persistence port for shift records (TASK-102 / TASK-501)."""
+
+    def save_shift(self, shift: Any) -> None: ...
+    def get_shift(self, shift_id: str) -> Optional[Any]: ...
+
+
+class ClockTamperError(RuntimeError):
+    """Raised when a non-monotonic (clock-skew / rolled-back) timestamp is detected."""

@@ -28,8 +28,19 @@ class PlatePostProcessor:
     @staticmethod
     def fix_common_ocr_errors(raw_text: str) -> str:
         """
-        Replaces 'O' with '0' inside numeric segment, 'I' with '1', etc.
+        Applies Indonesian-plate OCR heuristics (OCR.md):
+          * strip and uppercase
+          * inside the numeric registration segment, 'O' -> '0' and 'I' -> '1'
+          * keep the leading region letters and trailing suffix letters intact
         """
         cleaned = raw_text.strip().upper()
-        # Heuristic normalization
-        return cleaned
+        # Pattern: <region letters> <numbers> <suffix letters>
+        import re
+        m = re.match(r"^([A-Z]{1,2})\s*([0-9OoIiLl]{1,4})\s*([A-Z]{0,3})$", cleaned)
+        if not m:
+            # Plain cleanup for non-standard plates.
+            return re.sub(r"[^A-Z0-9]", "", cleaned)
+        region, numbers, suffix = m.groups()
+        numbers = re.sub(r"[Oo]", "0", numbers)
+        numbers = re.sub(r"[IiLl]", "1", numbers)
+        return f"{region} {numbers} {suffix}".strip()

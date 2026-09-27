@@ -9,10 +9,15 @@ export interface ChapterPage {
   width: number;
   height: number;
 }
+
 export interface ChapterManifest {
   chapterId: string;
   mangaId: string;
+  title?: string;
+  chapterNumber?: number;
   readingDirection: "rtl" | "ltr";
   pages: readonly ChapterPage[];
   publicationRevision: string;
+  nextChapterId?: string | null;
+  prevChapterId?: string | null;
 }
