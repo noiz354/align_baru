@@ -40,7 +40,12 @@ export async function archiveRoom(
  */
 export async function setRoomNotInUse(
   _deps: RoomDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly roomId: Id; readonly notInUse: boolean },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly roomId: Id;
+    readonly notInUse: boolean;
+  },
 ): Promise<Room> {
   throw new Error('Not implemented: T-ROOM-009');
 }

@@ -6,7 +6,10 @@ import type { Issue, IssueComment } from './types';
 
 export type IssueRepository = {
   findById(householdId: Id, issueId: Id): Promise<Issue | null>;
-  listByHousehold(householdId: Id, options?: { readonly status?: readonly string[]; readonly severity?: readonly string[] }): Promise<readonly Issue[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly status?: readonly string[]; readonly severity?: readonly string[] },
+  ): Promise<readonly Issue[]>;
   insert(issue: Issue): Promise<void>;
   update(issue: Issue): Promise<void>;
   /** Append-only comment writes; adapters expose no update or delete for comments. */

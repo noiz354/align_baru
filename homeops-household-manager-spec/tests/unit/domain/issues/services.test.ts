@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // Lifecycle legality and the safety rule that keeps urgent problems visible (I-ISSUE-002).
 

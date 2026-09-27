@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe } from 'vitest';
 
 // The anti-stacking and idempotency guarantees, exercised against a real database (I-CHORE-001/003).
 

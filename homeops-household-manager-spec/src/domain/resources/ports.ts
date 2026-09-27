@@ -6,7 +6,10 @@ import type { Level, Resource, ShoppingItem, ThresholdCrossing } from './types';
 
 export type ResourceRepository = {
   findById(householdId: Id, resourceId: Id): Promise<Resource | null>;
-  listByHousehold(householdId: Id, options?: { readonly includeArchived?: boolean }): Promise<readonly Resource[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly includeArchived?: boolean },
+  ): Promise<readonly Resource[]>;
   insert(resource: Resource): Promise<void>;
   update(resource: Resource): Promise<void>;
   archive(householdId: Id, resourceId: Id): Promise<void>;
@@ -26,7 +29,10 @@ export type ResourceRepository = {
 };
 
 export type ShoppingRepository = {
-  listByHousehold(householdId: Id, options?: { readonly includePurchased?: boolean }): Promise<readonly ShoppingItem[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly includePurchased?: boolean },
+  ): Promise<readonly ShoppingItem[]>;
   insert(item: ShoppingItem): Promise<void>;
   remove(householdId: Id, itemId: Id): Promise<void>;
   markPurchased(householdId: Id, itemId: Id, purchasedAt: string): Promise<void>;

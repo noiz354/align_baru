@@ -1,7 +1,7 @@
 # TASKS.md — Implementation Task Register
 
-> 2026-09-26 · Status: **REGISTERED, NONE IMPLEMENTED**
-> **Every task in this file is `NOT PART OF CURRENT PHASE`.** The architecture/skeleton phase forbids implementation (AGENTS.md §1). This register exists so that the first implementation slice can begin without re-deciding anything.
+> 2026-09-26 · Status: **REGISTERED · VS-0 (T-PLAT-001 … T-PLAT-028) IMPLEMENTED 2026-09-27 · ALL OTHER TASKS NOT PART OF CURRENT PHASE**
+> Every task outside VS-0 is still `NOT PART OF CURRENT PHASE`: it is implemented only when its slice is reached, in ROADMAP.md order (AGENTS.md §1). The register exists so that the next implementation slice can begin without re-deciding anything.
 > Requirement mapping: docs/TRACEABILITY.md · Slice plan: ROADMAP.md · Decisions: ADR.md, DECISIONS.md.
 
 ## 0. How to use this file

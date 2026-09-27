@@ -6,7 +6,10 @@ import type { TrashContainer, TrashStateEvent } from './types';
 
 export type TrashRepository = {
   findById(householdId: Id, containerId: Id): Promise<TrashContainer | null>;
-  listByHousehold(householdId: Id, options?: { readonly includeArchived?: boolean }): Promise<readonly TrashContainer[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly includeArchived?: boolean },
+  ): Promise<readonly TrashContainer[]>;
   insert(container: TrashContainer): Promise<void>;
   update(container: TrashContainer): Promise<void>;
   archive(householdId: Id, containerId: Id): Promise<void>;

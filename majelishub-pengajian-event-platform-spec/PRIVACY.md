@@ -62,6 +62,13 @@ profiling.
 | Audit events | Accountability | system | security/integrity | authorized admins | 7 years |
 | Telemetry (logs/metrics/traces) | Technical | system | operations | operators | 30–90 days, **no personal data** |
 | IP address (hashed) | Technical | network | abuse prevention | internal | 30 days |
+| Session record (token, user agent) | Credential | client at sign-in | keeping an organizer signed in; revocation | internal only | 30 days (`RETENTION.md` R29) |
+| Rate-limit bucket key (keyed digest) | Derived | system | abuse prevention | internal only | 7 days (`RETENTION.md` R30) |
+
+The session record deliberately holds **no IP address**: the identity library can write one, and that
+is switched off, because a raw address in a session row has no purpose that the hashed abuse signal
+does not already cover (`SECURITY.md` §13 — the per-IP dimension of the limiter arrives with
+T-SEC-010, hashed with a rotating salt).
 
 **Not collected:** national ID, date of birth, gender, home address, occupation, photos of
 participants, precise geolocation of participants, religious-affiliation declarations, payment data,

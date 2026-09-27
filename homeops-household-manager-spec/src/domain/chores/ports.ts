@@ -1,11 +1,14 @@
 // HomeOps - domain skeleton (specification phase). Ports only.
 
-import type { Id, LocalDate } from '../../shared/types';
+import type { Id } from '../../shared/types';
 import type { ChoreDefinition, ChoreOccurrence } from './types';
 
 export type ChoreDefinitionRepository = {
   findById(householdId: Id, definitionId: Id): Promise<ChoreDefinition | null>;
-  listByHousehold(householdId: Id, options?: { readonly includeArchived?: boolean }): Promise<readonly ChoreDefinition[]>;
+  listByHousehold(
+    householdId: Id,
+    options?: { readonly includeArchived?: boolean },
+  ): Promise<readonly ChoreDefinition[]>;
   insert(definition: ChoreDefinition): Promise<void>;
   update(definition: ChoreDefinition): Promise<void>;
   archive(householdId: Id, definitionId: Id): Promise<void>;
@@ -27,11 +30,14 @@ export type ChoreOccurrenceRepository = {
 
 export type ReopenWindowPort = {
   /** Reopen is allowed for the completer within 24 h, and for OWNER/ADMIN with a reason (T-CHORE-005). */
-  canReopen(householdId: Id, input: {
-    readonly completedAtInstant: string;
-    readonly completerMemberId: Id;
-    readonly actorMemberId: Id;
-    readonly actorRole: string;
-    readonly nowInstant: string;
-  }): boolean;
+  canReopen(
+    householdId: Id,
+    input: {
+      readonly completedAtInstant: string;
+      readonly completerMemberId: Id;
+      readonly actorMemberId: Id;
+      readonly actorRole: string;
+      readonly nowInstant: string;
+    },
+  ): boolean;
 };

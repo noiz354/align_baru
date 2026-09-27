@@ -68,6 +68,8 @@ export function describeRecurrence(_rule: RecurrenceRule): string {
  */
 export function validateRecurrenceRule(
   _rule: RecurrenceRule,
-): { readonly ok: true } | { readonly ok: false; readonly code: 'RECURRENCE_RULE_INVALID' | 'RECURRENCE_INTERVAL_INVALID' } {
+):
+  | { readonly ok: true }
+  | { readonly ok: false; readonly code: 'RECURRENCE_RULE_INVALID' | 'RECURRENCE_INTERVAL_INVALID' } {
   throw new Error('Not implemented: T-CHORE-021');
 }

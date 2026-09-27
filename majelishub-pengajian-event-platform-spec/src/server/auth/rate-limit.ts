@@ -1,20 +1,108 @@
 /**
- * Auth-specific rate limiting policies (sign-in links, passkey challenges, token attempts).
+ * Auth-specific rate limiting policies (sign-in attempts, passkey challenges, token attempts).
  *
- * Where this belongs: server/auth; the mechanism is src/server/http/rate-limit.ts (durable store).
- * Specification: SECURITY.md §8, TASKS.md T-SEC-010.
- * Invariants: the in-memory default of the auth library is FORBIDDEN in production
- *   (docs/research/STACK-2026.md §6); limits are shared across replicas; failures are explicit and
- *   never silently allow.
+ * Where this belongs: server/auth; the mechanism is src/server/db/repositories/
+ * auth-rate-limit-counters.ts (a durable store), and the HTTP-layer policies live in
+ * src/server/http/rate-limit.ts (T-SEC-010).
+ * Specification: SECURITY.md §13, TASKS.md T-SEC-010, ADR-0005 ("its default rate limiter is
+ *   in-memory and resets on deploy — unacceptable in production").
+ *
+ * Invariants:
+ *   1. The store is Postgres. The library's in-memory default is never enabled, in any environment,
+ *      because a limiter that forgets on deploy is not a limiter.
+ *   2. A failure to reach the store is a **refusal**, never a silent allow.
+ *   3. The subject (an email, a device id, an IP) is hashed before it becomes a bucket key, so the
+ *      counter table never holds an identifier in the clear (PRIVACY.md, OBSERVABILITY.md §7).
+ *
  * Task ownership: T-SEC-010, T-ORG-001.
  */
+import { consumeCounter } from "@/server/db/repositories/auth-rate-limit-counters";
+import { hashSubject } from "@/server/crypto/subject-hash";
+import { db, type SqlExecutor } from "@/server/db/client";
+
 export const AUTH_POLICIES = {
   signInLinkRequest: { limit: 5, windowSeconds: 900 },
   passkeyChallenge: { limit: 20, windowSeconds: 300 },
   checkInSessionBind: { limit: 10, windowSeconds: 600 },
 } as const;
 
-/** @throws Error("Not implemented: T-SEC-010") */
-export async function consumeAuthLimit(key: keyof typeof AUTH_POLICIES, value: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
-  throw new Error("Not implemented: T-SEC-010");
+export type AuthPolicyKey = keyof typeof AUTH_POLICIES;
+
+export interface ConsumeAuthLimitOptions {
+  /**
+   * Injected clock. Omitting it uses the adapter's real time — this module is an infrastructure
+   * adapter, so reading the clock here is allowed; domain code still injects (ADR-0018).
+   */
+  readonly now?: Date;
+  /** Overrides the pooled client. Used by tests, which run against an embedded Postgres. */
+  readonly database?: SqlExecutor;
+}
+
+const SUBJECT_PURPOSE = "majelishub.rate-limit.v1";
+
+/** Builds the opaque bucket key. Exported so tests can assert that no raw subject is stored. */
+export function authRateLimitBucketKey(policy: AuthPolicyKey, value: string): string {
+  return `auth:${policy}:${hashSubject(SUBJECT_PURPOSE, value)}`;
+}
+
+export async function consumeAuthLimit(
+  key: AuthPolicyKey,
+  value: string,
+  options: ConsumeAuthLimitOptions = {},
+): Promise<{ allowed: boolean; retryAfterMs?: number }> {
+  const policy = AUTH_POLICIES[key];
+  const now = options.now ?? new Date();
+
+  const decision = await consumeCounter(options.database ?? db(), {
+    bucketKey: authRateLimitBucketKey(key, value),
+    limit: policy.limit,
+    windowMs: policy.windowSeconds * 1_000,
+    now,
+  });
+
+  if (decision.allowed) return { allowed: true };
+  return decision.retryAfterMs === undefined
+    ? { allowed: false }
+    : { allowed: false, retryAfterMs: decision.retryAfterMs };
+}
+
+/**
+ * The rate-limit storage handed to Better Auth.
+ *
+ * Better Auth builds the key (path + client identifier) and owns the per-path rules; we own the
+ * counting. Returning this from `rateLimit.customStorage` means the library's own endpoints —
+ * sign-in, token refresh, everything under `/api/auth/*` — are limited by the same durable store as
+ * the policies above, instead of by an in-process `Map`.
+ *
+ * `retryAfter` is in seconds, which is what the library's contract specifies.
+ */
+export function createAuthRateLimitStorage(database?: SqlExecutor): {
+  consume: (
+    key: string,
+    rule: { window: number; max: number },
+  ) => Promise<{ allowed: boolean; retryAfter: number | null }>;
+} {
+  const resolve = (): SqlExecutor => database ?? db();
+
+  return {
+    async consume(key, rule) {
+      const now = new Date();
+      try {
+        const decision = await consumeCounter(resolve(), {
+          bucketKey: `better-auth:${key}`,
+          limit: rule.max,
+          windowMs: rule.window * 1_000,
+          now,
+        });
+        if (decision.allowed) return { allowed: true, retryAfter: null };
+        return {
+          allowed: false,
+          retryAfter: Math.max(1, Math.ceil((decision.retryAfterMs ?? rule.window * 1_000) / 1_000)),
+        };
+      } catch {
+        // SECURITY.md §13: a limiter that cannot decide must not wave traffic through.
+        return { allowed: false, retryAfter: rule.window };
+      }
+    },
+  };
 }

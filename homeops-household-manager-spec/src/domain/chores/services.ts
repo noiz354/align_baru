@@ -84,7 +84,12 @@ export async function skipOccurrence(
  */
 export async function snoozeOccurrence(
   _deps: ChoreDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly occurrenceId: Id; readonly snoozedUntil: Instant },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly occurrenceId: Id;
+    readonly snoozedUntil: Instant;
+  },
 ): Promise<ChoreOccurrence> {
   throw new Error('Not implemented: T-CHORE-008');
 }
@@ -99,7 +104,12 @@ export async function snoozeOccurrence(
  */
 export async function reassignOccurrence(
   _deps: ChoreDeps,
-  _input: { readonly householdId: Id; readonly actorMemberId: Id; readonly occurrenceId: Id; readonly assigneeMemberId: Id | null },
+  _input: {
+    readonly householdId: Id;
+    readonly actorMemberId: Id;
+    readonly occurrenceId: Id;
+    readonly assigneeMemberId: Id | null;
+  },
 ): Promise<ChoreOccurrence> {
   throw new Error('Not implemented: T-CHORE-009');
 }

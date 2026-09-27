@@ -14,7 +14,10 @@ export type SessionInfo = {
   readonly deviceLabel?: string;
 };
 
-export async function createSession(_input: { readonly userId: string; readonly ttlHours: number }): Promise<SessionInfo> {
+export async function createSession(_input: {
+  readonly userId: string;
+  readonly ttlHours: number;
+}): Promise<SessionInfo> {
   throw new Error('Not implemented: T-AUTH-001');
 }
 
@@ -22,6 +25,8 @@ export async function revokeSession(_input: { readonly sessionId: string }): Pro
   throw new Error('Not implemented: T-AUTH-004');
 }
 
-export async function revokeAllSessions(_input: { readonly userId: string }): Promise<{ readonly revoked: number }> {
+export async function revokeAllSessions(_input: {
+  readonly userId: string;
+}): Promise<{ readonly revoked: number }> {
   throw new Error('Not implemented: T-AUTH-004');
 }

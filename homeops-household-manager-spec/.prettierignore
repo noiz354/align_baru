@@ -1,0 +1,13 @@
+node_modules
+.next
+dist
+coverage
+package-lock.json
+docs/TRACEABILITY.md
+migrations
+playwright-report
+test-results
+
+# Specification documents are authored prose with hand-aligned tables; Prettier owns code only
+# (DECISIONS.md 2026-09-27). Re-flowing them would bury real changes in formatting noise.
+*.md
