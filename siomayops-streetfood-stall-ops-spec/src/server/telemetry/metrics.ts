@@ -1,9 +1,3 @@
-/**
- * PHASE 0 — SKELETON ONLY. No I/O, no queries, no provider calls, no authentication.
- * Every function that would contain logic throws `Not implemented: T-XXX-XXX` (ADR-0036).
- */
-
-/** Business metrics with BOUNDED labels and no PII (NFR-OBS-003). Catalogue: OBSERVABILITY.md §4. */
 export type MetricName =
   | "shifts.started" | "shifts.closed" | "sync.records.outcome" | "payments.state.age"
   | "payments.verification.backlog" | "cash.variance.amount" | "stock.variance.count"
@@ -15,7 +9,45 @@ export interface Metrics {
   setGauge(name: MetricName, value: number, labels?: Readonly<Record<string, string>>): void;
 }
 
-/** Throws. Task: T-OBS-001. */
-export function createMetrics(): Metrics {
-  throw new Error("Not implemented: T-OBS-001");
+class InMemoryMetrics implements Metrics {
+  private counters = new Map<string, number>();
+  private gauges = new Map<string, number>();
+
+  private key(name: MetricName, labels?: Readonly<Record<string, string>>): string {
+    if (!labels) return name;
+    const labelStr = Object.entries(labels).sort().map(([k, v]) => `${k}=${v}`).join(",");
+    return `${name}{${labelStr}}`;
+  }
+
+  increment(name: MetricName, labels?: Readonly<Record<string, string>>): void {
+    const k = this.key(name, labels);
+    this.counters.set(k, (this.counters.get(k) || 0) + 1);
+  }
+
+  observeDuration(name: MetricName, seconds: number, labels?: Readonly<Record<string, string>>): void {
+    const k = this.key(name, labels);
+    // For simplicity, treat as gauge
+    this.gauges.set(k, seconds);
+  }
+
+  setGauge(name: MetricName, value: number, labels?: Readonly<Record<string, string>>): void {
+    const k = this.key(name, labels);
+    this.gauges.set(k, value);
+  }
+
+  // For debugging
+  dump(): Record<string, number> {
+    const result: Record<string, number> = {};
+    for (const [k, v] of this.counters.entries()) result[k] = v;
+    for (const [k, v] of this.gauges.entries()) result[k] = v;
+    return result;
+  }
 }
+
+const metricsInstance = new InMemoryMetrics();
+
+export function createMetrics(): Metrics {
+  return metricsInstance;
+}
+
+export const metrics = metricsInstance;

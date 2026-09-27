@@ -1,11 +1,5 @@
-/**
- * PHASE 0 — COMPONENT SHELL. Props are the contract; the render is intentionally absent and
- * throws so nothing can be mistaken for a working screen (ADR-0036, task T-FOUND-002).
- * Design rules live in DESIGN.md and docs/design/DESIGN-SYSTEM.md.
- */
+"use client";
 
-/** Reasons are chosen, not typed; "Lainnya" is the only free-text path (NFR-UX-003).
- *  Chip labels are configuration/data, never hard-coded lists (ADR-0025). */
 export interface ReasonChip {
   readonly code: string;
   readonly labelMessageId: string;
@@ -18,6 +12,33 @@ export interface ReasonChipsProps {
   readonly onSelect?: (code: string) => void;
 }
 
-export function ReasonChips(_props: ReasonChipsProps): never {
-  throw new Error("Not implemented: T-FOUND-002");
+export function ReasonChips({ chips, selectedCode, onSelect }: ReasonChipsProps) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {chips.map(chip => {
+        const selected = chip.code === selectedCode;
+        return (
+          <button
+            key={chip.code}
+            onClick={() => onSelect?.(chip.code)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 999,
+              border: selected ? "2px solid #0f766e" : "1px solid #e5e7eb",
+              background: selected ? "#ccfbf1" : "#ffffff",
+              color: selected ? "#0f766e" : "#374151",
+              fontSize: 14,
+              fontWeight: selected ? 600 : 400,
+              cursor: "pointer",
+              minHeight: 44,
+            }}
+            aria-pressed={selected}
+          >
+            {chip.labelMessageId}
+            {chip.requiresNote && <span style={{ marginLeft: 4 }}>*</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

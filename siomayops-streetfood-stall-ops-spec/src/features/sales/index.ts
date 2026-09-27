@@ -1,46 +1,240 @@
-/**
- * PHASE 0 — USE-CASE PORT + STUBS. No logic (ADR-0036).
- * Sale lines carry immutable price snapshots; totals derive only from snapshots (ADR-0010, INV-05).
- */
-import type { ShiftId, SaleId } from "../../shared/types/ids";
-import type { SaleTotals } from "../../domain/sale";
+import { memoryStore, generateId } from "../../server/db/memory-store";
 import type { Money } from "../../shared/money";
+import { money } from "../../shared/money/money";
+import { computeSaleTotalFromSnapshots } from "../../domain/sale/totals";
+import { resolvePriceForSale } from "../pricing";
+import { writeAuditEvent } from "../audit";
 
-export interface CreatedSale {
-  readonly saleId: SaleId;
-  readonly status: "DRAFT" | "COMPLETED";
-  readonly totals: SaleTotals;
-  readonly idempotentReplay: boolean;
+const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
+
+export interface CreateSaleInput {
+  shiftId: string;
+  locationReportId?: string;
+  sellingLocationId?: string;
+  lines: { menuItemId: string; quantity: number; overridePriceId?: string }[];
+  clientSaleId: string;
+  recordedAtDevice?: Date;
+  customerReference?: string;
+  organizationId?: string;
 }
 
-/** Requirements: FR-SALE-001/003/006/011, FR-PRICE-004. Task: T-SALE-001. Offline-OK. */
-export async function createSale(_input: {
-  shiftId: ShiftId; locationReportId: string;
-  lines: readonly { menuItemId: string; quantity: number; overrideId?: string }[];
-  clientSaleId: string; recordedAtDevice?: Date; idempotencyKey: string;
-}): Promise<CreatedSale> {
-  throw new Error("Not implemented: T-SALE-001");
+export interface SaleResult {
+  saleId: string;
+  status: "DRAFT" | "COMPLETED" | "VOIDED" | "CORRECTED";
+  total: Money;
+  lines: { menuItemId: string; quantity: number; unitPriceSnapshot: Money; pricePolicyId?: string; lineTotal: Money }[];
+  version: number;
 }
 
-/** Requirements: FR-SALE-004/005. Task: T-SALE-004. Reason mandatory; a void is never a delete. */
-export async function voidSale(_input: { saleId: SaleId; reason: string }): Promise<CreatedSale> {
-  throw new Error("Not implemented: T-SALE-004");
+export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
+  const orgId = input.organizationId || DEFAULT_ORG;
+  // Idempotency via clientSaleId
+  const existingSaleId = memoryStore.saleByClientId.get(input.clientSaleId);
+  if (existingSaleId) {
+    const existing = memoryStore.sales.get(existingSaleId);
+    if (existing) {
+      const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === existing.id);
+      return {
+        saleId: existing.id,
+        status: existing.status as any,
+        total: money(existing.totalMinor, "IDR"),
+        lines: items.map(it => ({
+          menuItemId: it.menuItemId,
+          quantity: it.quantity,
+          unitPriceSnapshot: money(it.unitPriceMinor, "IDR"),
+          pricePolicyId: it.pricePolicyId,
+          lineTotal: money(it.lineTotalMinor, "IDR"),
+        })),
+        version: existing.version,
+      };
+    }
+  }
+
+  const shift = memoryStore.shifts.get(input.shiftId);
+  if (!shift) throw Object.assign(new Error("Shift not found"), { code: "NOT_FOUND" });
+  if (shift.status !== "OPEN" && shift.status !== "PENDING_SYNC") {
+    throw Object.assign(new Error(`Shift not open: ${shift.status}`), { code: "PRECONDITION_FAILED" });
+  }
+
+  const sellingLocationId = input.sellingLocationId || shift.startLocationId;
+  // Resolve location report if needed
+  let locationReportId = input.locationReportId;
+  if (!locationReportId) {
+    // Find current open report
+    for (const r of memoryStore.locationReports.values()) {
+      if (r.shiftId === input.shiftId && !r.departedAt) {
+        locationReportId = r.id;
+        break;
+      }
+    }
+  }
+
+  // Resolve prices for each line - price resolution uses server acceptance time (now) per ADR, not device time
+  // Device time is preserved as occurredAt, but price is server-authoritative at acceptance
+  const snapshots: { menuItemId: string; quantity: number; unitPriceSnapshot: Money; pricePolicyId?: string }[] = [];
+  const serverNow = new Date();
+  const at = serverNow; // price resolution at server time
+  const occurredAt = input.recordedAtDevice || serverNow;
+  for (const line of input.lines) {
+    if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
+      throw Object.assign(new Error(`Invalid quantity for ${line.menuItemId}`), { code: "VALIDATION_FAILED" });
+    }
+    const resolution = await resolvePriceForSale({
+      menuItemId: line.menuItemId,
+      sellingLocationId: sellingLocationId as any,
+      at,
+      organizationId: orgId,
+    });
+    if (resolution.kind === "NOT_SELLABLE") {
+      throw Object.assign(new Error(`Item ${line.menuItemId} not sellable`), { code: "PRECONDITION_FAILED" });
+    }
+    if (resolution.kind === "AMBIGUOUS") {
+      throw Object.assign(new Error(`Price ambiguous for ${line.menuItemId}`), { code: "CONFLICT" });
+    }
+    snapshots.push({
+      menuItemId: line.menuItemId,
+      quantity: line.quantity,
+      unitPriceSnapshot: money(resolution.unitPriceMinor, "IDR"),
+      pricePolicyId: resolution.pricePolicyId,
+    });
+  }
+
+  // Compute totals from snapshots
+  const totals = computeSaleTotalFromSnapshots(
+    snapshots.map(s => ({
+      menuItemId: s.menuItemId,
+      quantity: s.quantity,
+      unitPriceSnapshot: s.unitPriceSnapshot,
+      pricePolicyId: s.pricePolicyId,
+    }))
+  );
+
+  const saleId = generateId();
+  const now = new Date();
+  const saleRecord = {
+    id: saleId,
+    organizationId: orgId,
+    shiftId: input.shiftId,
+    sellingLocationId: sellingLocationId as string,
+    operatorId: shift.operatorId,
+    stallId: shift.stallId,
+    businessDay: shift.businessDay,
+    occurredAt,
+    serverAcceptedAt: now,
+    totalMinor: totals.payableTotal.amountMinor,
+    currency: "IDR" as const,
+    status: "DRAFT" as const,
+    clientSaleId: input.clientSaleId,
+    version: 1,
+    createdAt: now,
+  };
+  memoryStore.sales.set(saleId, saleRecord);
+  memoryStore.saleByClientId.set(input.clientSaleId, saleId);
+
+  const lineResults: SaleResult["lines"] = [];
+  for (const snap of snapshots) {
+    const saleItemId = generateId();
+    const lineTotalMinor = snap.unitPriceSnapshot.amountMinor * snap.quantity;
+    memoryStore.saleItems.set(saleItemId, {
+      id: saleItemId,
+      organizationId: orgId,
+      saleId,
+      menuItemId: snap.menuItemId,
+      quantity: snap.quantity,
+      unitPriceMinor: snap.unitPriceSnapshot.amountMinor,
+      lineTotalMinor,
+      pricePolicyId: snap.pricePolicyId,
+    });
+    lineResults.push({
+      menuItemId: snap.menuItemId,
+      quantity: snap.quantity,
+      unitPriceSnapshot: snap.unitPriceSnapshot,
+      pricePolicyId: snap.pricePolicyId,
+      lineTotal: money(lineTotalMinor, "IDR"),
+    });
+  }
+
+  await writeAuditEvent({
+    organizationId: orgId,
+    actorKind: "OPERATOR",
+    actorId: shift.operatorId,
+    action: "sale.created",
+    subjectKind: "sale",
+    subjectId: saleId,
+    correlationId: generateId(),
+    occurredAt: now,
+    afterSummary: { total: totals.payableTotal.amountMinor, lines: snapshots.length },
+  });
+
+  return {
+    saleId,
+    status: "DRAFT",
+    total: totals.payableTotal,
+    lines: lineResults,
+    version: 1,
+  };
 }
 
-/** Requirements: FR-SALE-007, FR-CASH-001/002. Task: T-SALE-002. Integer minor units only. */
-export async function completeCashSale(_input: {
-  saleId: SaleId; cashReceived: Money; clientPaymentId: string;
-}): Promise<{ readonly saleId: SaleId; readonly change: Money }> {
-  throw new Error("Not implemented: T-SALE-002");
+export async function completeSale(saleId: string, paymentId?: string): Promise<SaleResult> {
+  const sale = memoryStore.sales.get(saleId);
+  if (!sale) throw Object.assign(new Error("Sale not found"), { code: "NOT_FOUND" });
+  sale.status = "COMPLETED";
+  sale.version += 1;
+  memoryStore.sales.set(sale.id, sale);
+
+  const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === saleId);
+  return {
+    saleId: sale.id,
+    status: "COMPLETED",
+    total: money(sale.totalMinor, "IDR"),
+    lines: items.map(it => ({
+      menuItemId: it.menuItemId,
+      quantity: it.quantity,
+      unitPriceSnapshot: money(it.unitPriceMinor, "IDR"),
+      pricePolicyId: it.pricePolicyId,
+      lineTotal: money(it.lineTotalMinor, "IDR"),
+    })),
+    version: sale.version,
+  };
 }
 
-/** Requirements: FR-SALE-003, NFR-OFFLINE-003..007. Task: T-SALE-003. Per-record outcome. */
-export async function replayOfflineSale(_input: {
-  record: unknown; idempotencyKey: string;
-}): Promise<{
-  readonly outcome: "ACCEPTED" | "DUPLICATE" | "REJECTED" | "DEFERRED";
-  readonly saleId?: SaleId;
-  readonly reasonCode?: string;
-}> {
-  throw new Error("Not implemented: T-SALE-003");
+export async function voidSale(saleId: string, reason: string, actorId?: string): Promise<void> {
+  const sale = memoryStore.sales.get(saleId);
+  if (!sale) throw Object.assign(new Error("Sale not found"), { code: "NOT_FOUND" });
+  if (!reason || reason.length < 3) throw new Error("Reason required");
+  sale.status = "VOIDED";
+  sale.version += 1;
+  memoryStore.sales.set(sale.id, sale);
+  await writeAuditEvent({
+    organizationId: sale.organizationId,
+    actorKind: "OPERATOR",
+    actorId,
+    action: "sale.voided",
+    subjectKind: "sale",
+    subjectId: saleId,
+    reason,
+    correlationId: generateId(),
+    occurredAt: new Date(),
+    beforeSummary: { status: "COMPLETED" },
+    afterSummary: { status: "VOIDED" },
+  });
+}
+
+export async function getSaleById(saleId: string): Promise<SaleResult | null> {
+  const sale = memoryStore.sales.get(saleId);
+  if (!sale) return null;
+  const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === saleId);
+  return {
+    saleId: sale.id,
+    status: sale.status as any,
+    total: money(sale.totalMinor, "IDR"),
+    lines: items.map(it => ({
+      menuItemId: it.menuItemId,
+      quantity: it.quantity,
+      unitPriceSnapshot: money(it.unitPriceMinor, "IDR"),
+      pricePolicyId: it.pricePolicyId,
+      lineTotal: money(it.lineTotalMinor, "IDR"),
+    })),
+    version: sale.version,
+  };
 }

@@ -1,24 +1,29 @@
-/**
- * PHASE 0 shell — not a working configuration.
- * Turbopack is the default bundler in Next.js 16 (ADR-0002).
- * The service worker (Serwist) is deliberately NOT configured: it arrives in VS-16 (T-OFF-002).
- * Scheduled jobs are NOT configured here: pg-boss runs in the worker entrypoint (ADR-0018).
- */
+/** Security headers implemented for production (T-SEC-002) */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  experimental: {
-    // Cache Components: opt-in only, and only after an ADR. Left disabled on purpose.
-  },
+  experimental: {},
   async headers() {
     return [
       {
-        // defence-in-depth headers for the operator surface (filled in at VS-0/T-FOUND-001)
         source: "/(.*)",
-        headers: []
-      }
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "geolocation=(), camera=(), microphone=()" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none';" },
+        ],
+      },
+      {
+        source: "/api/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
     ];
-  }
+  },
 };
 
 export default nextConfig;

@@ -1,14 +1,34 @@
-/** PHASE 0 — see ADR-0036: skeleton only, no logic, no I/O. */
-/**
- * API.md §11 — POST /stock-reports (counts and non-count movements).
- * Requirements: FR-STOCK-002/006/007/012, ADR-0030 (neutral variance, UNKNOWN allowed).
- * Task: T-STOCK-002. Offline-OK.
- */
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { stockReportRequestSchema } from "@/shared/contracts/inventory";
+import { submitStockReport } from "@/features/inventory";
+import { handleWithIdempotency, errorResponse, getRequestId, resolveSession } from "../_helpers";
 
-export const requestContract = stockReportRequestSchema;
 
-export async function POST(_request: NextRequest): Promise<Response> {
-  throw new Error("Not implemented: T-STOCK-002");
+export async function POST(request: NextRequest): Promise<Response> {
+  const requestId = getRequestId();
+  try {
+    const session = await resolveSession();
+    if (!session) return errorResponse("UNAUTHENTICATED", "Not authenticated", 401, requestId);
+    const body = await request.json();
+    const parsed = stockReportRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return errorResponse("VALIDATION_FAILED", "Invalid request", 400, requestId, parsed.error.flatten());
+    }
+    const data = parsed.data;
+
+    const result = await handleWithIdempotency(request, "POST /api/v1/stock-reports", data, async () => {
+      const res = await submitStockReport({
+        shiftId: data.shiftId,
+        kind: data.kind,
+        items: data.items.map(i => ({ stockItemId: i.stockItemId, quantity: i.quantity, notCounted: i.notCounted, reason: i.reason })),
+        clientReportId: data.clientReportId,
+        organizationId: session.organizationId,
+        actorId: session.operatorId || session.userId,
+      });
+      return { body: res, status: 201 };
+    });
+    return result;
+  } catch (e: any) {
+    return errorResponse(e.code || "INTERNAL", e.message, 500, requestId);
+  }
 }

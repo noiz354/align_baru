@@ -1,19 +1,23 @@
-/**
- * PHASE 0 — SKELETON ONLY. No I/O, no queries, no provider calls, no authentication.
- * Every function that would contain logic throws `Not implemented: T-XXX-XXX` (ADR-0036).
- */
+import { trace, context, type Span } from "@opentelemetry/api";
 
-/** OpenTelemetry traces for HTTP requests, sync batches, job executions and provider callbacks
- *  (NFR-OBS-002). Phase 0: no SDK is started anywhere. */
-export interface SpanAttributes {
-  readonly [key: string]: string | number | boolean;
+export function withSpan<T>(name: string, fn: (span: Span) => Promise<T>): Promise<T> {
+  const tracer = trace.getTracer("siomayops");
+  return tracer.startActiveSpan(name, async (span) => {
+    try {
+      const result = await fn(span);
+      span.setStatus({ code: 1 });
+      return result;
+    } catch (e) {
+      span.setStatus({ code: 2, message: (e as Error).message });
+      span.recordException(e as Error);
+      throw e;
+    } finally {
+      span.end();
+    }
+  });
 }
 
-/** Throws. Task: T-OBS-001. */
-export async function withSpan<T>(
-  _name: string,
-  _attributes: SpanAttributes,
-  _fn: () => Promise<T>
-): Promise<T> {
-  throw new Error("Not implemented: T-OBS-001");
+export function getCurrentTraceId(): string | undefined {
+  const span = trace.getSpan(context.active());
+  return span?.spanContext().traceId;
 }
