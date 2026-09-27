@@ -89,6 +89,13 @@ Rules: the first token of the name is the task ID; the trailing parenthetical is
 | `a11y` | axe pass inside E2E | included | Yes |
 | `perf` | Lighthouse budget check (informational first, blocking after baseline) | < 3 min | Warn → block in VS-16 |
 
+> **Monorepo caveat (2026-09-27).** These tiers are defined in `homeops-household-manager-spec/.github/workflows/ci.yml`,
+> but GitHub Actions only reads `.github/workflows/` at the *repository* root, which in this monorepo belongs to no project.
+> The pipeline is therefore correct but inert here: the gate is `npm run verify:all` on a machine that has a scratch Postgres,
+> and any integration skip must be read as "not verified", not as "passing". Extracting this folder into its own repository
+> activates CI unchanged (DECISIONS.md 2026-09-27).
+>
+
 ## 7. Manual vs automated
 
 | Concern | Automated | Manual (QA.md) |

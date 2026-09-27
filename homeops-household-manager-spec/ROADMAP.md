@@ -1,7 +1,7 @@
 # ROADMAP.md — Vertical Slice Plan
 
 > 2026-09-26 · Status: **VS-0 IMPLEMENTED (2026-09-27); VS-1 NOT STARTED** · Task-level detail: TASKS.md · Requirement mapping: docs/TRACEABILITY.md
-> VS-0 (T-PLAT-001 … T-PLAT-028) is implemented: the app boots, connects, migrates, seeds, ticks the scheduler behind an advisory lock, and passes typecheck, lint, format, the unit tier, the docs gate, the contrast gate and a production build. The integration tier is written but skips locally where no scratch Postgres exists; it runs in CI against the `postgres:18` service.
+> VS-0 (T-PLAT-001 … T-PLAT-028) is implemented: the app boots, connects, migrates, seeds, ticks the scheduler behind an advisory lock, and passes typecheck, lint, format, the unit tier, the docs gate, the contrast gate and a production build. The integration tier is written (15 platform tests + 11 skeletons) but skips where no scratch Postgres exists; `ci.yml` would run it against the `postgres:18` service, yet GitHub Actions only reads a repository-root `.github/workflows/`, so in this monorepo the tier is exercised only by `npm run test:integration` on a machine that has one (DECISIONS.md 2026-09-27).
 
 ## 1. Delivery philosophy
 
