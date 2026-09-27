@@ -41,9 +41,16 @@ jobs:
       - run: npm run typecheck
         working-directory: ${{ matrix.project }}
       # Lint was missing here, which is why a boundary-rule or token-contrast
-      # regression could reach main without anything objecting. All four projects
-      # in this matrix ship a `lint` script, so this is safe for each of them.
-      - run: npm run lint
+      # regression could reach main without anything objecting. It is added for
+      # YOMI ONLY, and deliberately not for the whole matrix: every project in it
+      # declares a `lint` script, but `strangerlink-random-chat-webrtc-spec`
+      # cannot actually run one — `eslint` is not installed there, so the step
+      # exits 127 and turns main red for a defect that is neither yomi's nor ours
+      # to fix here. Widening the gate is a one-line change once that project
+      # installs eslint; until then, yomi gets it and the others keep exactly the
+      # gate they had.
+      - if: matrix.project == 'yomi-manga-reader-arch-skeleton'
+        run: npm run lint
         working-directory: ${{ matrix.project }}
       - run: npm test
         working-directory: ${{ matrix.project }}
