@@ -25,18 +25,27 @@ export interface LibraryService {
   add(caller: Caller, mangaId: string): Promise<void>; // idempotent (FR-LIBRARY-001)
   remove(caller: Caller, mangaId: string): Promise<void>; // 204 even when absent (documented)
 
-  list(caller: Caller, query: { cursor?: string; limit?: number; sort?: LibrarySort }): Promise<{
+  list(
+    caller: Caller,
+    query: { cursor?: string; limit?: number; sort?: LibrarySort },
+  ): Promise<{
     items: LibraryEntry[];
     nextCursor: string | null;
   }>;
 
-  createBookmark(caller: Caller, input: {
-    chapterId: string;
-    pageNumber?: number | null; // null = chapter start
-    note?: string; // ≤ 280, plain text
-  }): Promise<Bookmark>; // duplicate page ⇒ LIBRARY_BOOKMARK_EXISTS (409)
+  createBookmark(
+    caller: Caller,
+    input: {
+      chapterId: string;
+      pageNumber?: number | null; // null = chapter start
+      note?: string; // ≤ 280, plain text
+    },
+  ): Promise<Bookmark>; // duplicate page ⇒ LIBRARY_BOOKMARK_EXISTS (409)
 
-  listBookmarks(caller: Caller, query: { cursor?: string; limit?: number }): Promise<{
+  listBookmarks(
+    caller: Caller,
+    query: { cursor?: string; limit?: number },
+  ): Promise<{
     items: Bookmark[];
     nextCursor: string | null;
   }>;
@@ -186,18 +195,25 @@ export function createLibraryService(deps: {
       // read=false is the ONLY unset path (NFR-DATA-003). The progress save path
       // can never unset — that is why this branch exists as a separate statement
       // rather than a flag on the save.
-      const existing = await readerProgress?.getProgress(userId, chapterId as ChapterId);
-      if (existing === null || existing === undefined) return;
-      await readerProgress?.saveProgress(userId, {
-        chapterId: chapterId as ChapterId,
-        pageNumber: existing.pageNumber,
-        scrollPosition: existing.scrollPosition,
-        // The repository ORs the flag, so a false here cannot clear a sticky true.
-        // Unsetting therefore needs the dedicated write, which does not exist yet
-        // on the port; until it does, `read=false` is a documented no-op rather
-        // than a silent lie. Recorded as SQ-LIB-7.
-        completed: existing.completed,
-      });
+      //
+      // This used to read the row and write `completed: existing.completed`
+      // straight back through `saveProgress`: a guaranteed no-op, documented as
+      // SQ-LIB-7 so it read as a decision rather than a mistake. It was neither
+      // acceptable nor honest — `saveProgress` is sticky-OR, so the value written
+      // back was the value already stored, and a caller could not tell "marked
+      // unread" from "nothing happened".
+      //
+      // The two branches are not symmetrical, and that is the point. `read=true`
+      // is a real progress write — a position, a completion, and the
+      // `library_entry.last_read_at` touch that keeps the library shelf ordered.
+      // `read=false` is not a progress write at all; it is an undo of one flag, so
+      // it goes through the operation that exists for it.
+      //
+      // No existence check first. `unsetCompleted` on a chapter with no row is a
+      // no-op by design ("not started" and "marked unread" agree), so the read
+      // that used to be here was a round trip whose only purpose was to avoid a
+      // write that was safe either way.
+      await readerProgress?.unsetCompleted(userId, chapterId as ChapterId);
     },
   };
 }

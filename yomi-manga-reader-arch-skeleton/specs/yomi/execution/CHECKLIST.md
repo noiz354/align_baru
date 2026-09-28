@@ -810,28 +810,32 @@ Completion evidence:
 - `setReadStatus`'s zero-caller status is resolved: it is either wired or deleted
 
 Completion evidence:
-- Commit: F-007-S2
-- Tests: 625 → **638 passed (638)**, 13 new, 0 removed.
-- Commands: 4 mutations, all caught
+- Commit: F-008-S1
+- Tests: 656 → **690 passed (690)**, 34 new.
+- Commands: 9 mutations (8 caught, 1 provably equivalent and recorded)
   · full regression gates · `next build`
-- Notes: The shell read `params` and nothing else, so `/bookmarks` built a
-  contract-correct `?page=N` href that landed on page 1 — a link built right and
-  pointing wrong, which is worse than no link because it looks right. Two rules are
-  argued in the code: a **deep link beats saved progress** (someone who followed a
-  link to page 12 asked for page 12, and a link that lies cannot be shared — which
-  also skips a pointless round trip), and a page past the end is **clamped, not
-  refused** (a stale bookmark, not an attack). Clamping is in the client where
-  `pageCount` is known; the shell holds no clamp and the test asserts that absence.
-  The two pure functions live in `features/reader/deep-link.ts` because a test
-  **cannot import them from the route directory** — `[slug]` and `[chapter]` are
-  not valid module-specifier characters and there is no `paths` mapping. Coercion
-  follows `Number()` deliberately, so `?page= 5 ` is 5; a first version of the test
-  asserted it was refused and was wrong. **Two mutations initially "passed" and
-  both were my fault:** one replaced a parameter name that did not exist, so
-  nothing changed at all — the harness now refuses to report an unapplied mutation
-  as a pass — and one had no test, so disabling the branch was invisible. **Not
-  claimed: that the reader lands on the page.** Arithmetic is unit-tested, wiring is
-  source-asserted, the navigation itself is browser work.
+- Notes: `setReadStatus(false)` read the progress row and wrote
+  `completed: existing.completed` straight back through `saveProgress` — and
+  `saveProgress` is sticky-OR (`SET completed = reading_progress.completed OR
+  excluded.completed`), so the value written back was always the value already
+  stored. A **documented** no-op (SQ-LIB-7), which is the worst kind of bug:
+  nobody re-reads decisions, so nothing ever challenged it. `unsetCompleted` is now
+  its own statement with its own LWW guard, because the sticky-OR is what stops a
+  stale page write from un-finishing a chapter and clearing the flag is a different
+  intent from a different person at a different moment. It clears `completed` and
+  nothing else: "unread" means "not finished", not "start over", so a reader who
+  marks a chapter unread still resumes at the page they were on. The zero-caller
+  status is resolved by WIRING, not deleting — `POST
+  /api/library/chapters/{id}/read-status` on the members' `/api` lane, which already
+  ships and enforces membership per route. That is not the auth-deferral violation:
+  the deferral is about ADMIN and UPLOAD surfaces, and the `/library` PAGE's
+  control stays deferred with F-005. The body's `read` must be a real boolean —
+  `Boolean('false')` is `true`, so a coercing parse would mark a chapter **read**.
+  **Two false claims, both mine:** this block's boxes were all `[x]` and its
+  evidence held F-007-S2's, because the F-007-S2 checklist edit flipped `- [ ] `
+  across a range that ran past here; and a mutation meant to strip the no-op rule
+  edited `getCompletedSet` instead (the pattern appears twice) and was recorded as a
+  pass. The harness now refuses a non-unique pattern.
 
 ---
 

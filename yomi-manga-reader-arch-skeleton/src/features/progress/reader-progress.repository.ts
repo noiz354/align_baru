@@ -63,10 +63,7 @@ export interface ReaderProgressRepository {
    * Edge case: stored page > current pageCount (re-ingest shrank the
    * chapter) — the SERVICE clamps (EC-RDR-10); the repository returns raw.
    */
-  getProgress(
-    userId: UserId,
-    chapterId: ChapterId,
-  ): Promise<ReaderProgress | null>;
+  getProgress(userId: UserId, chapterId: ChapterId): Promise<ReaderProgress | null>;
 
   /**
    * Merge (FR-READER-013, T-READER-023): apply an anonymous local set on
@@ -78,9 +75,44 @@ export interface ReaderProgressRepository {
    */
   mergeProgress(
     userId: UserId,
-    entries: Array<{ chapterId: ChapterId; pageNumber: number; completed?: boolean; clientUpdatedAt: string }>,
+    entries: Array<{
+      chapterId: ChapterId;
+      pageNumber: number;
+      completed?: boolean;
+      clientUpdatedAt: string;
+    }>,
   ): Promise<{ applied: number; dropped: number }>;
 
   /** Bulk read for the library list (completed set per user, ≤ 1000 chapters). */
   getCompletedSet(userId: UserId, chapterIds: ChapterId[]): Promise<Set<ChapterId>>;
+
+  /**
+   * Clear `completed` for one chapter — the ONLY unset path (NFR-DATA-003).
+   *
+   * It exists as its own operation and not as `saveProgress({ completed:
+   * false })` because the save path is sticky-OR by contract: `SET completed =
+   * reading_progress.completed OR excluded.completed`. A `false` there is
+   * structurally incapable of clearing a `true`, so the read-status feature could
+   * only either lie about having marked a chapter unread or be wired to a no-op.
+   * It did the latter, and said so in a comment (SQ-LIB-7). The sticky-OR stays:
+   * it is what stops a stale page write from un-finishing a chapter. Those are
+   * two different intents, so they are two different operations.
+   *
+   * Scope, deliberately narrow:
+   * - Clears `completed` ONLY. `pageNumber` and `scrollPosition` are left alone, so
+   *   "unread" means "not finished", not "start over" — the resume rules
+   *   (`features/progress/resume.service.ts`) will still point at the stored page.
+   *   Rewinding the position is a different decision with a different cost (it
+   *   discards where the reader was) and is not implied by unmarking a chapter.
+   * - A chapter with NO progress row is a no-op, not a throw: "not started" and
+   *   "explicitly marked unread" agree, and a reader has no row to clear.
+   * - Another user's row is never touched (THREAT T-04): the write is keyed on
+   *   `userId`, so there is nothing to get wrong.
+   * - Its OWN LWW guard, on the server clock like `saveProgress`. A stale unset
+   *   must not un-finish a chapter the reader completed a moment later.
+   *
+   * Requirements: FR-LIBRARY-006, NFR-DATA-003, THREAT T-04, THREAT T-18.
+   * Tasks: T-LIB-006, T-READER-021 (F-008-S1).
+   */
+  unsetCompleted(userId: UserId, chapterId: ChapterId): Promise<void>;
 }

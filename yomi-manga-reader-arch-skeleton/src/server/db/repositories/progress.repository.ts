@@ -273,17 +273,7 @@
  *   chapter's page count via the `dropped` count (T-READER-023's summary), which
  *   is recorded rather than silently closed.
  */
-import {
-  and,
-  asc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  lte,
-  sql,
-  type SQL,
-} from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import { chapter, libraryEntry, readingProgress } from '../schema';
 import type { Db } from '../client';
 import type { ReaderProgressRepository, SaveReaderProgressInput } from '../../../features/progress';
@@ -630,9 +620,10 @@ async function touchLibraryLastReadForChapter(
  * integer column with a CHECK, and a fractional page is malformed data, not a
  * position — truncating it would invent a page the reader never saw.
  */
-function toMergeCandidates(
-  entries: Parameters<ReaderProgressRepository['mergeProgress']>[1],
-): { candidates: MergeCandidate[]; dropped: number } {
+function toMergeCandidates(entries: Parameters<ReaderProgressRepository['mergeProgress']>[1]): {
+  candidates: MergeCandidate[];
+  dropped: number;
+} {
   const latest = new Map<string, MergeCandidate>();
   let dropped = 0;
   for (const entry of entries) {
@@ -766,7 +757,12 @@ export function createReaderProgressRepository(db: Db): ReaderProgressRepository
         const rows = await db
           .select({ id: chapter.id, pageCount: chapter.pageCount, mangaId: chapter.mangaId })
           .from(chapter)
-          .where(inArray(chapter.id, candidates.map((candidate) => candidate.chapterId)));
+          .where(
+            inArray(
+              chapter.id,
+              candidates.map((candidate) => candidate.chapterId),
+            ),
+          );
         for (const row of rows) {
           shapes.set(row.id, { pageCount: row.pageCount, mangaId: row.mangaId as MangaId });
         }
@@ -854,6 +850,52 @@ export function createReaderProgressRepository(db: Db): ReaderProgressRepository
           ),
         );
       return new Set(rows.map((row) => row.chapterId as ChapterId));
+    },
+
+    /**
+     * Clear `completed` for one chapter — the only unset path (NFR-DATA-003,
+     * T-LIB-006, F-008-S1).
+     *
+     * A SEPARATE `UPDATE`, not a `saveProgress` with a `false`:
+     * `SET completed = reading_progress.completed OR excluded.completed` is
+     * sticky by contract, so a save could never clear the flag. Threading the
+     * intent through that path would mean either weakening the sticky-OR for
+     * every page write, or writing a `false` that does nothing — and SQ-LIB-7 was
+     * the second of those, for a whole feature.
+     *
+     * `WHERE ... AND completed = true` is the no-op rule, and it is what makes
+     * this idempotent in the same way `saveProgress` is: an unset on a chapter
+     * that is not completed changes no column, so `updated_at` does not move. That
+     * matters because the same statement is also the LWW basis — see below.
+     *
+     * Its own LWW guard, on the server clock, for the same reason the save has
+     * one: a reader who finishes a chapter and then has a stale unset replayed at
+     * them must not watch it become unfinished. The guard is a `WHERE` on the same
+     * statement, not a read-then-write, so two racing unsets cannot both "win" and
+     * a racing unset/complete pair resolves by stamp rather than by arrival.
+     *
+     * No transaction is opened. This is ONE table and ONE statement, so there is
+     * no second write that could half-commit — the reason `saveProgress` needs a
+     * transaction is that it also moves `library_entry.last_read_at`, and this
+     * deliberately does not (see the port: it clears the flag only, and does not
+     * rewind the position).
+     */
+    async unsetCompleted(userId: UserId, chapterId: ChapterId): Promise<void> {
+      await db
+        .update(readingProgress)
+        .set({ completed: false, updatedAt: STAMP })
+        .where(
+          and(
+            eq(readingProgress.userId, userId),
+            eq(readingProgress.chapterId, chapterId),
+            // The no-op rule. Without it every repeated unset would move
+            // `updated_at` and be indistinguishable from a real change.
+            eq(readingProgress.completed, true),
+            // LWW (NFR-DATA-003, THREAT T-18): apply only when the stored stamp
+            // is not newer than the server clock, the same basis the save uses.
+            lwwGuard(null),
+          ),
+        );
     },
   };
 }
