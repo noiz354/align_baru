@@ -52,10 +52,26 @@
  */
 
 import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { PGlite } from '@electric-sql/pglite';
 import type { Notice, Sql } from 'postgres';
 import type { Env } from '../../shared/validation';
 import * as schema from './schema';
+
+/** True when DATABASE_URL selects the embedded PGlite engine (dev fallback when no PG 18 is available). */
+function isPGliteUrl(url: string): boolean {
+  const trimmed = url.trim();
+  return (
+    trimmed.startsWith('pglite://') ||
+    trimmed.startsWith('file:') ||
+    trimmed.startsWith('memory:') ||
+    trimmed === ':memory:' ||
+    trimmed.startsWith('/tmp/') ||
+    trimmed.startsWith('./') ||
+    trimmed.endsWith('.db')
+  );
+}
 
 /**
  * Pool ceiling per process — DEPLOYMENT.md §1 ("app pool 10" against server
@@ -151,8 +167,35 @@ export type Db = ReturnType<typeof createDbCore>['db'];
 
 /** Internal: builds the driver client and its Drizzle wrapper together. */
 function createDbCore(env: Env, options: PostgresClientOptions = {}) {
+  // PGlite dev fallback: DATABASE_URL like `pglite://...`, `file:...`, `/tmp/...` or `./data.db`
+  if (isPGliteUrl(env.databaseUrl)) {
+    // Map `pglite://` + path or plain file path to PGlite dataDir
+    let dataDir: string | undefined;
+    const url = env.databaseUrl.trim();
+    if (url.startsWith('pglite://')) {
+      dataDir = url.slice('pglite://'.length) || undefined;
+      if (dataDir === '' || dataDir === 'memory') dataDir = undefined; // in-memory
+    } else if (url.startsWith('file:')) {
+      dataDir = url.slice('file:'.length);
+    } else if (url.startsWith('memory:') || url === ':memory:') {
+      dataDir = undefined;
+    } else {
+      dataDir = url; // e.g. /tmp/yomi-pglite, ./data/pglite
+    }
+    const pglite = new PGlite(dataDir);
+    // drizzle-orm/pglite expects a PGlite instance
+    const database: any = drizzlePglite(pglite as any, { schema });
+    const db = Object.assign(database, {
+      close(): Promise<void> {
+        return (pglite as any).close();
+      },
+      // expose underlying for migrations
+      __pglite: pglite,
+    });
+    return { db, client: pglite as unknown as Sql };
+  }
   const client = createPostgresClient(env.databaseUrl, options);
-  const database = drizzle(client, { schema });
+  const database = drizzlePg(client, { schema });
   const db = Object.assign(database, {
     /**
      * Drains the pool. Called on SIGTERM and at the end of a request-scoped job
@@ -181,8 +224,14 @@ function createDbCore(env: Env, options: PostgresClientOptions = {}) {
  */
 export async function createDb(env: Env, options: PostgresClientOptions = {}): Promise<Db> {
   const { db, client } = createDbCore(env, options);
+  const isPglite = isPGliteUrl(env.databaseUrl);
   try {
-    await client`select 1`;
+    if (isPglite) {
+      // PGlite: use Drizzle's execute for round-trip
+      await (db as any).execute('select 1');
+    } else {
+      await (client as Sql)`select 1`;
+    }
   } catch (cause) {
     await db.close();
     throw new DatabaseConfigurationError(

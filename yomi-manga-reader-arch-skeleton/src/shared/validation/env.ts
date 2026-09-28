@@ -299,6 +299,16 @@ const httpUrl = urlField({
  * Requirements: NFR-SEC-009, NFR-OPS-002. Task: T-FOUND-002.
  */
 const postgresDsn = z.string().refine((value) => {
+  // PGlite dev fallback: allow pglite://, file:, memory:, /tmp/... for local dev without PG 18
+  if (
+    value.startsWith('pglite://') ||
+    value.startsWith('file:') ||
+    value.startsWith('memory:') ||
+    value === ':memory:' ||
+    value.startsWith('/tmp/') ||
+    value.startsWith('./') ||
+    value.endsWith('.db')
+  ) return true;
   try {
     const url = new URL(value);
     return (
@@ -309,7 +319,7 @@ const postgresDsn = z.string().refine((value) => {
   } catch {
     return false;
   }
-}, 'must be an absolute postgres:// or postgresql:// DSN (NFR-SEC-009)');
+}, 'must be an absolute postgres:// or postgresql:// DSN (NFR-SEC-009) — or pglite:// / file: / /tmp/ for dev');
 
 /**
  * The DEPLOYMENT.md §3 contract, one field per table row, in table order.
