@@ -302,7 +302,7 @@ describe("permission matrix", () => {
     const appRoot = join(process.cwd(), "src", "app");
     const apiRoot = join(appRoot, "api");
     const routeFiles = listRouteFiles(apiRoot);
-    expect(routeFiles.length).toBe(26);
+    expect(routeFiles.length).toBe(30);
 
     const taskIds = new Set(
       Array.from(readFileSync(join(process.cwd(), "TASKS.md"), "utf8").matchAll(/\bT-[A-Z]+-\d{3}\b/g), (m) => m[0]),
@@ -338,7 +338,7 @@ describe("permission matrix", () => {
     ).toEqual([]);
 
     // Progress is visible: these shells must shrink as their owning tasks land.
-    expect(stubs.length).toBe(24);
+    expect(stubs.length).toBe(21);
 
     // The public list must not rot: every entry has a real route behind it, with a stated reason.
     for (const route of PUBLIC_ROUTES) {

@@ -7,8 +7,10 @@
  * routes; `src/features/content/public-projections.ts` is the equivalent for public queries.
  *
  * Rules:
- *   1. A route may only appear here if it exposes no tenant-scoped data and performs no mutation, or if
- *      it is authenticated by a different mechanism (the identity handler authenticates by definition).
+ *   1. A route may appear here if it exposes no tenant-scoped data and performs no mutation, if it is
+ *      the identity handler, or if it is an explicitly public participant capability (such as guest
+ *      registration) with event scoping, validation, and durable duplicate protection. Never list a
+ *      route that returns attendee details or accepts a staff-only action.
  *   2. Every entry states why it is public.
  *   3. `tests/integration/security/permissions.test.ts` fails when a route file is neither authorized
  *      nor listed here, and when an entry here has no route behind it.
@@ -31,6 +33,11 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
     path: "/api/auth/[...all]",
     reason:
       "Identity handler (ADR-0005). It authenticates rather than authorizes; it is rate limited through the durable store and holds no business logic.",
+  },
+  {
+    path: "/api/v1/events/[eventId]/registrations",
+    reason:
+      "Public attendee self-registration for an event. Validates the participant payload, scopes the new row to the event's organization, and deduplicates by event/email; it returns a participant capability, never an attendee list.",
   },
 ];
 

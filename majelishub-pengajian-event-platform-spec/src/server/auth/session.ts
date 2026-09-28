@@ -26,7 +26,7 @@
  */
 import { eq } from "drizzle-orm";
 import { sessions } from "@/server/db/schema";
-import { getDb, type DbHandle } from "@/server/db/client";
+import { getDb, isPGliteDb, type DbHandle } from "@/server/db/client";
 import { AppError } from "@/shared/contracts/errors";
 import { auth } from "@/server/auth/auth";
 import { listActiveMembershipsForUser } from "@/server/db/repositories/organizations";
@@ -52,7 +52,16 @@ const MIN_REASON_LENGTH = 8;
  * @returns null when there is no valid session - the caller answers 401, never a default identity
  */
 export async function getSession(headers: Headers, handle?: DbHandle): Promise<SessionSummary | null> {
-  const result = await auth().api.getSession({ headers });
+  let result: Awaited<ReturnType<ReturnType<typeof auth>["api"]["getSession"]>>;
+  try {
+    result = await auth().api.getSession({ headers });
+  } catch (error) {
+    // Better Auth's runtime adapter intentionally uses the PostgreSQL pool; the local PGlite fallback
+    // has no identity adapter. Fail closed as an unauthenticated request instead of surfacing a 500 or
+    // trusting caller-supplied identity headers. Production PostgreSQL still takes the normal path.
+    if (isPGliteDb()) return null;
+    throw error;
+  }
   if (!result?.session || !result.user) return null;
 
   const memberships = await listActiveMembershipsForUser(handle ?? getDb(), result.user.id);

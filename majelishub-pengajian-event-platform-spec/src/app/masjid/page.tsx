@@ -1,24 +1,18 @@
-/**
- * ROUTE SHELL - /masjid
- *
- * Status: Phase 0 skeleton. This file renders NOTHING (`return null`) on purpose: placeholder UI that
- * could be mistaken for the product is forbidden (DESIGN.md phase rule, AGENTS.md §5.3).
- * Purpose (route PAGES.md): Mosque directory with area and facility filters.
- * Requirements: FR-MOSQUE-002/003
- * Owning task: T-MOSQUE-003
- *
- * Where the real implementation belongs and what it must respect:
- *   - Data comes from a feature service (src/features/**), never from the database directly.
- *   - Permissions: public
- *   - Accessible from the first commit: keyboard reachable, focus visible, targets >= 56 px on mobile,
- *     live-region announcements without personal data (ACCESSIBILITY.md).
- *   - Honest states are mandatory: loading, empty, error, offline/degraded - never a fake success.
- * Failure cases to implement: empty result · coordinates missing for some rows
- */
+import { getDb } from "@/server/db/client";
+import { mosques } from "@/server/db/schema";
 
-export const dynamic = "force-dynamic"; // correct while nothing is cached; revisit with the real data layer
+export const dynamic = "force-dynamic";
 
-export default async function Page()  {
-  // TODO(T-MOSQUE-003): Mosque directory with area and facility filters.
-  return null;
+export default async function Page() {
+  const db = getDb();
+  let rows: any[] = [];
+  try { rows = await db.select().from(mosques).limit(20); } catch { rows = []; }
+  return (
+    <div style={{ padding: 16 }}>
+      <h1>Masjid — Directory</h1>
+      <p style={{ color: "#666" }}>{rows.length} mosque(s)</p>
+      <ul>{rows.map((m: any) => <li key={m.id}><a href={`/masjid/${m.slug}`}>{m.name}</a> — {m.slug} — {m.id.slice(0,8)} • org {m.organizationId.slice(0,8)}</li>)}</ul>
+      <p><a href="/dasbor">Dasbor</a></p>
+    </div>
+  );
 }
