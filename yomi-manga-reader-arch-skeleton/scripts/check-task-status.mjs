@@ -10,17 +10,26 @@
  *
  * This reads the task list and reports what the tree says about each one. It does not decide
  * whether a task is *done* — a human signs that off, against the DoD in AGENTS.md §5. What it
- * does is separate the three states that look identical in a grep:
+ * does is separate the states that look identical in a grep:
  *
- *   BLOCKED  the code for this task exists and says so: `throw new Error("Not implemented:
- *            T-…")`. The task is written down, and its own file says the wiring is missing.
- *   STUB     no throw, but TODOs naming this task remain. The shape is there; the behaviour
- *            is not.
- *   WIRED    the id appears in the tree with no TODO and no throw. This means the task's
- *            subject is present — it is evidence to review, not a completion claim.
+ *   BLOCKED     the code for this task exists and says so:
+ *                `throw new Error("Not implemented: T-…")`.
+ *   STUB        a `TODO(…)` names this task. The shape is there; the behaviour is not.
+ *   PLACEHOLDER a page renders `NotYetBuilt` with `task="T-…"`: the route exists, the address
+ *                works, and the page states in its own text that it is not built.
+ *   ABSENT      nothing in the tree speaks about this task.
  *
- * Anything it cannot classify is reported as UNCLEAR rather than quietly bucketed, because a
- * status report that invents an "unknown" bucket into "wired" is worse than no report.
+ * There is deliberately no "WIRED" bucket, and its removal is the point of this revision. The
+ * previous state said "WIRED means the task id appears in the tree with no TODO and no throw" —
+ * which counted a page's own blocker note as proof that the blocker was resolved. T-LIB-003
+ * reported WIRED while `/library` rendered "This page is not built yet… Once T-LIB-003 lands",
+ * and T-READER-025 reported WIRED when only its port interface existed and no adapter had ever
+ * been written. A bucket that fills itself with the very text that describes the gap is worse
+ * than no bucket: it made 79 of 137 tasks look further along than they were, and any plan built
+ * from that number would be wrong.
+ *
+ * Every state above is falsifiable from a file. A mention that is not one of them is ABSENT,
+ * because "some comment somewhere contained the string" is not evidence of anything.
  *
  * Usage
  * -----
@@ -68,9 +77,10 @@ function main() {
   const taskIds = [...tasksSource.matchAll(/^## (T-[A-Z0-9]+-\d+)/gm)].map((m) => m[1]);
 
   // One pass over the tree, bucketing every task id the files mention.
-  const throwsFor = new Map();   // id -> [files]
-  const todosFor = new Map();    // id -> [files]
-  const mentions = new Map();    // id -> [files]
+  const throwsFor = new Map();     // id -> [files]
+  const todosFor = new Map();      // id -> [files]
+  const placeholdersFor = new Map(); // id -> [files]
+  const mentions = new Map();       // id -> [files]  (audit only, never a state)
   const allFiles = walk(REPO_ROOT);
 
   for (const file of allFiles) {
@@ -93,9 +103,25 @@ function main() {
     )) {
       add(throwsFor, m[1], rel);
     }
-    for (const m of text.matchAll(/TODO\(\s*(T-[A-Z0-9]+-\d+)/g)) {
-      add(todosFor, m[1], rel);
+
+    // EVERY id inside the parens, not just the first. `TODO(T-AUTH-012, T-READER-018,
+    // T-SEARCH-004)` on one line of FormField.tsx is three unfinished tasks; the old pattern
+    // captured only T-AUTH-012 and reported the other two as finished, which is how T-SEARCH-004
+    // came to be counted as WIRED while a TODO sat in the file naming it.
+    for (const m of text.matchAll(/TODO\(([^)]*)\)/g)) {
+      for (const id of m[1].matchAll(/\b(T-[A-Z0-9]+-\d+)\b/g)) {
+        add(todosFor, id[1], rel);
+      }
     }
+
+    // A page that renders `NotYetBuilt` is not wired, whatever else it mentions. The task is
+    // read off the component's own `task` prop rather than by scanning the file for any id,
+    // because the page's docstring names every task it depends on — including several that are
+    // genuinely done.
+    for (const m of text.matchAll(/<NotYetBuilt\b[\s\S]{0,400}?\btask=["'`](T-[A-Z0-9]+-\d+)["'`]/g)) {
+      add(placeholdersFor, m[1], rel);
+    }
+
     for (const m of text.matchAll(/\b(T-[A-Z0-9]+-\d+)\b/g)) {
       add(mentions, m[1], rel);
     }
@@ -110,25 +136,39 @@ function main() {
   const report = taskIds.map((id) => {
     const thrown = throwsFor.get(id) ?? [];
     const todo = todosFor.get(id) ?? [];
-    const mentioned = (mentions.get(id) ?? []).filter(
-      (f) => !thrown.includes(f) && !todo.includes(f),
-    );
+    const placeholder = placeholdersFor.get(id) ?? [];
     let state;
     if (thrown.length) state = 'BLOCKED';
     else if (todo.length) state = 'STUB';
-    else if (mentioned.length) state = 'WIRED';
-    else state = 'UNCLEAR';
-    return { id, state, thrown, todo, mentioned: mentioned.slice(0, 3) };
+    else if (placeholder.length) state = 'PLACEHOLDER';
+    else state = 'ABSENT';
+    return {
+      id,
+      state,
+      thrown,
+      todo,
+      placeholder,
+      // Kept for auditing, never for classification: a bare mention is not a state.
+      mentions: (mentions.get(id) ?? []).length,
+    };
   });
 
   const counts = report.reduce((acc, r) => ({ ...acc, [r.state]: (acc[r.state] ?? 0) + 1 }), {});
 
+  // A page count, because "how many of these pages actually work" is the question this report
+  // kept failing to answer. PLACEHOLDER is nearly always shadowed by STUB — a placeholder page
+  // usually also carries a TODO naming its blocker — so the bucket reads 0 while fifteen pages
+  // are still placeholders. The count is stated separately for exactly that reason.
+  const placeholderPages = report.flatMap((r) => r.placeholder);
+
   if (args.has('--json')) {
-    process.stdout.write(`${JSON.stringify({ total: report.length, counts, report }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ total: report.length, counts, placeholderPages: placeholderPages.length, report }, null, 2)}\n`,
+    );
     process.exit(args.has('--strict') && (counts.BLOCKED ?? 0) > 0 ? 1 : 0);
   }
 
-  const order = ['BLOCKED', 'STUB', 'WIRED', 'UNCLEAR'];
+  const order = ['BLOCKED', 'STUB', 'PLACEHOLDER', 'ABSENT'];
   const shown = args.has('--blocked') ? report.filter((r) => r.state === 'BLOCKED') : report;
 
   console.log('check-task-status — derived from the tree, not asserted\n');
@@ -136,7 +176,13 @@ function main() {
     `  ${report.length} tasks: ` +
       order.map((s) => `${s} ${counts[s] ?? 0}`).join(' · '),
   );
-  console.log('  WIRED means the task id appears with no TODO and no throw. It is not a claim of done.\n');
+  console.log(
+    `  ${placeholderPages.length} page(s) render NotYetBuilt: a route that answers, and says so.\n`,
+  );
+  console.log(
+    '  Every state is read from a file. There is no "looks wired" bucket: a task counts as\n' +
+      '  nothing here unless something in the tree is explicitly unfinished about it.\n',
+  );
 
   for (const state of order) {
     const group = shown.filter((r) => r.state === state);
@@ -148,8 +194,8 @@ function main() {
           ? r.thrown[0]
           : state === 'STUB'
             ? r.todo[0]
-            : state === 'WIRED'
-              ? r.mentioned[0]
+            : state === 'PLACEHOLDER'
+              ? r.placeholder[0]
               : 'no evidence either way';
       console.log(`  ${pad(r.id, 20)} ${evidence}`);
     }
