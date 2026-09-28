@@ -1,0 +1,7 @@
+# RSI Agent Wave3 BASELINE
+
+**Wave2 State:** `MVP_PARTIAL` (commit `33ea9ea`) — actual `RealLLMProvider` OpenAI-compatible boundary, mock offline path, fail-closed missing credential, bounded memory-only improvement loop with sandbox budgets, human approval, tests/verifier, hash-chain audit, and rollback existed. `CandidateWorkspace` was used to isolate candidate lesson/memory data. But the largest missing boundary was complete *repository code patching* in a disposable repo: no runtime proof that a provider-suggested source patch stayed inside a separate repository, passed an allow-listed test, waited for explicit reviewer approval, was applied and rolled back to identical tree hash.
+
+**Demo-only boundary:** evidence from the existing memory improvement loop did not prove repository files, command execution, path traversal/absolute path rejection together, or exact rollback of a disposable Git worktree. Core RSI implementation must never be the patch target.
+
+**Wave3 target:** create disposable Git repo outside RSI source with one incorrect `add(a,b)` function + failing test; actual `RealLLMProvider` HTTP request through local OpenAI-compatible mock (provider-contract E2E, not live LLM); parse a one-file proposal; verifier and exact path/command/secret guards; log `AWAITING_HUMAN_APPROVAL`; require CLI `--approve --approver`; apply, run only fixed unittest command, accept, hash-chain audit, restore original file and compare Git tree hash exactly.
