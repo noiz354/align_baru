@@ -57,6 +57,10 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // A page image that 404s or fails to decode. The reader used to render a broken-image
+  // icon with no explanation, which reads as a product fault rather than a missing object.
+  // Keyed by page number so moving off the failed page and back re-attempts the fetch.
+  const [imageFailed, setImageFailed] = useState<number | null>(null);
 
   // Resolve chapterId via manga chapters list, then fetch pages + progress
   useEffect(() => {
@@ -145,15 +149,34 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{chapterId?.slice(0, 8)} • {slug} ch{chapterNumber}</span>
       </div>
       <div style={{ border: '1px solid #ddd', background: '#fafafa', minHeight: 720, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {/* JPEG is the universally supported variant; AVIF/WebP delivery is T-UPLOAD-* scope. */}
-        <img
-          src={current.urlJpeg}
-          alt={`Page ${page}`}
-          width={current.width}
-          height={current.height}
-          style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
-          loading="eager"
-        />
+        {imageFailed === page ? (
+          // The honest state: the object is missing, the page row is not. Says which,
+          // says it is not the reader's fault, and offers the one action that can
+          // help. Task: T-UPLOAD-004 (until the upload pipeline can write objects).
+          <div role="status" style={{ padding: 24, textAlign: 'center', color: '#555' }}>
+            <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>This page image could not be loaded</h2>
+            <p style={{ margin: '0 0 12px' }}>
+              Page {page} of {maxPage} is in the chapter, but its image is not in storage.
+            </p>
+            <p style={{ margin: '0 0 16px', fontSize: 13 }}>
+              The other pages are unaffected — try the next one, or the thumbnails below.
+            </p>
+            <button onClick={() => setImageFailed(null)} style={{ padding: '8px 16px' }}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          // JPEG is the universally supported variant; AVIF/WebP delivery is T-UPLOAD-* scope.
+          <img
+            src={current.urlJpeg}
+            alt={`Page ${page}`}
+            width={current.width}
+            height={current.height}
+            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
+            loading="eager"
+            onError={() => setImageFailed(page)}
+          />
+        )}
       </div>
       <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {pages.map(p => (

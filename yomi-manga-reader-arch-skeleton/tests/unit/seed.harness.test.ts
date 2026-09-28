@@ -34,6 +34,7 @@ import {
   deterministicUuid,
   materialisePages,
   pageAssetKey,
+  chapterIdFor,
   parseSeedArgs,
   readSeedPasswords,
   writeSeedPlan,
@@ -278,8 +279,35 @@ describe('UNIT-SEED-004 / T-FOUND-012 — the seeded plan is deterministic', () 
     expect(a).toBe(b);
     expect(a).not.toBe(c);
     // a key is an opaque handle, never a path and never guessable from the ids
-    expect(a).toMatch(/^seed\/v1\/[0-9a-f]{32}$/);
     expect(a).not.toContain('seed-manga-0001');
+  });
+
+  it('mints page asset keys the delivery grammar actually accepts', () => {
+    // The grammar the media route applies to the URL path, copied from
+    // DELIVERY_KEY_PATTERN in src/server/media/page-delivery.ts. A seed key that fails
+    // it 404s at parse time, before storage is ever consulted — which is exactly what
+    // the old `seed/v1/<digest>` keys did.
+    const DELIVERY_KEY_PATTERN = /^([A-Za-z0-9_-]{22,64})\.(avif|webp|jpeg)$/;
+
+    for (const pageNumber of [1, 2, 500]) {
+      const key = pageAssetKey({ slug: 'seed-manga-0001', chapterNumber: '1.00', pageNumber });
+      expect(`${key}.jpeg`).toMatch(DELIVERY_KEY_PATTERN);
+      // The slug is not recoverable from the key.
+      expect(key).not.toContain('seed-manga');
+      // No path separators: the key is one URL segment, the chapter directory is the
+      // server's business (`pages/{chapterId}/{assetKey}.{ext}`), not the key's.
+      expect(key).not.toContain('/');
+    }
+  });
+
+  it('derives the chapter row id the same way the writer will', () => {
+    // Pages are rendered before the chapter rows exist, so the physical object path
+    // depends on this derivation agreeing with the writer's. If the two drift, objects
+    // land under a directory no reader will ever ask for.
+    const slug = 'seed-manga-0001';
+    expect(chapterIdFor({ slug, chapterNumber: '1.00' })).toBe(
+      deterministicUuid('chapter', `${deterministicUuid('manga', slug)}#1.00`),
+    );
   });
 
   it('derives primary keys that are stable, v7-shaped and accepted by PostgreSQL', () => {

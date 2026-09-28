@@ -50,6 +50,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { runMigrations } from '../../src/server/db/migrations';
 import {
   EXIT_OK,
@@ -71,6 +73,9 @@ const SENTINEL_CREDENTIAL = 'it-never-happened-7c1f4a92';
  * credential is generated here at test time, which is the point: the harness
  * cannot be given a password that is not in the environment (UNIT-SEED-003).
  */
+/** Where this suite's page objects land. Per-run, so a stale tree cannot mask a missing write. */
+const SEED_TEST_STORAGE_DIR = join(tmpdir(), `yomi-seed-harness-${process.pid}`);
+
 function harnessEnv(overrides: Record<string, string | undefined> = {}): Record<
   string,
   string | undefined
@@ -85,6 +90,12 @@ function harnessEnv(overrides: Record<string, string | undefined> = {}): Record<
     S3_BUCKET: 'yomi-media',
     S3_ACCESS_KEY_ID: 'yomi-access-key',
     S3_SECRET_ACCESS_KEY: 'yomi-secret-key',
+    // The seed now writes each page's three variants through `ObjectStoragePort`
+    // (T-UPLOAD-004 is what will own that step for real uploads). Pointed at a local
+    // directory so the suite exercises the write against a storage that exists; the S3
+    // endpoint above stays a dead port precisely so a test that reached for it would fail
+    // rather than silently talk to a shared bucket.
+    STORAGE_DIR: SEED_TEST_STORAGE_DIR,
     NEXT_TELEMETRY_DISABLED: '1',
     SEED_ADMIN_PASSWORD: SENTINEL_CREDENTIAL,
     SEED_READER_PASSWORD: SENTINEL_CREDENTIAL,
@@ -123,6 +134,8 @@ describeDb('INT-SEED-001/002 / T-FOUND-012 — seed → assert counts → re-run
     await sql`drop schema if exists public cascade`;
     await sql`create schema public`;
     await runMigrations({ url: DATABASE_URL as string });
+    // The handle the seed mints, read back from a row it wrote — not recomputed here,
+    // so this suite asserts what actually landed in the table.
   });
 
   afterAll(async () => {
@@ -218,8 +231,10 @@ describeDb('INT-SEED-001/002 / T-FOUND-012 — seed → assert counts → re-run
         Array.from({ length: expected }, (_, offset) => offset + 1),
       );
       for (const page of pages) {
-        // phase one: an opaque placeholder handle, never a path
-        expect(page.asset_key, slug).toMatch(/^seed\/v1\/[0-9a-f]{32}$/);
+        // An opaque handle that the delivery grammar accepts: one URL segment, 22–64
+        // chars of [A-Za-z0-9_-], no slashes. The old `seed/v1/<digest>` keys failed
+        // this and 404'd at parse time — see tests/integration/media-seed-delivery.test.ts.
+        expect(page.asset_key, slug).toMatch(/^[0-9a-f]{32}$/);
         expect(page.width).toBe(480);
         expect(page.height).toBe(720);
         // real measurements from a real sharp encode, not invented numbers
@@ -435,14 +450,21 @@ describe('INT-SEED-003 / T-FOUND-012 — the harness documents its own phase', (
     expect(HARNESS_SOURCE).toContain('T-UPLOAD-004 has not run, so this file is');
   });
 
-  it('uploads nothing and writes no file: the page renderer only reports sizes', () => {
-    // The synthetic pages live in a Buffer for the length of one encode. The
-    // harness has no file-writing call and no object-storage client, so "phase
-    // one writes no media" is a property of the imports, not of a flag.
-    for (const forbidden of ['writeFile', 'appendFile', 'mkdir', 'createWriteStream', '@aws-sdk']) {
-      expect(HARNESS_SOURCE, forbidden).not.toContain(forbidden);
-    }
-    // the only `fs` import is the entry-point probe, which reads nothing
-    expect(HARNESS_SOURCE).toContain("import { realpathSync } from 'node:fs'");
-  });
+    it('writes page objects through the storage port and never touches the filesystem itself', () => {
+      // The seed owns no media path. It hands each encoded variant to
+      // `ObjectStoragePort`, which is the same call a real upload makes and the same
+      // call the media route reads back through; the adapter owns directories, content
+      // types and the `pages/{chapterId}/` layout. That is the property worth holding —
+      // not "writes nothing", which stopped being true once pages became readable.
+      for (const forbidden of ['writeFile', 'appendFile', 'createWriteStream', '@aws-sdk']) {
+        expect(HARNESS_SOURCE, forbidden).not.toContain(forbidden);
+      }
+      // `mkdir` must not reappear here: the layout belongs to the adapter.
+      expect(HARNESS_SOURCE).not.toContain('mkdir');
+      // The one write path in the harness, named explicitly so it can be reviewed.
+      expect(HARNESS_SOURCE).toContain('storage.putStream');
+      // the only `fs` import is the entry-point probe, which reads nothing
+      expect(HARNESS_SOURCE).toContain("import { realpathSync } from 'node:fs'");
+    });
+
 });

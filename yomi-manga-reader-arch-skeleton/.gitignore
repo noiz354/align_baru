@@ -24,3 +24,10 @@ playwright-report/
 # transient boundary self-test fixtures (npm run lint:boundaries)
 **/boundary-selftest-*
 tests/.boundary-fixtures/
+
+# filesystem object storage (the default STORAGE_DIR root, ADR-004 / T-CATALOG-010).
+# The seed writes real page objects here now, so without this a run without
+# STORAGE_DIR leaves ~18 MB of generated media untracked in the repo.
+# Anchored to the project root on purpose: an unanchored `storage/` also matches
+# src/server/storage/, which is product source.
+/storage/

@@ -137,6 +137,7 @@ import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDb } from '../src/server/db/client';
 import * as dbSchema from '../src/server/db/schema';
+import { createObjectStorageAsync } from '../src/server/storage/object-storage';
 import { createLogger } from '../src/server/telemetry/logger';
 import { loadEnv } from '../src/shared/validation';
 
@@ -157,7 +158,19 @@ import { loadEnv } from '../src/shared/validation';
 /** One rendered page, as written to `chapter_page` (DATA_MODEL §10). */
 /** @typedef {{ pageNumber: number, assetKey: string, width: number, height: number, byteSizeAvif: number, byteSizeWebp: number, byteSizeJpeg: number }} SeedPageRecord */
 /** What a page renderer reports: the geometry and the variant sizes. */
-/** @typedef {{ width: number, height: number, byteSizeAvif: number, byteSizeWebp: number, byteSizeJpeg: number, digest: string }} RenderedPage */
+/**
+ * The three encoded variants travel with the metadata so the caller can put them in object
+ * storage. They are OPTIONAL: a renderer that is only filling in byte-size columns has no
+ * reason to encode an image, and the seed's own test doubles work that way. `materialisePages`
+ * refuses to upload rather than writing an empty object when a `putPage` is wired to a
+ * renderer that produced none.
+ * @typedef {{
+ *   width: number, height: number,
+ *   byteSizeAvif: number, byteSizeWebp: number, byteSizeJpeg: number,
+ *   digest: string,
+ *   avif?: Buffer, webp?: Buffer, jpeg?: Buffer,
+ * }} RenderedPage
+ */
 /** Injection seam for the renderer (the unit test passes a double). */
 /** @typedef {(spec: { width: number, height: number, pageNumber: number, chapterNumber: string, slug: string }) => RenderedPage | Promise<RenderedPage>} PageRenderer */
 /** One chapter as planned. `pages` is filled in by `materialisePages`. */
@@ -600,9 +613,19 @@ export function deterministicUuid(kind, key) {
 }
 
 /**
- * The placeholder asset key for one page (FR-MEDIA-003: an unguessable opaque
- * handle, never a path and never derivable from the row ids). Phase one: no
- * object exists behind this key — see the file header.
+ * The opaque asset key for one page (FR-MEDIA-003: an unguessable handle, never a
+ * path and never derivable from the row ids).
+ *
+ * This used to be prefixed `seed/v1/`, which made every seeded page undeliverable. The
+ * delivery key grammar in `server/media/page-delivery.ts` is
+ * `/^([A-Za-z0-9_-]{22,64})\.(avif|webp|jpeg)$/` — one path segment, no slashes — so
+ * `parseDeliveryKey` returned `null` and `/media/seed/v1/<digest>.jpeg` 404'd before
+ * touching storage. The 32 hex characters were always valid on their own; the prefix
+ * was what broke it.
+ *
+ * The OBJECT, however, is still stored under the physical layout ADR-004 defines,
+ * `pages/{chapterId}/{assetKey}.{ext}` (see `pageObjectKey`). The URL carries only the
+ * opaque key; the chapter directory is resolved server-side from the page row.
  *
  * @param {{ slug: string, chapterNumber: string, pageNumber: number }} input
  * @returns {string}
@@ -611,7 +634,45 @@ export function pageAssetKey(input) {
   const digest = createHash('sha256')
     .update(`${input.slug}|${input.chapterNumber}|${input.pageNumber}`)
     .digest('hex');
-  return `seed/v1/${digest.slice(0, 32)}`;
+  return digest.slice(0, 32);
+}
+
+/**
+ * The row id a chapter will be written with. Pages are rendered before the chapter
+ * rows exist, but the id is derived rather than generated, so the physical object path
+ * is computable at render time and matches the row the write phase will create.
+ *
+ * Mirrors the derivation in the writer; the two are asserted equal by the seed's
+ * verification step, so a change to one without the other fails the run.
+ *
+ * @param {{ slug: string, chapterNumber: string }} input
+ * @returns {string}
+ */
+export function chapterIdFor(input) {
+  return deterministicUuid('chapter', `${deterministicUuid('manga', input.slug)}#${input.chapterNumber}`);
+}
+
+/**
+ * Where one page variant's OBJECT goes: `pages/{chapterId}/{assetKey}.{ext}`.
+ *
+ * This is the same layout `pageObjectKey` in src/server/storage builds, and it must stay
+ * identical to it — the delivery route resolves the chapter directory from the page row, so
+ * a seed that writes anywhere else produces an object no request will ever name. Written
+ * here as its own function, and mirrored by a test, because when it was inlined in the
+ * writer nothing could reach it: the suite that claims to check "the path the seed wrote"
+ * was building the path itself and would have passed against a seed that wrote to the bare
+ * key.
+ *
+ * @param {{ slug: string, chapterNumber: string, pageNumber: number, ext: string }} input
+ * @returns {string}
+ */
+export function pageObjectPathFor(input) {
+  const chapterId = chapterIdFor({ slug: input.slug, chapterNumber: input.chapterNumber });
+  return `pages/${chapterId}/${pageAssetKey({
+    slug: input.slug,
+    chapterNumber: input.chapterNumber,
+    pageNumber: input.pageNumber,
+  })}.${input.ext}`;
 }
 
 /* ── the plan (pure) ─────────────────────────────────────────────────────── */
@@ -857,8 +918,18 @@ export function grayscaleGradient(width, height, pageNumber) {
  *
  * The three encoded variants exist so the recorded `byte_size_*` columns are
  * measurements of a real encode (DATA_MODEL §10, the NFR-PERF-009 record) rather
- * than invented numbers. The encoded bytes are then dropped: phase one uploads
- * nothing (see the file header).
+ * than invented numbers.
+ *
+ * The encoded buffers are RETURNED so the caller can put them in object storage.
+ * They used to be dropped here, which left every seeded page row pointing at an
+ * object that did not exist: `/media/{assetKey}.jpeg` answered 404 and the reader
+ * rendered broken images. The buffers are still never written to the repository
+ * or committed — they go to whatever `ObjectStoragePort` the environment selects
+ * (a local directory, or S3/R2), which is the same place a real upload puts them.
+ *
+ * The returned buffers are live and are not safe to retain: a 500-page chapter
+ * held at once is hundreds of MB. `materialisePages` therefore uploads inside its
+ * chunk loop and lets each buffer fall out of scope.
  *
  * @param {{ width: number, height: number, pageNumber: number, chapterNumber: string, slug: string }} spec
  * @returns {Promise<RenderedPage>}
@@ -883,6 +954,9 @@ export async function renderSyntheticPage(spec) {
     byteSizeWebp: webp.length,
     byteSizeJpeg: jpeg.length,
     digest: createHash('sha256').update(avif).digest('hex').slice(0, 16),
+    avif,
+    webp,
+    jpeg,
   };
 }
 
@@ -892,16 +966,24 @@ export async function renderSyntheticPage(spec) {
  * Chunking is not decoration: it bounds peak memory (holding a 500-page render
  * at once would be hundreds of MB of transient buffers) and it is what makes the
  * budget observable — `onChunk` reports the running page count, which is how the
- * harness logs progress on a twenty-second run.
+ * harness logs progress on a twenty-second run. It is also the only safe place to
+ * upload: each page's three variants are written inside the loop and released
+ * before the next render.
  *
  * @param {SeedPlan} plan
- * @param {{ render?: PageRenderer, chunkSize?: number, onChunk?: (done: number, total: number) => void }} [options]
+ * @param {{
+ *   render?: PageRenderer,
+ *   chunkSize?: number,
+ *   onChunk?: (done: number, total: number) => void,
+ *   putPage?: (page: { assetKey: string; chapterId: string; slug: string; chapterNumber: string; pageNumber: number; width: number; height: number }, variants: { avif: Buffer; webp: Buffer; jpeg: Buffer }) => Promise<void>,
+ * }} [options]
  * @returns {Promise<SeedPlan>} the same plan with `pages` filled in
  */
 export async function materialisePages(plan, options = {}) {
   const render = options.render ?? renderSyntheticPage;
   const chunkSize = options.chunkSize ?? plan.chunkSize;
   const onChunk = options.onChunk ?? (() => undefined);
+  const putPage = options.putPage;
   /** Pages rendered so far, across every chapter (the progress counter). */
   let done = 0;
   const manga = [];
@@ -919,13 +1001,39 @@ export async function materialisePages(plan, options = {}) {
             chapterNumber: chapter.number,
             slug: entry.slug,
           });
+          const assetKey = pageAssetKey({
+            slug: entry.slug,
+            chapterNumber: chapter.number,
+            pageNumber,
+          });
+          if (putPage) {
+            // A missing variant fails here, loudly. Writing an empty object would
+            // look successful to the storage adapter and surface as a reader
+            // seeing a zero-byte image instead of a missing page.
+            if (!rendered.avif || !rendered.webp || !rendered.jpeg) {
+              throw new Error(
+                `seed: a putPage hook is wired but the renderer returned no bytes for ` +
+                  `${assetKey}. A renderer must encode all three variants to be uploaded.`,
+              );
+            }
+            // Inside the loop, not after it: the three buffers are live, and a
+            // chapter of 500 pages would otherwise be retained in full.
+            await putPage(
+              {
+                assetKey,
+                chapterId: chapterIdFor({ slug: entry.slug, chapterNumber: chapter.number }),
+                slug: entry.slug,
+                chapterNumber: chapter.number,
+                pageNumber,
+                width: rendered.width,
+                height: rendered.height,
+              },
+              { avif: rendered.avif, webp: rendered.webp, jpeg: rendered.jpeg },
+            );
+          }
           pages.push({
             pageNumber,
-            assetKey: pageAssetKey({
-              slug: entry.slug,
-              chapterNumber: chapter.number,
-              pageNumber,
-            }),
+            assetKey,
             width: rendered.width,
             height: rendered.height,
             byteSizeAvif: rendered.byteSizeAvif,
@@ -1789,10 +1897,71 @@ export async function runSeed(options) {
     db = await createDb(env);
     await requireSchema(db);
 
+    // The same storage the app reads from. `createObjectStorage` picks the
+    // filesystem driver or S3/R2 from `env` exactly as it does at request time, so
+    // a page seeded here is served by the route the reader already calls.
+    // The injected `options.source`, not the ambient environment: the seed's whole
+    // point is that a test can point it at a throwaway database and a local directory.
+    const storage = await createObjectStorageAsync(env, options.source);
+    /**
+     * `AssetKey` is a branded string (shared/types/ids.ts) and `putStream` demands it. The
+     * seed has never needed the brand before — it only ever wrote plain strings through
+     * Drizzle — so the boundary is stated here rather than assumed. Checked instead of cast,
+     * because a key that is not shaped like one should fail here, not at the storage adapter.
+     *
+     * @param {string} value
+     * @returns {import('../src/shared/types/ids').AssetKey}
+     */
+    const asAssetKey = (value) => {
+      if (!/^[A-Za-z0-9][A-Za-z0-9/_-]*\.[a-z0-9]+$/.test(value)) {
+        throw new Error(`seed: refusing to store a malformed asset key: ${value}`);
+      }
+      return /** @type {import('../src/shared/types/ids').AssetKey} */ (value);
+    };
+    /**
+     * `putStream` takes a stream, and a Node `Buffer` is not one as far as its types are
+     * concerned. Wrapping is the same three lines the media-delivery test uses, so the seed
+     * and the suite agree on how a buffer becomes a stream.
+     * @param {Buffer} bytes
+     * @returns {ReadableStream<Uint8Array>}
+     */
+    const bytesToStream = (bytes) =>
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      });
+
+    /**
+     * @param {{ assetKey: string, chapterId: string, width: number; height: number; slug: string; chapterNumber: string; pageNumber: number }} page
+     * @param {{ avif: Buffer, webp: Buffer, jpeg: Buffer }} variants
+     */
+    const putPage = async (page, variants) => {
+      // Two different key shapes, and conflating them is what made every seeded page
+      // undeliverable. The URL carries the OPAQUE key alone — one path segment, no
+      // slashes, per the delivery grammar. The OBJECT lives at the physical layout
+      // `pages/{chapterId}/{assetKey}.{ext}` that `pageObjectKey` builds server-side.
+      /** @param {string} ext */
+      const objectKey = (ext) =>
+        asAssetKey(
+          pageObjectPathFor({
+            slug: page.slug,
+            chapterNumber: page.chapterNumber,
+            pageNumber: page.pageNumber,
+            ext,
+          }),
+        );
+      await storage.putStream(objectKey('avif'), bytesToStream(variants.avif), 'image/avif');
+      await storage.putStream(objectKey('webp'), bytesToStream(variants.webp), 'image/webp');
+      await storage.putStream(objectKey('jpeg'), bytesToStream(variants.jpeg), 'image/jpeg');
+    };
+
     const renderStartedAt = Date.now();
     let rendered = 0;
     const materialised = await materialisePages(plan, {
       chunkSize: plan.chunkSize,
+      putPage,
       onChunk: (done) => {
         rendered = done;
         log.debug({ rendered: done, totalPages: plan.totalPages }, 'Rendered synthetic pages.');
@@ -1801,7 +1970,7 @@ export async function runSeed(options) {
     timings['render'] = Date.now() - renderStartedAt;
     log.info(
       { pages: rendered, totalPages: plan.totalPages, renderMs: timings['render'], budgetMs: PAGE_SEED_BUDGET_MS },
-      'Synthetic pages rendered in memory (nothing written to disk or to object storage).',
+      'Synthetic pages rendered and written to object storage (avif/webp/jpeg per page).',
     );
     if (timings['render'] > PAGE_SEED_BUDGET_MS) {
       log.warn(

@@ -264,9 +264,34 @@ export interface ObjectStorage extends ObjectStoragePort {
  *
  * Requirements: ADR-004, NFR-OPS-002, NFR-SEC-009. Task: T-CATALOG-010.
  */
-export function createObjectStorage(env: Env): ObjectStorage {
+/**
+ * Which driver the environment selects. One decision, two module systems.
+ *
+ * This was inlined in `createObjectStorage` and the seed harness needed the same answer,
+ * but could not reuse it: the sync factory reaches `filesystem` through `require`, which
+ * exists in the Next bundle and does not exist in an ESM script. Copying the condition
+ * into the seed would have been the same rule in two places, so it is named here instead
+ * and both factories read it.
+ *
+ * The raw `source` is a parameter, not an implicit read of `process.env`. The seed harness
+ * takes its environment as an injected object so a test can run against a throwaway
+ * database and a local directory; a function that reached for the real process environment
+ * would pick S3 while the caller had asked for the filesystem, and fail against a port
+ * nothing is listening on. STORAGE_DIR is deliberately not in `Env` (see SQ-OPS-1), so the
+ * raw source is the only place it can be read honestly.
+ *
+ * Requirements: ADR-004, NFR-OPS-002. Task: T-CATALOG-010.
+ *
+ * @param env the validated environment
+ * @param source the raw variable map the env was validated from; defaults to `process.env`
+ * @returns `'filesystem'` for the PGlite / local-directory fallbacks, else `'s3'`
+ */
+export function selectStorageDriver(
+  env: Env,
+  source: Record<string, string | undefined> = process.env,
+): 'filesystem' | 's3' {
   // PGlite dev fallback: when DATABASE_URL is pglite/file, use filesystem storage
-  const dbUrl = env.databaseUrl ?? process.env['DATABASE_URL'] ?? '';
+  const dbUrl = env.databaseUrl ?? source['DATABASE_URL'] ?? '';
   const isPglite =
     dbUrl.startsWith('pglite://') ||
     dbUrl.startsWith('file:') ||
@@ -275,7 +300,37 @@ export function createObjectStorage(env: Env): ObjectStorage {
     dbUrl.startsWith('/tmp/') ||
     dbUrl.startsWith('./') ||
     dbUrl.endsWith('.db');
-  if (isPglite || process.env['STORAGE_DIR'] !== undefined || process.env['YOMI_STORAGE'] === 'filesystem') {
+  const local =
+    isPglite ||
+    source['STORAGE_DIR'] !== undefined ||
+    source['YOMI_STORAGE'] === 'filesystem';
+  return local ? 'filesystem' : 's3';
+}
+
+/**
+ * The async twin of {@link createObjectStorage}, for callers outside the Next bundle —
+ * the seed harness among them. Same decision, reached with `import()` instead of
+ * `require`, so an ESM script can use it.
+ *
+ * Requirements: ADR-004, NFR-OPS-002. Task: T-CATALOG-010.
+ *
+ * @param env the validated environment
+ * @param source the raw variable map the env was validated from; defaults to `process.env`
+ * @returns the filesystem or S3 adapter
+ */
+export async function createObjectStorageAsync(
+  env: Env,
+  source?: Record<string, string | undefined>,
+): Promise<ObjectStorage> {
+  if (selectStorageDriver(env, source ?? process.env) === 'filesystem') {
+    const { createFilesystemStorage } = await import('./filesystem');
+    return createFilesystemStorage() as unknown as ObjectStorage;
+  }
+  return createObjectStorage(env);
+}
+
+export function createObjectStorage(env: Env): ObjectStorage {
+  if (selectStorageDriver(env) === 'filesystem') {
     // Lazy import to avoid circular
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createFilesystemStorage } = require('./filesystem') as typeof import('./filesystem');
