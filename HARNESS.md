@@ -128,8 +128,11 @@ Notes that cost someone a cycle, recorded so they cost one again:
   is evidence the app started; it is not evidence a feature works.
 - A unit test that passes without touching the production query path is not coverage
   of that query. See the `test-the-shipping-code` skill.
-- A comment saying a dependency is absent is not evidence of absence.
-  `scripts/check-claims.mjs` verifies that class of claim against the tree.
+  - A comment saying a dependency is absent is not evidence of absence.
+    `scripts/check-claims.mjs` verifies that class of claim against the tree.
+  - An inventory that marks a file `✅ landed` — or lists a port in a
+    `PLANNED_*` array — is a claim about the filesystem, not a note. The same
+    script verifies both directions, and runs in CI as the `claim-truth` job.
 
 ---
 

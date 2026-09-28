@@ -12,13 +12,22 @@
  *
  * What it does
  * ------------
- * Finds claims about whether a package is present, then checks each one against ground
- * truth: the package.json files in this repo, and the source tree for actual imports.
- * A claim of absence that is contradicted by either is a failure.
+ * Two classes of falsifiable claim, both settled by looking at the tree:
  *
- * It is deliberately narrow. It verifies the one class of claim that can be settled by
- * looking at the tree, and it says so when it cannot settle something. It does not try to
- * judge prose.
+ * 1. Package presence. Finds claims about whether a package is present, then
+ *    checks each one against ground truth: the package.json files in this repo,
+ *    and the source tree for actual imports. A claim of absence that is
+ *    contradicted by either is a failure.
+ *
+ * 2. File landmark claims. A doc comment that marks a file `✅ landed` asserts
+ *    the file exists; a `PLANNED_*` array that names a port asserts its file
+ *    does not. Both directions are checked, because the failure mode is drift
+ *    in either direction — an inventory that marks a file it does not have, or
+ *    lists a port as pending after the implementation landed.
+ *
+ * It is deliberately narrow. It verifies the classes of claim that can be settled
+ * by looking at the tree, and it says so when it cannot settle something. It
+ * does not try to judge prose.
  *
  * Usage
  * -----
@@ -28,7 +37,7 @@
  */
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { join, relative, extname, dirname } from 'node:path';
 
 const REPO_ROOT = new URL('..', import.meta.url).pathname;
 
@@ -146,6 +155,69 @@ function collectImportSites() {
   return sites;
 }
 
+/* ── class 2: file landmark claims ─────────────────────────────────────────── */
+
+// A doc-comment line that names a file and marks it landed. The `✅ landed`
+// marker is the assertion; the filename beside it is the subject. Em-dash and
+// hyphen are both accepted because the file this checks was written with each.
+const LANDED_CLAIM =
+  /^[ \t]*(?:\/\/|\*|#)[ \t]*`?([A-Za-z0-9][A-Za-z0-9._-]*\.[a-z]+)`?[ \t]+[—-][^\n]*\u2705[ \t]*landed/gm;
+
+// `export const PLANNED_REPOSITORIES = ['a', 'b'] as const;` — the names are
+// asserted NOT to have files. Checked because a pending list that keeps an
+// already-landed port is the same drift as the inverse.
+const PLANNED_LIST = /(?:export\s+)?const\s+PLANNED_[A-Z0-9_]+\s*(?::[^=]+)?=\s*\[([\s\S]*?)\]/g;
+
+function collectFileLandmarkClaims(dirname) {
+  const claims = [];
+
+  for (const file of walkFiles(REPO_ROOT)) {
+    let text;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    const baseDir = dirname(file);
+
+    for (const match of text.matchAll(LANDED_CLAIM)) {
+      const name = match[1];
+      const target = join(baseDir, name);
+      claims.push({
+        kind: 'landed-file',
+        file: relative(REPO_ROOT, file),
+        line: lineOf(text, match.index),
+        subject: name,
+        // Resolved against the CLAIMING file's directory, not the repo root:
+        // these inventories are written as sibling lists, so that is the only
+        // reading that makes a name resolve to something real.
+        resolvesTo: relative(REPO_ROOT, target),
+        excerpt: excerptAt(text, match.index),
+        verdict: existsSync(target) ? 'CONSISTENT' : 'CONTRADICTED',
+      });
+    }
+
+    for (const match of text.matchAll(PLANNED_LIST)) {
+      for (const quoted of match[1].matchAll(/['"]([^'"]+)['"]/g)) {
+        const port = quoted[1];
+        const target = join(baseDir, `${port}.repository.ts`);
+        claims.push({
+          kind: 'planned-file',
+          file: relative(REPO_ROOT, file),
+          line: lineOf(text, match.index),
+          subject: port,
+          resolvesTo: relative(REPO_ROOT, target),
+          excerpt: excerptAt(text, match.index),
+          // Listed as pending but present on disk: the inventory is stale.
+          verdict: existsSync(target) ? 'CONTRADICTED' : 'CONSISTENT',
+        });
+      }
+    }
+  }
+
+  return claims;
+}
+
 const CLAIM_LINE_LIMIT = 400; // a "claim" longer than this is prose, not a claim
 
 function lineOf(text, index) {
@@ -167,6 +239,7 @@ function main() {
 
   const declared = collectDeclaredPackages();
   const importSites = collectImportSites();
+  const fileClaims = collectFileLandmarkClaims(dirname);
 
   const findings = [];
   let scannedFiles = 0;
@@ -217,6 +290,8 @@ function main() {
   }
 
   const contradicted = findings.filter((f) => f.verdict === 'CONTRADICTED');
+  const fileContradicted = fileClaims.filter((f) => f.verdict === 'CONTRADICTED');
+  const fileConsistent = fileClaims.filter((f) => f.verdict === 'CONSISTENT');
   // An unverifiable claim is only worth a human's attention if the token carries a
   // package signal (@ scope, dash, or slash). Plain words that the pattern swept up
   // while reading prose ("no stale rule", "so you", "dev") are filtered here, because
@@ -228,12 +303,20 @@ function main() {
   if (asJson) {
     process.stdout.write(
       `${JSON.stringify(
-        { scannedFiles, contradicted: contradicted.length, unverifiable: unverifiable.length, findings },
+        {
+          scannedFiles,
+          contradicted: contradicted.length,
+          unverifiable: unverifiable.length,
+          findings,
+          fileClaimsContradicted: fileContradicted.length,
+          fileClaimsChecked: fileClaims.length,
+          fileClaims: fileClaims.filter((f) => f.verdict === 'CONTRADICTED' || verbose),
+        },
         null,
         2,
       )}\n`,
     );
-    process.exit(contradicted.length > 0 ? 1 : 0);
+    process.exit(contradicted.length + fileContradicted.length > 0 ? 1 : 0);
   }
 
   console.log('check-claims — falsifiable environment claims vs ground truth');
@@ -265,6 +348,45 @@ function main() {
     console.log('');
   }
 
+  // ── class 2: file landmark claims ──
+  const reportFileClaims = () => {
+    console.log(
+      `FILE LANDMARKS (${fileClaims.length}) — ${fileConsistent.length} consistent, ` +
+        `${fileContradicted.length} contradicted:`,
+    );
+    const shown = verbose ? fileClaims : [...fileContradicted, ...fileConsistent].slice(0, 12);
+    for (const f of shown) {
+      const mark = f.verdict === 'CONTRADICTED' ? 'CONTRADICTED' : 'ok          ';
+      console.log(`  ${mark}  ${f.file}:${f.line}  ${f.kind} "${f.subject}"`);
+    }
+    if (!verbose && fileClaims.length > shown.length) {
+      console.log(`  … ${fileClaims.length - shown.length} more (pass --verbose)`);
+    }
+    for (const f of fileContradicted) {
+      console.log(`\n  ${f.file}:${f.line}  ${f.kind} "${f.subject}"`);
+      console.log(`    in comment: ${f.excerpt.slice(0, 160)}`);
+      console.log(
+        `    reality: ${f.kind === 'landed-file' ? 'no such file' : 'file exists'} at ${f.resolvesTo}`,
+      );
+    }
+    if (fileContradicted.length === 0) {
+      console.log('  OK — every ✅ landed file exists, every PLANNED_* entry is genuinely absent');
+    } else {
+      console.log(
+        `\n  ${fileContradicted.length} contradicted file claim(s). An inventory that\n` +
+          '  names a file it does not have sends a reader to a missing file; one that\n' +
+          '  lists a landed port as pending hides real work. Fix the list.',
+      );
+    }
+    console.log('');
+  };
+
+  if (asJson) {
+    // handled above
+  } else {
+    reportFileClaims();
+  }
+
   if (contradicted.length === 0) {
     console.log('OK — no contradicted package-presence claim');
   } else {
@@ -274,7 +396,7 @@ function main() {
         'comment, or add the package, and make the comment say which one it is.',
     );
   }
-  process.exit(contradicted.length > 0 ? 1 : 0);
+  process.exit(contradicted.length + fileContradicted.length > 0 ? 1 : 0);
 }
 
 main();

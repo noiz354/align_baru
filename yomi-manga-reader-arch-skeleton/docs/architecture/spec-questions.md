@@ -247,3 +247,62 @@ layout's effect has already run. One boolean, no router internals.
   that was broken, and that a reader hits by pasting a URL, is covered.
 - T-CATALOG-013 carries the document-side amendments this round produces.
 
+## SQ-OPS-1 — Should `STORAGE_DIR` be a validated variable, or stay an unvalidated dev escape hatch?
+
+**Status: RESOLVED** — the code and DEPLOYMENT.md §3 already agree (the variable is
+deliberately outside both). No document amendment is owed; this entry records why,
+so the next agent does not "fix" it.
+
+### The observation
+
+`STORAGE_DIR` is read straight from `process.env` in two places and appears in
+no other validation surface:
+
+- `src/server/storage/filesystem.ts:26` — `process.env['STORAGE_DIR'] ??
+  join(process.cwd(), 'storage')` picks the storage root.
+- `src/server/storage/object-storage.ts:278` — `process.env['STORAGE_DIR'] !==
+  undefined` is the *condition that selects the filesystem driver at all*.
+
+`DEPLOYMENT.md §3` is the normative inventory (NFR-OPS-002, enforced by
+`UNIT-ENV-006` in `tests/unit/env.config.test.ts`, which asserts
+`ENV_VARIABLE_NAMES` equals that table exactly). `STORAGE_DIR` is not in it.
+So the variable is load-bearing in dev and test, and absent from the document
+that claims to inventory everything.
+
+`MVP_AUDIT/wave3/yomi-manga-reader-arch-skeleton/RUNTIME_PROOF.md:3` records it
+as an operational input of a real run (`STORAGE_DIR=/tmp/yomi-storage`).
+
+### The tension
+
+Registering it in `envSchema` is the obvious fix, and it is the wrong one. Doing
+so adds it to `ENV_VARIABLE_NAMES`, which then fails `UNIT-ENV-006` — and that
+assertion exists precisely to catch divergence between code and the normative
+table. Adding the row to DEPLOYMENT.md §3 instead is worse: production is
+S3/R2 only (ADR-004), so a §3 row would document a variable that no deployment
+should ever set. `DATABASE_URL` is not comparable — it is genuinely required in
+production; `STORAGE_DIR` is a dev/test-only driver selector.
+
+### The decision
+
+**Leave `STORAGE_DIR` unvalidated, and accept the divergence deliberately.**
+
+No trust boundary is crossed: the value is read only from a deploy-controlled
+environment, never from user input, and the S3 keys it is joined with are
+already validated opaque strings (`shared/types`), so the join cannot escape
+the root through the key. The default is a safe absolute path
+(`join(process.cwd(), 'storage')`), and driver selection already treats presence
+as a boolean, so a malformed value cannot select an unintended driver — the
+worst case is a path that does not exist, surfacing as an ordinary ENOENT.
+
+Weakening `UNIT-ENV-006` to accommodate a variable that should never be in the
+contract would remove the alarm that is doing the work. So the alarm stays, and
+the divergence is recorded here instead.
+
+### What follows
+
+- `STORAGE_DIR` is intentionally absent from `envSchema` and from
+  DEPLOYMENT.md §3. Do not "fix" the warning it produces on boot.
+- If a deployment ever needs to redirect storage to a mounted volume rather
+  than S3, that is a real change of DEPLOYMENT.md §3 and ADR-004, raised
+  under T-FOUND-002 — not a schema addition.
+

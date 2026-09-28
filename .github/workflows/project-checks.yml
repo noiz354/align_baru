@@ -10,6 +10,19 @@ on:
 permissions:
   contents: read
 jobs:
+  # HARNESS.md §5: a comment claiming a package is absent, or an inventory
+  # marking a file `✅ landed` that is not on disk, is not evidence — it sends
+  # the next reader to a file that does not exist. This runs before the
+  # per-project jobs because it is the only job that reads the whole tree, and
+  # it needs no install: it settles claims by looking at files.
+  claim-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check-claims.mjs
   python:
     runs-on: ubuntu-latest
     strategy:

@@ -1,17 +1,32 @@
 /**
  * server/db/repositories — port implementations (the ONLY SQL in the app).
  *
- * Planned files (one per port, named to match the feature port):
- *   user.repository.ts        — UserRepository        (T-AUTH-001)
- *   session.repository.ts     — SessionRepository     (T-AUTH-006)
+ * Landed files (one per port, named to match the feature port). The ✅ marks
+ * are machine-checked by the root `scripts/check-claims.mjs`, which fails when
+ * this block names a file that is not on disk.
  *   manga.repository.ts       — MangaRepository       (T-CATALOG-001)  ✅ landed
  *   chapter.repository.ts     — ChapterRepository     (T-CATALOG-001)  ✅ landed
- *   progress.repository.ts    — ReaderProgressRepository (T-READER-021/022)
- *   history.repository.ts     — HistoryRepository / ProgressReader (T-READER-025)
+ *   progress.repository.ts    — ResumePositionReader  (T-CATALOG-009)  ✅ landed
+ *   vocabulary.repository.ts  — CatalogVocabularyPort (T-CATALOG-012)  ✅ landed
+ *
+ * Ports with no file yet (the authoritative record of what is still missing is
+ * {@link PLANNED_REPOSITORIES}, not this comment — a comment cannot be
+ * verified, a constant can):
+ *   user.repository.ts        — UserRepository        (T-AUTH-001)
+ *   session.repository.ts     — SessionRepository     (T-AUTH-006)
  *   library.repository.ts     — LibraryRepository     (T-LIB-001/002)
  *   bookmark.repository.ts    — BookmarkRepository    (T-LIB-007)
  *   search.repository.ts      — SearchRepository      (T-SEARCH-001/002)
  *   upload-job.repository.ts  — UploadJobRepository   (T-UPLOAD-007)
+ *
+ * Two attribution traps, both wrong in the revision this block replaced:
+ * - `progress.repository.ts` implements the narrow `ResumePositionReader`
+ *   (T-CATALOG-009, wired at composition.ts:113), NOT `ReaderProgressRepository`
+ *   (T-READER-021/022). The wider port's `getProgress`/`saveProgress` have no
+ *   implementation anywhere, so `upsertProgress` in `queries/reader-state.ts`
+ *   is still not served by a repository.
+ * - It is NOT T-READER-025 either. `HistoryRepository` (T-READER-025, reading
+ *   history recording) has no file at all.
  *
  * Rules:
  * - Each file implements EXACTLY one feature port (import the interface
@@ -23,9 +38,11 @@
  * - Hot queries carry an index comment (T-PERF-004).
  * - Row → DTO mapping at the boundary (data-flow.md §7).
  *
- * Registered so far: the two catalog repositories of T-CATALOG-001. Every other
- * port is still a skeleton and stays in {@link PLANNED_REPOSITORIES} until its
- * own task lands — an entry is removed only when the file exists.
+ * Registered so far: the two catalog repositories of T-CATALOG-001 (the
+ * `progress`/`vocabulary` factories are imported directly by the composition
+ * root and are not part of this bundle). Every other port is still a skeleton
+ * and stays in {@link PLANNED_REPOSITORIES} until its own task lands — an
+ * entry is removed only when the file exists.
  *
  * Tasks: T-CATALOG-001 (this file's `manga`/`chapter` entries).
  * Requirements: NFR-SEC-015, NFR-PERF-014.
@@ -72,8 +89,15 @@ export {
   buildChapterPagesQuery,
 } from './chapter.repository';
 
-/** The ports still to be implemented, by their TASK id. */
+/**
+ * The ports still to be implemented, by their TASK id.
+ *
+ * Excludes the four landed above. `progress` and `history` are absent because
+ * neither port has a file: `progress.repository.ts` is T-CATALOG-009's
+ * `ResumePositionReader`, and `HistoryRepository` (T-READER-025) is unimplemented.
+ * Kept as a literal so `check-claims.mjs` can verify it against the filesystem.
+ */
 export const PLANNED_REPOSITORIES = [
-  'user', 'session', 'progress', 'history',
+  'user', 'session', 'history',
   'library', 'bookmark', 'search', 'upload-job',
 ] as const;
