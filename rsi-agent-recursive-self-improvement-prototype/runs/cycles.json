@@ -13,333 +13,61 @@
     "auto_accept_max_risk": "MEDIUM"
   },
   "stop_reason": null,
-  "stagnation_count": 2,
+  "stagnation_count": 1,
   "cycles": [
     {
       "cycle": 1,
-      "started_at": 1790482290.5707443,
-      "duration_s": 0.0424,
+      "started_at": 1790562267.910419,
+      "duration_s": 0.0145,
       "state": "RECORDING",
-      "evidence_count": 6,
+      "evidence_count": 2,
       "proposals": [
         {
-          "id": "prop-2205a2fbffaf",
+          "id": "prop-f643229a63b1",
           "source_observation": [
-            "ev-task-b0-3",
-            "ev-task-b0-4"
+            "ev-task-b0-1"
           ],
-          "target_component": "memory:key:safety",
-          "hypothesis": "Memory has no verified lesson covering 'safety'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 2 holdout task(s) that require it.",
-          "expected_benefit": "holdout success rate for tasks requiring 'safety' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
-          "risk_level": "MEDIUM",
-          "risk_reasons": [
-            "security-sensitive knowledge key(s): safety"
-          ],
-          "status": "APPLIED",
-          "created_at": 1790482290.573633,
-          "rejection_reason": null,
-          "targeted_keys": [
-            "safety"
-          ],
-          "evaluation_plan": "run the frozen holdout against baseline memory and against an isolated candidate clone; compare holdout_success_rate, holdout_avg_score, holdout_escalation_rate and targeted_key_coverage; run structural + tamper checks first",
-          "rollback_plan": "restore the archived baseline memory payload (runs/baseline-<revision>.json) and re-verify the baseline holdout metrics; the candidate workspace is discarded",
-          "change_set": {
-            "id": "cs-4c1c6845",
-            "proposal_id": "prop-2205a2fbffaf",
-            "base_revision": "mem-a381c642e2c47374",
-            "reason": "add verified boundary lesson for uncovered key 'safety'",
-            "created_at": 1790482290.5733528,
-            "changes": [
-              {
-                "op": "add",
-                "lesson": {
-                  "id": "lesson-31e466142e99",
-                  "content": "[boundary] 'safety': a first-pass fix failed here during exploration. Before finalizing work that touches 'safety', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
-                  "knowledge_keys": [
-                    "safety"
-                  ],
-                  "source_task_id": "task-b0-3",
-                  "confidence": 0.75,
-                  "verified": true,
-                  "created_at": 6.735,
-                  "kind": "boundary",
-                  "version": 1,
-                  "superseded_by": null,
-                  "deprecated": false
-                },
-                "target_lesson_id": null,
-                "reason": "cover knowledge key 'safety' observed as weak in exploration"
-              }
-            ]
-          },
-          "decision": {
-            "outcome": "ACCEPT",
-            "reasons": [
-              "target metric failed_task_recovery_rate improved by +1.000 with no critical regression"
-            ]
-          }
-        }
-      ],
-      "evaluations": [
-        {
-          "id": "eval-1a0e10f9796",
-          "proposal_id": "prop-2205a2fbffaf",
-          "benchmark_version": "holdout-v1",
-          "environment": {
-            "python": "3.11.2"
-          },
-          "started_at": 1790482290.582702,
-          "duration_s": 0.0077,
-          "passed": true,
-          "critical_regressions": [],
-          "tamper_findings": [],
-          "notes": [],
-          "checks": [
-            {
-              "name": "change-set-valid",
-              "ok": true,
-              "detail": "ok",
-              "mandatory": true
-            },
-            {
-              "name": "tamper-scan",
-              "ok": true,
-              "detail": "ok",
-              "mandatory": true
-            },
-            {
-              "name": "benchmark-version-pinned",
-              "ok": true,
-              "detail": "holdout-v1",
-              "mandatory": true
-            }
-          ],
-          "metrics": [
-            {
-              "name": "failed_task_recovery_rate",
-              "baseline": 0.0,
-              "candidate": 1.0,
-              "delta": 1.0,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_success_rate",
-              "baseline": 0.9091,
-              "candidate": 1.0,
-              "delta": 0.0909,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_avg_score",
-              "baseline": 0.9606,
-              "candidate": 1.0,
-              "delta": 0.0394,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "score",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_escalation_rate",
-              "baseline": 0.0833,
-              "candidate": 0.0833,
-              "delta": 0.0,
-              "higher_is_better": false,
-              "critical": true,
-              "unit": "ratio",
-              "improved": false,
-              "regressed": false
-            },
-            {
-              "name": "targeted_key_coverage",
-              "baseline": 0.0,
-              "candidate": 1.0,
-              "delta": 1.0,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "memory_lessons",
-              "baseline": 6.0,
-              "candidate": 7.0,
-              "delta": 1.0,
-              "higher_is_better": false,
-              "critical": false,
-              "unit": "count",
-              "improved": false,
-              "regressed": true
-            }
-          ]
-        },
-        {
-          "id": "verify-1a0e10f97a6",
-          "proposal_id": "prop-2205a2fbffaf",
-          "benchmark_version": "holdout-v1",
-          "environment": {
-            "python": "3.11.2"
-          },
-          "started_at": 1790482290.5981193,
-          "duration_s": 0.0071,
-          "passed": true,
-          "critical_regressions": [],
-          "tamper_findings": [],
-          "notes": [],
-          "checks": [
-            {
-              "name": "post-apply-verification",
-              "ok": true,
-              "detail": "target failed_task_recovery_rate delta +1.000",
-              "mandatory": true
-            }
-          ],
-          "metrics": [
-            {
-              "name": "failed_task_recovery_rate",
-              "baseline": 0.0,
-              "candidate": 1.0,
-              "delta": 1.0,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_success_rate",
-              "baseline": 0.9091,
-              "candidate": 1.0,
-              "delta": 0.0909,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_avg_score",
-              "baseline": 0.9606,
-              "candidate": 1.0,
-              "delta": 0.0394,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "score",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "holdout_escalation_rate",
-              "baseline": 0.0833,
-              "candidate": 0.0833,
-              "delta": 0.0,
-              "higher_is_better": false,
-              "critical": true,
-              "unit": "ratio",
-              "improved": false,
-              "regressed": false
-            },
-            {
-              "name": "targeted_key_coverage",
-              "baseline": 0.0,
-              "candidate": 1.0,
-              "delta": 1.0,
-              "higher_is_better": true,
-              "critical": true,
-              "unit": "ratio",
-              "improved": true,
-              "regressed": false
-            },
-            {
-              "name": "memory_lessons",
-              "baseline": 6.0,
-              "candidate": 7.0,
-              "delta": 1.0,
-              "higher_is_better": false,
-              "critical": false,
-              "unit": "count",
-              "improved": false,
-              "regressed": true
-            }
-          ]
-        }
-      ],
-      "accepted": [
-        "prop-2205a2fbffaf"
-      ],
-      "rejected": [],
-      "escalated": [],
-      "rolled_back": [],
-      "blocked": [],
-      "baseline_revision": "mem-a381c642e2c47374",
-      "final_revision": "mem-9e8bcfa661c2aa14",
-      "stop_reason": null,
-      "limit_hits": [],
-      "tool_calls": 0
-    },
-    {
-      "cycle": 2,
-      "started_at": 1790482290.633677,
-      "duration_s": 0.0255,
-      "state": "RECORDING",
-      "evidence_count": 12,
-      "proposals": [
-        {
-          "id": "prop-94018263c1cf",
-          "source_observation": [
-            "ev-task-b0-5"
-          ],
-          "target_component": "memory:key:schema",
-          "hypothesis": "Memory has no verified lesson covering 'schema'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 1 holdout task(s) that require it.",
-          "expected_benefit": "holdout success rate for tasks requiring 'schema' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
+          "target_component": "memory:key:typing",
+          "hypothesis": "Memory has no verified lesson covering 'typing'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 2 holdout task(s) that require it.",
+          "expected_benefit": "holdout success rate for tasks requiring 'typing' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
           "risk_level": "LOW",
           "risk_reasons": [
             "1 operation(s), no security-sensitive key, no restricted scope, within diff budget"
           ],
           "status": "REJECTED",
-          "created_at": 1790482290.6380026,
+          "created_at": 1790562267.911815,
           "rejection_reason": "target metric failed_task_recovery_rate did not improve (delta +0.000)",
           "targeted_keys": [
-            "schema"
+            "typing"
           ],
           "evaluation_plan": "run the frozen holdout against baseline memory and against an isolated candidate clone; compare holdout_success_rate, holdout_avg_score, holdout_escalation_rate and targeted_key_coverage; run structural + tamper checks first",
           "rollback_plan": "restore the archived baseline memory payload (runs/baseline-<revision>.json) and re-verify the baseline holdout metrics; the candidate workspace is discarded",
           "change_set": {
-            "id": "cs-c432d1f3",
-            "proposal_id": "prop-94018263c1cf",
-            "base_revision": "mem-9bb207206b9ba72b",
-            "reason": "add verified boundary lesson for uncovered key 'schema'",
-            "created_at": 1790482290.6375034,
+            "id": "cs-347b44cf",
+            "proposal_id": "prop-f643229a63b1",
+            "base_revision": "mem-9aeb40e778bfa734",
+            "reason": "add verified boundary lesson for uncovered key 'typing'",
+            "created_at": 1790562267.9117265,
             "changes": [
               {
                 "op": "add",
                 "lesson": {
-                  "id": "lesson-f6be09c1f666",
-                  "content": "[boundary] 'schema': a first-pass fix failed here during exploration. Before finalizing work that touches 'schema', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
+                  "id": "lesson-a3d54a934028",
+                  "content": "[boundary] 'typing': a first-pass fix failed here during exploration. Before finalizing work that touches 'typing', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
                   "knowledge_keys": [
-                    "schema"
+                    "typing"
                   ],
-                  "source_task_id": "task-b0-5",
+                  "source_task_id": "task-b0-1",
                   "confidence": 0.65,
                   "verified": true,
-                  "created_at": 1.761,
+                  "created_at": 9.699,
                   "kind": "boundary",
                   "version": 1,
                   "superseded_by": null,
                   "deprecated": false
                 },
                 "target_lesson_id": null,
-                "reason": "cover knowledge key 'schema' observed as weak in exploration"
+                "reason": "cover knowledge key 'typing' observed as weak in exploration"
               }
             ]
           },
@@ -353,14 +81,14 @@
       ],
       "evaluations": [
         {
-          "id": "eval-1a0e10f97d8",
-          "proposal_id": "prop-94018263c1cf",
+          "id": "eval-1a0e5d3f30b",
+          "proposal_id": "prop-f643229a63b1",
           "benchmark_version": "holdout-v1",
           "environment": {
             "python": "3.11.2"
           },
-          "started_at": 1790482290.6484795,
-          "duration_s": 0.0061,
+          "started_at": 1790562267.915173,
+          "duration_s": 0.0043,
           "passed": false,
           "critical_regressions": [],
           "tamper_findings": [],
@@ -399,8 +127,8 @@
             },
             {
               "name": "holdout_success_rate",
-              "baseline": 1.0,
-              "candidate": 1.0,
+              "baseline": 0.7273,
+              "candidate": 0.7273,
               "delta": 0.0,
               "higher_is_better": true,
               "critical": true,
@@ -410,8 +138,8 @@
             },
             {
               "name": "holdout_avg_score",
-              "baseline": 1.0,
-              "candidate": 1.0,
+              "baseline": 0.8819,
+              "candidate": 0.8819,
               "delta": 0.0,
               "higher_is_better": true,
               "critical": true,
@@ -443,8 +171,8 @@
             },
             {
               "name": "memory_lessons",
-              "baseline": 12.0,
-              "candidate": 13.0,
+              "baseline": 2.0,
+              "candidate": 3.0,
               "delta": 1.0,
               "higher_is_better": false,
               "critical": false,
@@ -457,42 +185,294 @@
       ],
       "accepted": [],
       "rejected": [
-        "prop-94018263c1cf"
+        "prop-f643229a63b1"
       ],
       "escalated": [],
       "rolled_back": [],
       "blocked": [],
-      "baseline_revision": "mem-9bb207206b9ba72b",
-      "final_revision": "mem-9bb207206b9ba72b",
+      "baseline_revision": "mem-9aeb40e778bfa734",
+      "final_revision": "mem-9aeb40e778bfa734",
       "stop_reason": "no candidate accepted this cycle (stagnation 1/2)",
       "limit_hits": [],
       "tool_calls": 0
     },
     {
-      "cycle": 3,
-      "started_at": 1790482290.6871223,
-      "duration_s": 0.0,
-      "state": "PROPOSING",
-      "evidence_count": 20,
-      "proposals": [],
-      "evaluations": [],
-      "accepted": [],
+      "cycle": 2,
+      "started_at": 1790562267.9332037,
+      "duration_s": 0.0246,
+      "state": "RECORDING",
+      "evidence_count": 4,
+      "proposals": [
+        {
+          "id": "prop-488f54a452cb",
+          "source_observation": [
+            "ev-task-d0-1"
+          ],
+          "target_component": "memory:key:safety",
+          "hypothesis": "Memory has no verified lesson covering 'safety'. Adding one raises targeted-key coverage from 0.00 to 1.00 for the 2 holdout task(s) that require it.",
+          "expected_benefit": "holdout success rate for tasks requiring 'safety' is expected to rise; measured against the frozen holdout, target metric delta must be >= the acceptance threshold",
+          "risk_level": "MEDIUM",
+          "risk_reasons": [
+            "security-sensitive knowledge key(s): safety"
+          ],
+          "status": "APPLIED",
+          "created_at": 1790562267.9347267,
+          "rejection_reason": null,
+          "targeted_keys": [
+            "safety"
+          ],
+          "evaluation_plan": "run the frozen holdout against baseline memory and against an isolated candidate clone; compare holdout_success_rate, holdout_avg_score, holdout_escalation_rate and targeted_key_coverage; run structural + tamper checks first",
+          "rollback_plan": "restore the archived baseline memory payload (runs/baseline-<revision>.json) and re-verify the baseline holdout metrics; the candidate workspace is discarded",
+          "change_set": {
+            "id": "cs-58702366",
+            "proposal_id": "prop-488f54a452cb",
+            "base_revision": "mem-8e7c635e66666b05",
+            "reason": "add verified boundary lesson for uncovered key 'safety'",
+            "created_at": 1790562267.9346063,
+            "changes": [
+              {
+                "op": "add",
+                "lesson": {
+                  "id": "lesson-71445f0eae01",
+                  "content": "[boundary] 'safety': a first-pass fix failed here during exploration. Before finalizing work that touches 'safety', probe its boundary conditions explicitly (empty, late, duplicate and concurrent inputs; retry and timeout paths).",
+                  "knowledge_keys": [
+                    "safety"
+                  ],
+                  "source_task_id": "task-d0-1",
+                  "confidence": 0.65,
+                  "verified": true,
+                  "created_at": 6.501,
+                  "kind": "boundary",
+                  "version": 1,
+                  "superseded_by": null,
+                  "deprecated": false
+                },
+                "target_lesson_id": null,
+                "reason": "cover knowledge key 'safety' observed as weak in exploration"
+              }
+            ]
+          },
+          "decision": {
+            "outcome": "ACCEPT",
+            "reasons": [
+              "target metric failed_task_recovery_rate improved by +0.333 with no critical regression"
+            ]
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "id": "eval-1a0e5d3f322",
+          "proposal_id": "prop-488f54a452cb",
+          "benchmark_version": "holdout-v1",
+          "environment": {
+            "python": "3.11.2"
+          },
+          "started_at": 1790562267.9389005,
+          "duration_s": 0.005,
+          "passed": true,
+          "critical_regressions": [],
+          "tamper_findings": [],
+          "notes": [],
+          "checks": [
+            {
+              "name": "change-set-valid",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "tamper-scan",
+              "ok": true,
+              "detail": "ok",
+              "mandatory": true
+            },
+            {
+              "name": "benchmark-version-pinned",
+              "ok": true,
+              "detail": "holdout-v1",
+              "mandatory": true
+            }
+          ],
+          "metrics": [
+            {
+              "name": "failed_task_recovery_rate",
+              "baseline": 0.0,
+              "candidate": 0.3333,
+              "delta": 0.3333,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_success_rate",
+              "baseline": 0.7273,
+              "candidate": 0.8182,
+              "delta": 0.0909,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_avg_score",
+              "baseline": 0.8819,
+              "candidate": 0.9213,
+              "delta": 0.0394,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "score",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_escalation_rate",
+              "baseline": 0.0833,
+              "candidate": 0.0833,
+              "delta": 0.0,
+              "higher_is_better": false,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "targeted_key_coverage",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "memory_lessons",
+              "baseline": 4.0,
+              "candidate": 5.0,
+              "delta": 1.0,
+              "higher_is_better": false,
+              "critical": false,
+              "unit": "count",
+              "improved": false,
+              "regressed": true
+            }
+          ]
+        },
+        {
+          "id": "verify-1a0e5d3f32d",
+          "proposal_id": "prop-488f54a452cb",
+          "benchmark_version": "holdout-v1",
+          "environment": {
+            "python": "3.11.2"
+          },
+          "started_at": 1790562267.949225,
+          "duration_s": 0.0037,
+          "passed": true,
+          "critical_regressions": [],
+          "tamper_findings": [],
+          "notes": [],
+          "checks": [
+            {
+              "name": "post-apply-verification",
+              "ok": true,
+              "detail": "target failed_task_recovery_rate delta +0.333",
+              "mandatory": true
+            }
+          ],
+          "metrics": [
+            {
+              "name": "failed_task_recovery_rate",
+              "baseline": 0.0,
+              "candidate": 0.3333,
+              "delta": 0.3333,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_success_rate",
+              "baseline": 0.7273,
+              "candidate": 0.8182,
+              "delta": 0.0909,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_avg_score",
+              "baseline": 0.8819,
+              "candidate": 0.9213,
+              "delta": 0.0394,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "score",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "holdout_escalation_rate",
+              "baseline": 0.0833,
+              "candidate": 0.0833,
+              "delta": 0.0,
+              "higher_is_better": false,
+              "critical": true,
+              "unit": "ratio",
+              "improved": false,
+              "regressed": false
+            },
+            {
+              "name": "targeted_key_coverage",
+              "baseline": 0.0,
+              "candidate": 1.0,
+              "delta": 1.0,
+              "higher_is_better": true,
+              "critical": true,
+              "unit": "ratio",
+              "improved": true,
+              "regressed": false
+            },
+            {
+              "name": "memory_lessons",
+              "baseline": 4.0,
+              "candidate": 5.0,
+              "delta": 1.0,
+              "higher_is_better": false,
+              "critical": false,
+              "unit": "count",
+              "improved": false,
+              "regressed": true
+            }
+          ]
+        }
+      ],
+      "accepted": [
+        "prop-488f54a452cb"
+      ],
       "rejected": [],
       "escalated": [],
       "rolled_back": [],
       "blocked": [],
-      "baseline_revision": "mem-061a72f0df0eec8d",
-      "final_revision": "mem-061a72f0df0eec8d",
-      "stop_reason": "no actionable proposals (1/2 consecutive stagnant cycles)",
+      "baseline_revision": "mem-8e7c635e66666b05",
+      "final_revision": "mem-e1a10572ce4651b0",
+      "stop_reason": null,
       "limit_hits": [],
       "tool_calls": 0
     },
     {
-      "cycle": 4,
-      "started_at": 1790482290.6926146,
+      "cycle": 3,
+      "started_at": 1790562267.9671366,
       "duration_s": 0.0,
       "state": "PROPOSING",
-      "evidence_count": 20,
+      "evidence_count": 4,
       "proposals": [],
       "evaluations": [],
       "accepted": [],
@@ -500,9 +480,9 @@
       "escalated": [],
       "rolled_back": [],
       "blocked": [],
-      "baseline_revision": "mem-061a72f0df0eec8d",
-      "final_revision": "mem-061a72f0df0eec8d",
-      "stop_reason": "no actionable proposals (2/2 consecutive stagnant cycles)",
+      "baseline_revision": "mem-e1a10572ce4651b0",
+      "final_revision": "mem-e1a10572ce4651b0",
+      "stop_reason": "no actionable proposals (1/2 consecutive stagnant cycles)",
       "limit_hits": [],
       "tool_calls": 0
     }

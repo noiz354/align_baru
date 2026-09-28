@@ -1,12 +1,10 @@
 /**
- * Chat page — real implementation.
+ * Chat page — real implementation via WebSocket signaling (TEXT only for MVP_PARTIAL).
  *
  * Requirements:
  * - FR-CHAT-001 … FR-CHAT-009
  * - T-CHAT-001, T-CHAT-002, T-SESSION-END-013, T-SESSION-END-014, T-SESSION-END-015
- * - T-REPORT-006, T-BLOCK-017
- * - T-MEDIA-081, T-MEDIA-082
- * - NFR-SAFE-001 (six disconnect states)
+ * - ADR-003, ADR-004, STATE_MACHINE.md
  */
 
 'use client';
@@ -21,6 +19,7 @@ import { Button } from '../../../shared/ui/Button';
 import { LiveRegion } from '../../../shared/ui/LiveRegion';
 import type { SessionDisconnectState } from '../../../features/chat/chat.service';
 import type { ReportCategory } from '../../../shared/contracts/signaling';
+import { createSignalingClient } from '../../../features/signaling/signaling.client';
 
 interface ChatMessage {
   id: string;
@@ -52,8 +51,15 @@ export default function ChatSessionPage(): React.JSX.Element {
   const [mediaState, setMediaState] = useState<'idle' | 'active' | 'permission-denied' | 'failed'>('idle');
   const [isConnected, setIsConnected] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<ReturnType<typeof createSignalingClient> | null>(null);
+  const participantIdRef = useRef<string>('');
+  const sessionIdRef = useRef<string>('');
 
   const sessionId = typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '' : '';
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     // FR-ENTRY-005: redirect without consent
@@ -68,63 +74,162 @@ export default function ChatSessionPage(): React.JSX.Element {
       return;
     }
 
-    // Simulate stranger messages for demo
-    const strangerMessages = [
-      'Hey! How are you?',
-      'Nice to meet you',
-      'What do you like to do?',
-      'Cool, tell me more',
-    ];
-    let msgIndex = 0;
-    const interval = setInterval(() => {
-      if (sessionStatus !== 'active') {
-        clearInterval(interval);
-        return;
-      }
-      if (msgIndex < strangerMessages.length && Math.random() > 0.5) {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `stranger-${Date.now()}`,
-            body: strangerMessages[msgIndex++],
-            sender: 'stranger',
-            timestamp: new Date(),
-          },
-        ]);
-      }
-    }, 3000);
+    // Real signaling: connect and handle messages
+    let cancelled = false;
+    (async () => {
+      try {
+        let pid = sessionStorage.getItem('strangerlink_participantId');
+        if (!pid) {
+          pid = crypto.randomUUID();
+          sessionStorage.setItem('strangerlink_participantId', pid);
+        }
+        participantIdRef.current = pid;
+        const sid = sessionIdRef.current || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '' : '');
+        if (!sid) return;
 
-    return () => clearInterval(interval);
-  }, [sessionStatus]);
+        function getRealtimeUrl(): string {
+          if (typeof window === 'undefined') return 'ws://localhost:3001';
+          const host = window.location.hostname;
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          if (host.includes('e2b.app')) {
+            return `${protocol}//${host.replace(/^\d+-/, '3001-')}`;
+          }
+          return `${protocol}//${host}:3001`;
+        }
+        const wsUrl = (process.env.NEXT_PUBLIC_REALTIME_URL as string) || getRealtimeUrl();
+        const client = createSignalingClient(wsUrl);
+        wsRef.current = client;
+
+        client.onMessage((msg: any) => {
+          if (cancelled) return;
+          if (msg.type === 'MESSAGE_DELIVERED') {
+            const body = msg.payload?.body;
+            if (!body) return;
+            // Ignore our own echo (should not happen, server relays only to peer)
+            // Add as stranger
+            setMessages(prev => [...prev, {
+              id: `stranger-${msg.messageId || Date.now()}`,
+              body,
+              sender: 'stranger',
+              timestamp: new Date(msg.sentAt || Date.now()),
+            }]);
+          } else if (msg.type === 'MESSAGE_REJECTED') {
+            const reason = msg.payload?.reasonClass;
+            setAnnouncement(`Message not delivered: ${reason}`);
+            // Optionally surface in UI
+          } else if (msg.type === 'PEER_LEFT' || msg.type === 'SESSION_ENDED') {
+            const reasonClass = msg.payload?.reasonClass || msg.payload?.endReason || 'peer-left';
+            // Map to disconnect state
+            let state: SessionDisconnectState = 'peer-disconnected';
+            if (reasonClass === 'transport-lost' || reasonClass === 'failed' || reasonClass === 'server-restart') {
+              state = 'network-issue';
+            } else if (reasonClass === 'blocked' || msg.type === 'BLOCK_CREATED') {
+              state = 'user-block';
+            }
+            setSessionStatus(state);
+            if (state === 'peer-disconnected') setAnnouncement('Your stranger left the chat');
+            else if (state === 'network-issue') setAnnouncement('Your connection was lost');
+          } else if (msg.type === 'ERROR') {
+            const code = msg.payload?.code;
+            if (code === 'RATE_LIMITED') {
+              setAnnouncement('Please wait a few seconds before trying again');
+            }
+          } else if (msg.type === 'BLOCK_CREATED') {
+            setSessionStatus('user-block');
+            setAnnouncement('You blocked this person. They can’t match with you again.');
+          } else if (msg.type === 'REPORT_SUBMITTED') {
+            // report ack
+          }
+        });
+
+        client.onDisconnect((reason) => {
+          if (cancelled) return;
+          if (sessionStatus === 'active') {
+            setIsConnected(false);
+            setAnnouncement('Reconnecting…');
+            // auto-reconnect is handled inside client; keep status active until PEER_LEFT
+          }
+        });
+
+        await client.connect(pid);
+        setIsConnected(true);
+        setAnnouncement('Connected to stranger');
+
+        // No need to send SESSION_READY for TEXT; server already created session via matchmaking
+        // But we can optionally send SESSION_READY to mark client ready
+        // For now, nothing
+
+      } catch (e) {
+        console.error('chat ws error', e);
+        if (!cancelled) {
+          setIsConnected(false);
+          setAnnouncement('Could not connect — please leave and try again');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      // do not close ws here if still active and user is navigating via leave; keep open until leave
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSend = (body: string) => {
-    // Length and rate limiting enforced server-side, but also client-side UX
     if (body.length > 2000) {
       alert('Message is too long — max 2000 characters');
       return;
     }
     if (body.trim().length === 0) return;
 
+    const clientMessageId = crypto.randomUUID();
     const newMsg: ChatMessage = {
-      id: `me-${Date.now()}`,
+      id: `me-${clientMessageId}`,
       body,
       sender: 'me',
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMsg]);
+
+    // Send via ws
+    const client = wsRef.current;
+    const pid = participantIdRef.current || sessionStorage.getItem('strangerlink_participantId') || '';
+    const sid = sessionIdRef.current || sessionId;
+    if (client && pid && sid) {
+      const msg: any = {
+        type: 'MESSAGE_SEND',
+        messageId: crypto.randomUUID(),
+        sessionId: sid,
+        fromParticipantId: pid,
+        sequence: 0,
+        sentAt: new Date().toISOString(),
+        payload: {
+          clientMessageId,
+          body,
+        },
+      };
+      client.send(msg).catch((e) => {
+        console.error('send failed', e);
+        setAnnouncement('Message not delivered — please try again');
+      });
+    }
   };
 
   const handleSkip = () => {
-    // EC-01: both peers press Skip simultaneously — exactly one session-end event
+    // For text chat, skip is same as leave — close ws which triggers PEER_LEFT for peer
+    wsRef.current?.close().catch(()=>{});
     setSessionStatus('peer-disconnected');
     setAnnouncement('Your stranger left the chat');
   };
 
   const handleLeave = () => {
+    wsRef.current?.close().catch(()=>{});
+    // small delay to allow PEER_LEFT to be sent before navigation, but also navigate immediately for local UX
+    setTimeout(() => { window.location.href = '/'; }, 200);
+    // also immediate for test
     window.location.href = '/';
   };
 
@@ -134,12 +239,27 @@ export default function ChatSessionPage(): React.JSX.Element {
 
   const handleSubmitReport = () => {
     if (!selectedCategory) return;
-    // Report submission remains possible even if peer disconnects (FR-REPORT-002)
-    // Opening sheet does not end session; submitting does (FR-REPORT-006)
+    const client = wsRef.current;
+    const pid = participantIdRef.current || '';
+    const sid = sessionIdRef.current || sessionId;
+    if (client && pid && sid) {
+      const msg: any = {
+        type: 'REPORT_SUBMITTED',
+        messageId: crypto.randomUUID(),
+        sessionId: sid,
+        fromParticipantId: pid,
+        sequence: 0,
+        sentAt: new Date().toISOString(),
+        payload: {
+          category: selectedCategory,
+          note: reportNote || null,
+        },
+      };
+      client.send(msg).catch(()=>{});
+    }
     setShowReportSheet(false);
     setSessionStatus('peer-disconnected');
     setAnnouncement('Report received. Thanks — we have received your report.');
-    // In production: POST /api/report with sessionId, category, note
   };
 
   const handleBlock = () => {
@@ -147,25 +267,39 @@ export default function ChatSessionPage(): React.JSX.Element {
   };
 
   const handleConfirmBlock = () => {
+    const client = wsRef.current;
+    const pid = participantIdRef.current || '';
+    const sid = sessionIdRef.current || sessionId;
+    if (client && pid && sid) {
+      const msg: any = {
+        type: 'BLOCK_CREATED',
+        messageId: crypto.randomUUID(),
+        sessionId: sid,
+        fromParticipantId: pid,
+        sequence: 0,
+        sentAt: new Date().toISOString(),
+        payload: { scope: 'session' },
+      };
+      client.send(msg).catch(()=>{});
+    }
     setShowBlockConfirm(false);
     setSessionStatus('user-block');
     setAnnouncement('You blocked this person. They can’t match with you again.');
+    // also close after block
+    wsRef.current?.close().catch(()=>{});
   };
 
   const handleRequeue = () => {
-    // Requeue with block re-check at candidate selection (R5, T-SESSION-END-014)
+    wsRef.current?.close().catch(()=>{});
     window.location.href = '/queue';
   };
 
   const handleEnableMedia = async (kind: 'camera' | 'microphone') => {
-    // FR-MEDIA-003: requires explicit user gesture — this button click is the gesture
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
         kind === 'camera' ? { video: true, audio: true } : { audio: true },
       );
       setMediaState('active');
-      // In production: attach to peer connection, create offer
-      // Cleanup: stop tracks on session end
       const cleanup = () => {
         stream.getTracks().forEach(t => t.stop());
       };
@@ -244,7 +378,7 @@ export default function ChatSessionPage(): React.JSX.Element {
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }} data-testid="messages">
         {messages.length === 0 && (
           <p style={{ textAlign: 'center', color: '#9CA3AF', marginTop: '24px' }}>You&apos;re connected. Say hi.</p>
         )}

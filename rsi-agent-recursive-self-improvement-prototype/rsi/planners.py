@@ -21,6 +21,24 @@ from typing import Any, Protocol
 
 from .types import Action, Task, stable_seed
 
+try:
+    from .providers import MockProvider, ProviderError, ProviderRequest, RealLLMProvider, get_provider
+except Exception:  # pragma: no cover - import guard for tests before providers added
+    MockProvider = None  # type: ignore
+    RealLLMProvider = None  # type: ignore
+    ProviderError = RuntimeError  # type: ignore
+
+    def get_provider(*_a, **_kw):  # type: ignore
+        raise RuntimeError("providers not available")
+
+    class ProviderRequest:  # type: ignore
+        def __init__(self, prompt: str, system: str = "", temperature: float = 0.2, task_id: str = "", metadata=None):
+            self.prompt = prompt
+            self.system = system
+            self.temperature = temperature
+            self.task_id = task_id
+            self.metadata = metadata or {}
+
 
 class Planner(Protocol):
     name: str
@@ -153,19 +171,43 @@ class OpenAICompatPlanner:
     def __init__(self, task: Task, covered_keys: set[str], seed: int = 0,
                  name: str | None = None, model: str | None = None,
                  api_key: str | None = None, base_url: str | None = None,
-                 temperature: float = 0.2):
+                 temperature: float = 0.2, provider=None):
         self.task = task
         self.covered_keys = covered_keys
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.name = name or f"openai:{self.model}"
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL")
-                         or "https://api.openai.com/v1").rstrip("/")
+        # RSI_PROVIDER boundary: explicit provider wins, else env fallback (RSI_* then OPENAI_*)
+        # Keep backward compat message "OpenAICompatPlanner needs OPENAI_API_KEY"
+        resolved_model = model or os.environ.get("RSI_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
+        resolved_key = api_key or os.environ.get("RSI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        resolved_url = (base_url or os.environ.get("RSI_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+                        or "https://api.openai.com/v1").rstrip("/")
+        if provider is not None:
+            self._provider = provider
+            self.model = getattr(provider, "model", resolved_model)
+            self.name = name or f"openai:{self.model}"
+            self.api_key = getattr(provider, "_api_key", resolved_key)  # type: ignore
+            self.base_url = getattr(provider, "base_url", resolved_url)
+        else:
+            self.model = resolved_model
+            self.name = name or f"openai:{self.model}"
+            self.api_key = resolved_key
+            self.base_url = resolved_url
+            # Build provider lazily for the boundary (validates credential)
+            if not self.api_key:
+                raise RuntimeError("OpenAICompatPlanner needs OPENAI_API_KEY (or RSI_API_KEY when RSI_PROVIDER=openai-compatible)")
+            try:
+                # Prefer the bounded RealLLMProvider (stdlib, no vendor SDK)
+                if RealLLMProvider is not None:
+                    self._provider = RealLLMProvider(model=self.model, api_key=self.api_key, base_url=self.base_url, temperature=temperature)
+                else:
+                    self._provider = None
+            except Exception as exc:
+                # Normalize to the same RuntimeError type callers expect, but keep ProviderError code
+                if "missing_credentials" in str(type(exc).__name__).lower() or "missing" in str(exc).lower():
+                    raise RuntimeError(str(exc)) from exc
+                raise
         self.temperature = temperature
         self._checks: dict[str, bool] = {}
         self._failure_mode: str | None = None
-        if not self.api_key:
-            raise RuntimeError("OpenAICompatPlanner needs OPENAI_API_KEY")
 
     def next_action(self, ctx: dict[str, Any]) -> Action:
         prompt = self._render_prompt(ctx)
@@ -208,6 +250,15 @@ class OpenAICompatPlanner:
         )
 
     def _chat(self, prompt: str) -> str:
+        # Bounded path: delegate to RealLLMProvider when available
+        provider = getattr(self, "_provider", None)
+        if provider is not None and hasattr(provider, "complete"):
+            # Use the provider boundary (stable errors, usage metadata, no secret leakage)
+            req = ProviderRequest(prompt=prompt, system="You are a careful software engineering agent.",
+                                  temperature=self.temperature, task_id=getattr(self.task, "id", ""))
+            resp = provider.complete(req)
+            return resp.content
+        # Fallback (should not happen when provider is configured): raw urllib
         payload = {
             "model": self.model,
             "temperature": self.temperature,
@@ -247,9 +298,54 @@ def mock_planner_factory(route: str, task: Task, covered_keys: set[str],
 
 def openai_planner_factory(fast_model: str = "gpt-4o-mini",
                            deep_model: str = "gpt-4o") -> Any:
+    # Align with RSI_PROVIDER boundary: fast/deep model may also be overridden by RSI_MODEL
+    # if single-model provider is configured. Per-call provider is lazy (fail-closed).
     def factory(route: str, task: Task, covered_keys: set[str],
                 seed: int = 0, actor_id: str = "actor-0") -> Planner:
         model = deep_model if route == "deep_model" else fast_model
+        # RSI_MODEL (single-model mode) overrides per-route model when set
+        env_model = os.environ.get("RSI_MODEL")
+        if env_model:
+            model = env_model.strip() or model
+        # Build planner via bounded provider when possible; deferred validation keeps
+        # factory creation offline-safe for tests.
+        try:
+            if get_provider is not None and RealLLMProvider is not None:
+                # Explicit mock provider should never produce an OpenAI planner; defer to caller
+                rsi_provider = os.environ.get("RSI_PROVIDER", "").strip().lower()
+                if rsi_provider in ("mock", "mock-provider"):
+                    # Caller forced mock but used openai factory — respect requested model
+                    return OpenAICompatPlanner(task=task, covered_keys=covered_keys,
+                                               model=model, name=f"{route}:{actor_id}")
+                # Try bounded provider; it will raise ProviderError if key missing (fail-closed)
+                base_url = os.environ.get("RSI_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+                api_key = os.environ.get("RSI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+                if api_key:
+                    provider = RealLLMProvider(model=model, api_key=api_key, base_url=base_url or "https://api.openai.com/v1")
+                    return OpenAICompatPlanner(task=task, covered_keys=covered_keys,
+                                               model=model, name=f"{route}:{actor_id}", provider=provider)
+        except Exception:
+            # Fall back to legacy init which will raise the expected RuntimeError with clear message
+            pass
         return OpenAICompatPlanner(task=task, covered_keys=covered_keys,
                                    model=model, name=f"{route}:{actor_id}")
     return factory
+
+
+def provider_planner_factory(provider_name: str | None = None) -> Any:
+    """Unified planner factory via RSI_PROVIDER boundary.
+
+    provider_name overrides RSI_PROVIDER env for testing.
+    Returns a factory (route, task, covered_keys, seed, actor_id) -> Planner
+    that uses MockProvider for mock and RealLLMProvider for real.
+    """
+    name = (provider_name or os.environ.get("RSI_PROVIDER") or "mock").strip().lower()
+    aliases = {"": "mock", "mock": "mock", "mock-provider": "mock",
+               "openai": "openai-compatible", "openai-compatible": "openai-compatible",
+               "real": "openai-compatible", "vllm": "openai-compatible", "ollama": "openai-compatible"}
+    canonical = aliases.get(name, name)
+    if canonical == "mock":
+        return mock_planner_factory
+    # real: return openai factory (models from env/default)
+    # Fail-closed is at planner instantiation, not here, so offline imports stay safe
+    return openai_planner_factory()

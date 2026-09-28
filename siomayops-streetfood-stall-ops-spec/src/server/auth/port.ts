@@ -37,7 +37,7 @@ export interface AuthPort {
   revokeDevice(deviceId: string, reason: string): Promise<void>;
 }
 
-const DEFAULT_ORG_ID = "00000000-0000-7000-8000-000000000001";
+const DEFAULT_ORG_ID = "00000000-0000-7000-0000-000000000001";
 
 export function createAuthPort(): AuthPort {
   return {
@@ -57,7 +57,7 @@ export function createAuthPort(): AuthPort {
       };
       return {
         organizationId: scope.organizationId,
-        userId: "00000000-0000-7000-8000-000000000002",
+        userId: "00000000-0000-7000-0000-000000000002",
         operatorId: operatorId,
         roles: [role],
         scope,
@@ -71,11 +71,11 @@ export function createAuthPort(): AuthPort {
       const scope: Scope = {
         kind: "self",
         organizationId: DEFAULT_ORG_ID,
-        operatorId: "00000000-0000-7000-8000-000000000010",
+        operatorId: "00000000-0000-7000-0000-000000000010",
       };
       return {
         organizationId: DEFAULT_ORG_ID,
-        userId: "00000000-0000-7000-8000-000000000011",
+        userId: "00000000-0000-7000-0000-000000000002",
         operatorId: scope.operatorId,
         roles: ["OPERATOR"],
         scope,

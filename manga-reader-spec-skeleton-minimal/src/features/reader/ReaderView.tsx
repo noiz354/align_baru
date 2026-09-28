@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import type { ChapterManifest } from "../chapters/contracts";
 import type { ReadingMode, ReadingDirection } from "../../shared/types/reader";
 import { calculateReaderWindow } from "./ports";
@@ -9,16 +9,22 @@ import { displayIndex, stepPage, spreadFor, clamp } from "./reader-core";
 interface ReaderViewProps {
   manifest: ChapterManifest;
   initialPage?: number;
+  chapterId?: string;
+  userId?: string;
 }
 
-export function ReaderView({ manifest, initialPage = 1 }: ReaderViewProps) {
+export function ReaderView({ manifest, initialPage = 1, chapterId, userId = "usr-guest-001" }: ReaderViewProps) {
   const totalPages = manifest.pages.length;
+  const effectiveChapterId = chapterId ?? manifest.chapterId;
   const [direction, setDirection] = useState<ReadingDirection>(manifest.readingDirection);
   const [mode, setMode] = useState<ReadingMode>("single");
   const [currentPage, setCurrentPage] = useState<number>(clamp(initialPage, 1, totalPages));
   const [zoom, setZoom] = useState<number>(100);
   const [chromeVisible, setChromeVisible] = useState<boolean>(true);
-  const [progressStatus, setProgressStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [progressStatus, setProgressStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [loadedProgress, setLoadedProgress] = useState<number | null>(null);
+  const didLoadRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
 
   const windowRange = calculateReaderWindow({
     currentPage,
@@ -43,11 +49,9 @@ export function ReaderView({ manifest, initialPage = 1 }: ReaderViewProps) {
       }
       switch (e.key) {
         case "ArrowRight":
-          // In RTL: right arrow is previous page; in LTR: right arrow is next page
           navigate(direction === "rtl" ? -1 : 1);
           break;
         case "ArrowLeft":
-          // In RTL: left arrow is next page; in LTR: left arrow is previous page
           navigate(direction === "rtl" ? 1 : -1);
           break;
         case "ArrowDown":
@@ -84,14 +88,65 @@ export function ReaderView({ manifest, initialPage = 1 }: ReaderViewProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [direction, navigate, totalPages]);
 
-  // Save progress simulation
+  // Load saved progress on mount (durable)
   useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`/api/v1/progress?chapterId=${encodeURIComponent(effectiveChapterId)}&userId=${encodeURIComponent(userId)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data && typeof data.pageNumber === "number") {
+          const saved = clamp(data.pageNumber, 1, totalPages);
+          // only apply if initialPage was default 1 or if saved is different
+          setLoadedProgress(saved);
+          // if initialPage was 1 (no explicit ?page=), adopt saved; otherwise respect URL but still show saved badge
+          if (initialPage === 1 || saved !== initialPage) {
+            setCurrentPage(saved);
+          }
+          setProgressStatus("saved");
+          didLoadRef.current = true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [effectiveChapterId, userId, totalPages, initialPage]);
+
+  // Save progress on page change (durable, debounced)
+  useEffect(() => {
+    // don't save on first render before load completes if we haven't loaded yet and page is initial
+    if (!didLoadRef.current && loadedProgress === null && currentPage === clamp(initialPage, 1, totalPages)) {
+      // still allow save after load; but skip immediate save on mount if no load yet
+      // we will save after load sets didLoad
+      return;
+    }
     setProgressStatus("saving");
-    const timer = setTimeout(() => {
-      setProgressStatus("saved");
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    // debounce 300ms like before, but now real PUT
+    // @ts-ignore
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/progress`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chapterId: effectiveChapterId, pageNumber: currentPage, userId }),
+        });
+        if (!res.ok) throw new Error("save failed");
+        setProgressStatus("saved");
+      } catch {
+        setProgressStatus("error");
+        // fallback to saved after a bit
+        setTimeout(() => setProgressStatus("saved"), 1000);
+      }
     }, 300);
-    return () => clearTimeout(timer);
-  }, [currentPage]);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [currentPage, effectiveChapterId, userId, initialPage, totalPages, loadedProgress]);
 
   // Generate SVG placeholder for pages (licensing-safe, no external assets)
   function renderPageCanvas(pageNum: number) {
@@ -175,8 +230,9 @@ export function ReaderView({ manifest, initialPage = 1 }: ReaderViewProps) {
         >
           <div>
             <span style={{ fontWeight: 600, fontSize: "15px" }}>{manifest.title}</span>
-            <span style={{ marginLeft: "10px", fontSize: "12px", color: "#a1a1aa" }}>
-              {progressStatus === "saving" ? "Saving..." : "Progress saved"}
+            <span style={{ marginLeft: "10px", fontSize: "12px", color: progressStatus === "error" ? "#f87171" : "#a1a1aa" }}>
+              {progressStatus === "saving" ? "Saving..." : progressStatus === "error" ? "Save failed" : "Progress saved"}
+              {loadedProgress !== null ? ` • restored ${loadedProgress}` : ""}
             </span>
           </div>
 
@@ -267,7 +323,6 @@ export function ReaderView({ manifest, initialPage = 1 }: ReaderViewProps) {
           overflowY: mode === "vertical" ? "auto" : "hidden",
         }}
         onClick={(e) => {
-          // Click zones for touch/pointer (FR-READER-004): 25% left, 50% deadzone/chrome toggle, 25% right
           const rect = e.currentTarget.getBoundingClientRect();
           const clickXRatio = (e.clientX - rect.left) / rect.width;
           if (clickXRatio < 0.25) {

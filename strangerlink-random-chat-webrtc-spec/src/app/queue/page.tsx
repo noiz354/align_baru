@@ -1,10 +1,11 @@
 /**
- * Queue page — real implementation.
+ * Queue page — real implementation via WebSocket signaling.
  *
  * Requirements:
  * - FR-QUEUE-001 … FR-QUEUE-008
  * - T-QUEUE-011, T-QUEUE-012
  * - FR-ENTRY-005 (redirect without consent)
+ * - ADR-003 (ws), ADR-004 (signaling), STATE_MACHINE.md
  */
 
 'use client';
@@ -12,6 +13,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '../../shared/ui/Button';
 import { LiveRegion } from '../../shared/ui/LiveRegion';
+import { createSignalingClient } from '../../features/signaling/signaling.client';
 
 export default function QueuePage(): React.JSX.Element {
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -20,6 +22,8 @@ export default function QueuePage(): React.JSX.Element {
   const [announcement, setAnnouncement] = useState('Looking for someone who wants to chat');
   const startTimeRef = useRef<number>(Date.now());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wsRef = useRef<ReturnType<typeof createSignalingClient> | null>(null);
+  const participantIdRef = useRef<string>('');
 
   useEffect(() => {
     // FR-ENTRY-005: redirect to /start when consent absent
@@ -70,43 +74,132 @@ export default function QueuePage(): React.JSX.Element {
       const elapsed = Date.now() - startTimeRef.current;
       setElapsedMs(elapsed);
 
-      // Queue timeout: 120s (PERFORMANCE.md)
       if (elapsed > 120_000) {
         setStatus('expired');
         setAnnouncement('Nobody is available right now');
         if (intervalRef.current) clearInterval(intervalRef.current);
+        // close ws if still waiting
+        wsRef.current?.close().catch(()=>{});
       } else if (elapsed % 10000 < 1000) {
-        // Announce at intervals, not every second (a11y)
         setAnnouncement(`Waiting for ${Math.floor(elapsed / 1000)} seconds`);
       }
     }, 1000);
 
-    // Simulate matchmaking — in production this would be WebSocket JOIN_QUEUE
-    // For demo, auto-match after 3-8 seconds
-    const matchTimeout = setTimeout(() => {
-      if (status !== 'expired' && status !== 'cooldown') {
-        // In real app, this would come from server MATCH_FOUND
-        const sessionId = `session-${Date.now()}`;
-        try {
-          sessionStorage.setItem('strangerlink_sessionId', sessionId);
-        } catch {}
-        setStatus('matched');
-        setAnnouncement('Match found! Connecting...');
-        setTimeout(() => {
-          window.location.href = `/chat/${sessionId}`;
-        }, 1000);
+    // Real signaling: connect to realtime ws and JOIN_QUEUE
+    let cancelled = false;
+    (async () => {
+      try {
+        // participantId persisted per browser context
+        let pid = sessionStorage.getItem('strangerlink_participantId');
+        if (!pid) {
+          pid = crypto.randomUUID();
+          sessionStorage.setItem('strangerlink_participantId', pid);
+        }
+        participantIdRef.current = pid;
+
+        const mode = (sessionStorage.getItem('strangerlink_mode') as any) || 'TEXT';
+        const interestsRaw = sessionStorage.getItem('strangerlink_interests');
+        let interestIds: string[] = [];
+        try { interestIds = interestsRaw ? JSON.parse(interestsRaw) : []; } catch {}
+        const language = sessionStorage.getItem('strangerlink_language') || null;
+        const consentRaw = sessionStorage.getItem('strangerlink_consent');
+        let consentVersion = 1;
+        try { const c = consentRaw ? JSON.parse(consentRaw) : {}; consentVersion = c.consentVersion || 1; } catch {}
+
+        // Derive realtime URL: ws://localhost:3001 or wss://3001-...e2b.app for preview
+        function getRealtimeUrl(): string {
+          if (typeof window === 'undefined') return 'ws://localhost:3001';
+          const host = window.location.hostname;
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          if (host.includes('e2b.app')) {
+            return `${protocol}//${host.replace(/^\d+-/, '3001-')}`;
+          }
+          // localhost:3105 -> localhost:3001
+          return `${protocol}//${host}:3001`;
+        }
+        const wsUrl = (process.env.NEXT_PUBLIC_REALTIME_URL as string) || getRealtimeUrl();
+        const client = createSignalingClient(wsUrl);
+        wsRef.current = client;
+
+        client.onMessage((msg: any) => {
+          if (cancelled) return;
+          if (msg.type === 'MATCH_FOUND') {
+            const sessionId = msg.payload?.sessionId || msg.sessionId;
+            if (!sessionId) return;
+            try { sessionStorage.setItem('strangerlink_sessionId', sessionId); } catch {}
+            // store peer role if needed
+            try { sessionStorage.setItem('strangerlink_sessionRole', msg.payload?.peerRole || ''); } catch {}
+            setStatus('matched');
+            setAnnouncement('Match found! Connecting...');
+            setTimeout(() => {
+              if (!cancelled) window.location.href = `/chat/${sessionId}`;
+            }, 600);
+          } else if (msg.type === 'ERROR') {
+            const code = msg.payload?.code;
+            if (code === 'RATE_LIMITED' || code === 'RESTRICTED') {
+              const retryMs = msg.payload?.retryAfterMs || 30000;
+              const expiry = Date.now() + retryMs;
+              try { sessionStorage.setItem('strangerlink_cooldown', expiry.toString()); } catch {}
+              setStatus('cooldown');
+              setCooldownRemaining(retryMs);
+            } else if (code === 'QUEUE_CANCELLED' || msg.type === 'QUEUE_CANCELLED') {
+              setStatus('expired');
+              setAnnouncement('Queue cancelled');
+            }
+          } else if (msg.type === 'QUEUE_CANCELLED') {
+            setStatus('expired');
+            setAnnouncement('Queue cancelled');
+          } else if (msg.type === 'SESSION_ENDED' || msg.type === 'PEER_LEFT') {
+            // should not happen in queue, but handle
+          }
+        });
+
+        client.onDisconnect((reason) => {
+          if (cancelled) return;
+          // if we were matched, we already navigated; if still waiting, show reconnecting briefly
+          if (status !== 'matched' && status !== 'expired' && status !== 'cooldown') {
+            setAnnouncement('Reconnecting…');
+            // the client will auto-reconnect via its own backoff; we keep waiting
+          }
+        });
+
+        await client.connect(pid);
+
+        // Send JOIN_QUEUE
+        const joinMsg: any = {
+          type: 'JOIN_QUEUE',
+          messageId: crypto.randomUUID(),
+          sessionId: null,
+          fromParticipantId: pid,
+          sequence: 1,
+          sentAt: new Date().toISOString(),
+          payload: {
+            mode,
+            interestIds,
+            language,
+            regionConstraint: null,
+            consentVersion,
+          },
+        };
+        await client.send(joinMsg);
+      } catch (e) {
+        // If ws fails (e.g., server not running), we stay in waiting but surface that it's trying
+        // Do not fallback to fake setTimeout match — that would be hallucinated evidence
+        console.error('queue ws error', e);
+        if (!cancelled) setAnnouncement('Connecting to matching service…');
       }
-    }, 3000 + Math.random() * 5000);
+    })();
 
     return () => {
+      cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
-      clearTimeout(matchTimeout);
+      // do not close ws on unmount if matched (navigation will handle), but close if still waiting and user leaves
+      // For now, keep ws open until navigation or explicit cancel
     };
   }, []);
 
   const handleCancel = () => {
     try {
-      // Record rapid join/leave for cooldown ladder
       const lastCancel = sessionStorage.getItem('strangerlink_last_cancel');
       const now = Date.now();
       if (lastCancel) {
@@ -122,6 +215,8 @@ export default function QueuePage(): React.JSX.Element {
       }
       sessionStorage.setItem('strangerlink_last_cancel', now.toString());
     } catch {}
+    // close ws and leave queue
+    wsRef.current?.close().catch(()=>{});
     window.location.href = '/';
   };
 
@@ -130,9 +225,12 @@ export default function QueuePage(): React.JSX.Element {
     setElapsedMs(0);
     startTimeRef.current = Date.now();
     setAnnouncement('Looking for someone who wants to chat');
+    // reload to re-join queue via ws
+    window.location.reload();
   };
 
   const handleLeave = () => {
+    wsRef.current?.close().catch(()=>{});
     window.location.href = '/';
   };
 
@@ -224,3 +322,4 @@ export default function QueuePage(): React.JSX.Element {
     </div>
   );
 }
+

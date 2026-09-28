@@ -1,0 +1,72 @@
+{
+  "lessons": [
+    {
+      "id": "lesson-10730b3f",
+      "content": "[procedure] 'Fix failing test in payment retry logic': applying debugging, logging, edge-cases with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "debugging",
+        "logging",
+        "edge-cases"
+      ],
+      "source_task_id": "task-b0-0",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790562267.9092846,
+      "kind": "procedure",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-b5d0e7a1",
+      "content": "[boundary] 'Add pagination to /users endpoint': hidden constraint around 'api-design' defeated a first-pass fix. Before finalizing work in this area, probe api-design boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "api-design",
+        "http"
+      ],
+      "source_task_id": "task-b0-1",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790562267.9097643,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-7e228f29",
+      "content": "[procedure] 'Add pagination to /users endpoint': applying http, api-design, typing with tests-before-patch then tests-after-patch completed the task.",
+      "knowledge_keys": [
+        "http",
+        "api-design",
+        "typing"
+      ],
+      "source_task_id": "task-d0-0",
+      "confidence": 0.9,
+      "verified": true,
+      "created_at": 1790562267.9318528,
+      "kind": "procedure",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    },
+    {
+      "id": "lesson-ff733a84",
+      "content": "[boundary] 'Extract currency conversion into a service': hidden constraint around 'refactor' defeated a first-pass fix. Before finalizing work in this area, probe refactor boundary conditions explicitly (empty/late/duplicate inputs, concurrency, retries).",
+      "knowledge_keys": [
+        "refactor",
+        "typing"
+      ],
+      "source_task_id": "task-d0-1",
+      "confidence": 0.6,
+      "verified": true,
+      "created_at": 1790562267.9324217,
+      "kind": "boundary",
+      "version": 1,
+      "superseded_by": null,
+      "deprecated": false
+    }
+  ],
+  "frozen": false,
+  "revision": "mem-8e7c635e66666b05"
+}
