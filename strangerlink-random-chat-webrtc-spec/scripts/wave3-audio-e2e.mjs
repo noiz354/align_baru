@@ -14,7 +14,7 @@ function waitFor(pred, timeout=15000){
 }
 function notify(){for(const f of [...waiters])f();}
 function makePeer(name){
-  const p={name,id:uuid(),ws:null,sessionId:null,role:null,seq:0,pc:new RTCPeerConnection({iceServers:[]}),remoteCandidates:[],remoteTrack:false,connection:'new',iceTypes:[],offerCount:0,answerCount:0,peerLeft:false,peerLeftEvent:null,reportAck:null};
+  const p={name,id:uuid(),ws:null,sessionId:null,role:null,seq:0,pc:new RTCPeerConnection({iceServers:[]}),remoteCandidates:[],remoteTrack:false,connection:'new',iceTypes:[],offerCount:0,answerCount:0,peerLeft:false,peerLeftEvent:null,reportAck:null,sessionEnded:null};
   const source=new nonstandard.RTCAudioSource();
   p.track=source.createTrack();
   p.stream=new MediaStream([p.track]);
@@ -55,6 +55,7 @@ function makePeer(name){
         if(m.payload.candidate){const c=new wrtc.RTCIceCandidate(m.payload);if(p.pc.remoteDescription)await p.pc.addIceCandidate(c);else p.remoteCandidates.push(c);}
       } else if(m.type==='PEER_LEFT'){p.peerLeft=true;p.peerLeftEvent=m.payload;notify();}
       else if(m.type==='REPORT_SUBMITTED'){p.reportAck=m.payload;notify();}
+      else if(m.type==='SESSION_ENDED'){p.sessionEnded=m.payload;notify();}
       else if(m.type==='ERROR'){log.push(`${p.name}:ERROR:${JSON.stringify(m.payload)}`);notify();}
     } catch(e){log.push(`${p.name}:handler-error:${e.message}`);notify();}
   });
@@ -78,6 +79,16 @@ console.log('PEER_DISCONNECT '+JSON.stringify(a.peerLeftEvent));
 send(a,'REPORT_SUBMITTED',{category:'other',note:'wave3 runtime verification'});
 await waitFor(()=>a.reportAck,10000);
 console.log('SAFETY_REPORT_ACK '+JSON.stringify(a.reportAck));
+// Exercise the real block service over a second live matched session.
+const c=makePeer('C'),d=makePeer('D');peers.push(c,d);
+await waitFor(()=>c.ws.readyState===WebSocket.OPEN&&d.ws.readyState===WebSocket.OPEN);
+for (const p of [c,d]) send(p,'JOIN_QUEUE',{mode:'TEXT',interestIds:[],language:'en',regionConstraint:null,consentVersion:1},null);
+await waitFor(()=>c.sessionId&&d.sessionId);
+if(c.sessionId!==d.sessionId)throw new Error('block session mismatch');
+send(c,'BLOCK_CREATED',{scope:'session'});
+await waitFor(()=>c.sessionEnded&&d.peerLeftEvent?.reasonClass==='blocked',10000);
+if(c.sessionEnded.endReason!=='block')throw new Error('block did not terminate the session');
+console.log('SAFETY_BLOCK '+JSON.stringify({sessionId:c.sessionId,blockerId:c.id,blockedPeerId:d.id,sessionEnded:c.sessionEnded,peerLeft:d.peerLeftEvent}));
 // Negative paths against the real signaling server: malformed media envelope and nonexistent/expired session.
 const badId=uuid(), badWs=new WebSocket(`${url}?token=${encodeURIComponent(badId)}`), badEvents=[];
 await new Promise((resolve,reject)=>{badWs.once('open',resolve);badWs.once('error',reject);});
