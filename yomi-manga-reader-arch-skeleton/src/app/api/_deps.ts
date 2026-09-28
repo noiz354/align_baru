@@ -29,7 +29,7 @@
  */
 import type { CallerContext } from '../../shared/contracts';
 import type { LibraryService } from '../../features/library';
-import type { HistoryRepository } from '../../features/progress';
+import type { HistoryRepository, ReaderProgressRepository } from '../../features/progress';
 import type { Logger } from '../../server/telemetry/logger';
 import type { MangaRepository } from '../../features/manga';
 import type { ChapterRepository } from '../../features/chapters';
@@ -40,6 +40,16 @@ export interface ApiDeps {
   readonly library: LibraryService;
   /** Reading history sessions and the list (features/progress's public surface). */
   readonly history: HistoryRepository;
+  /**
+   * The single writer of `reading_progress` and `library_entry.last_read_at`.
+   *
+   * On this seam because the progress route used to write the table itself through
+   * `queries/reader-state.ts`, which plain-overwrites `completed` — and the reader
+   * client sends only `{ pageNumber }`, so every page change erased a finished
+   * chapter. A route that writes a table the repository owns is how that happened.
+   * → F-006-S1
+   */
+  readonly readerProgress: ReaderProgressRepository;
   /**
    * Catalog READ ports, so a route can answer "does this title/chapter exist?"
    * with the contract's 404 rather than letting a foreign-key violation surface as

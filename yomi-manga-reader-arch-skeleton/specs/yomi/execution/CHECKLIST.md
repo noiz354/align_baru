@@ -633,19 +633,19 @@ Completion evidence:
 
 ### F-006-S1 — Route the reader's progress save through the repository
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance — the defect, stated as a test**
 - **before:** reading past the end of a completed chapter sets `completed = false`
@@ -665,10 +665,26 @@ Completion evidence:
 `src/server/db/queries/reader-state.ts` (upsert removed)
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-006-S1
+- Tests: written first and run against the unfixed code: **3 of 5 failed**,
+  including `expected false to be true` (completion erased) and
+  `expected null not to be null` (`last_read_at` never written). After the fix:
+  **5 of 5**. Suite 615 → **620 passed (620)**.
+- Commands: the mutation (route reverted to `upsertProgress`) → **3 tests fail**
+  · full regression gates · `next build`
+- Notes: The route no longer touches `createDb` or `reader-state.ts`; it writes
+  through `ReaderProgressRepository.saveProgress`, so LWW, idempotence, sticky-OR
+  and the `last_read_at` touch all apply. Status codes are byte-identical
+  (401/404/422/200) and the negative test passed both before and after — a rewire
+  that changed a status would have been a NEW defect. The composition now hands
+  out the SAME `readerProgress` instance the library service receives, so "one
+  writer" is one object rather than two correct ones. **A first mutation passed
+  and had to be replaced:** changing `completed` to read from the body while still
+  writing through the repository cannot be detected, because the repository's
+  sticky-OR absorbs it. The defect lived in the write PATH, not the argument, so
+  the working mutation restores the old path wholesale. `queries/reader-state.ts`
+  still exists and still serves the auth routes and the pages route — that is
+  F-006-S2. This slice stops the bleeding; it does not delete the file.
 
 ---
 
@@ -962,4 +978,5 @@ Completion evidence:
 | 2026-09-28 | F-020-S1 | `ad2dcff` | 10 false status matrices archived + annotated; one status source remains |
 | 2026-09-28 | F-024-S1 | `cc66fbf` | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |
 | 2026-09-28 | F-001-S1 | `fa225cf` | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |
-| 2026-09-28 | F-001-S2 | *this commit* | guard no longer opens its own pool; Wave 1 complete |
+| 2026-09-28 | F-001-S2 | `03b67c0` | guard no longer opens its own pool; Wave 1 complete |
+| 2026-09-28 | F-006-S1 | *this commit* | **P0 fixed** — reading no longer erases completion; `last_read_at` maintained |

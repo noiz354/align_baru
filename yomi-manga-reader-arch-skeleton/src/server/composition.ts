@@ -30,7 +30,11 @@
  */
 import { createCatalogService, type CatalogService } from '../features/catalog';
 import { createLibraryService, type LibraryService } from '../features/library';
-import { createResumeService, type HistoryRepository } from '../features/progress';
+import {
+  createResumeService,
+  type HistoryRepository,
+  type ReaderProgressRepository,
+} from '../features/progress';
 import { loadEnv } from '../shared/validation';
 import type { Env, EnvSource } from '../shared/validation';
 import { acquireDb, releaseDb, type Db } from './db/client';
@@ -153,6 +157,11 @@ export async function createLibraryComposition(source?: EnvSource): Promise<Libr
   const { env, logger } = buildComposition(source);
   const db: Db = await acquireDb(env);
   const { manga, chapters } = createRepositories(db);
+  // Built once and shared with the returned bundle below, so the library service
+  // and the progress route cannot disagree about who owns `reading_progress`.
+  // Two instances would still be correct — the invariants live in the SQL, not in
+  // the object — but "one writer" ought to be one object as well.
+  const readerProgress = createReaderProgressRepository(db);
   return {
     library: createLibraryService({
       library: createLibraryRepository(db),
@@ -163,10 +172,19 @@ export async function createLibraryComposition(source?: EnvSource): Promise<Libr
       chapters,
       // The only dependency that spans two ports — `setReadStatus` writes through
       // the progress repository, which is also the single writer of
-      // `library_entry.last_read_at` (data-flow.md §5).
-      readerProgress: createReaderProgressRepository(db),
+      // `library_entry.last_read_at` (data-flow.md §5). The SAME instance is
+      // returned below for the progress route, so the library and the reader can
+      // never disagree about who owns `reading_progress` (F-006-S1).
+      readerProgress,
     }),
     history: createHistoryRepository(db),
+    // Exposed so the progress route can stop writing `reading_progress` itself.
+    // It used `queries/reader-state.ts`'s `upsertProgress`, which plain-overwrites
+    // `completed`, while the reader client sends only `{ pageNumber }` — so every
+    // page change erased a finished chapter, and `last_read_at` was never
+    // maintained. This is the one implementation that gets both right (LWW,
+    // idempotence, sticky-OR, denormalized touch, one transaction). → F-006-S1
+    readerProgress: createReaderProgressRepository(db),
     // Exposed so a route can answer "is this title/chapter there?" with a 404
     // instead of letting the foreign key speak. Without it, `POST /api/library`
     // with an unknown mangaId surfaced the driver's 23503 as a bare 500, and a
@@ -185,6 +203,8 @@ export interface LibraryComposition {
   readonly library: LibraryService;
   /** Reading history sessions and the history list (T-READER-025). */
   readonly history: HistoryRepository;
+  /** The single writer of `reading_progress` and `library_entry.last_read_at` (F-006-S1). */
+  readonly readerProgress: ReaderProgressRepository;
   /**
    * The catalog read ports, for existence checks a route must answer itself:
    * an unknown manga is 404 `MANGA_NOT_FOUND`, a page past the chapter's end is
