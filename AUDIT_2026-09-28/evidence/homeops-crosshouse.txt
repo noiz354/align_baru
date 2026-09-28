@@ -1,0 +1,13 @@
+### HOMEOPS CROSS-HOUSEHOLD ACCESS — RUNTIME EVIDENCE
+commit: 8ebc15f
+server: node .next/standalone/server.js, NODE_ENV=production, DATABASE_URL=postgres://…/homeops_test (real PostgreSQL 18.4)
+migrations: scripts/migrate.ts (drizzle journal) + manual 0001_rooms_chores.sql
+
+households seeded: A=aaaa1111-…-111111111111  B=bbbb2222-…-222222222222
+room 'Kamar Rahasia B' belongs to household B
+
+-- requester has NO cookie, NO session, NO x-homeops-household header;
+-- only supplies householdId=A in the query string:
+{"householdId":"aaaa1111-1111-7111-8111-111111111111","rooms":[{"id":"aaaa8888-1111-7888-8888-888888888888","householdId":"aaaa1111-1111-7111-8111-111111111111","name":"Kamar Rahasia A","groupLabel":null,"sortOrder":0,"notInUse":false,"archivedAt":null,"notes":null,"createdAt":"2026-09-28T15:05:54.341Z","updatedAt":"2026-09-28T15:05:54.341Z"}]} [HTTP=200]
+-- now supplies householdId=B (someone else's household):
+{"householdId":"bbbb2222-2222-7222-8222-222222222222","rooms":[{"id":"bbbb8888-2222-7888-8888-888888888888","householdId":"bbbb2222-2222-7222-8222-222222222222","name":"Kamar Rahasia B","groupLabel":null,"sortOrder":0,"notInUse":false,"archivedAt":null,"notes":null,"createdAt":"2026-09-28T15:05:54.349Z","updatedAt":"2026-09-28T15:05:54.349Z"}]} [HTTP=200]

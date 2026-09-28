@@ -1,0 +1,82 @@
+
+> siomayops@0.1.0 build
+> next build
+
+   ▲ Next.js 15.4.2
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 23.0s
+   Linting and checking validity of types ...
+
+ ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
+   Collecting page data ...
+   Generating static pages (0/47) ...
+   Generating static pages (11/47) 
+   Generating static pages (23/47) 
+   Generating static pages (35/47) 
+ ✓ Generating static pages (47/47)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                               Size  First Load JS
+┌ ○ /                                                  1.51 kB         101 kB
+├ ○ /_not-found                                          996 B         101 kB
+├ ○ /alerts                                              742 B         100 kB
+├ ƒ /api/v1/audit                                        228 B        99.8 kB
+├ ƒ /api/v1/config/thresholds                            228 B        99.8 kB
+├ ƒ /api/v1/expenses                                     228 B        99.8 kB
+├ ƒ /api/v1/hq/cash-position                             228 B        99.8 kB
+├ ƒ /api/v1/hq/closings                                  228 B        99.8 kB
+├ ƒ /api/v1/hq/exceptions                                228 B        99.8 kB
+├ ƒ /api/v1/hq/expense-review                            228 B        99.8 kB
+├ ƒ /api/v1/hq/incidents                                 228 B        99.8 kB
+├ ƒ /api/v1/hq/locations                                 228 B        99.8 kB
+├ ƒ /api/v1/hq/sales                                     228 B        99.8 kB
+├ ƒ /api/v1/hq/stock                                     228 B        99.8 kB
+├ ƒ /api/v1/hq/verification-backlog                      228 B        99.8 kB
+├ ƒ /api/v1/incidents                                    228 B        99.8 kB
+├ ƒ /api/v1/locations                                    228 B        99.8 kB
+├ ƒ /api/v1/loyalty/customers/identify                   228 B        99.8 kB
+├ ƒ /api/v1/loyalty/rewards/[rewardInstanceId]/redeem    228 B        99.8 kB
+├ ƒ /api/v1/menu/items                                   228 B        99.8 kB
+├ ƒ /api/v1/menu/prices                                  228 B        99.8 kB
+├ ƒ /api/v1/notifications                                228 B        99.8 kB
+├ ƒ /api/v1/operators/me                                 228 B        99.8 kB
+├ ƒ /api/v1/payments                                     228 B        99.8 kB
+├ ƒ /api/v1/payments/cash                                228 B        99.8 kB
+├ ƒ /api/v1/payments/digital                             228 B        99.8 kB
+├ ƒ /api/v1/price-acknowledgements                       228 B        99.8 kB
+├ ƒ /api/v1/restock-requests                             228 B        99.8 kB
+├ ƒ /api/v1/sales                                        228 B        99.8 kB
+├ ƒ /api/v1/sales/[saleId]/complete                      228 B        99.8 kB
+├ ƒ /api/v1/shifts                                       228 B        99.8 kB
+├ ƒ /api/v1/shifts/[shiftId]/closing                     228 B        99.8 kB
+├ ƒ /api/v1/shifts/[shiftId]/location-changes            228 B        99.8 kB
+├ ƒ /api/v1/shifts/[shiftId]/location-reports            228 B        99.8 kB
+├ ƒ /api/v1/stock                                        228 B        99.8 kB
+├ ƒ /api/v1/stock-reports                                228 B        99.8 kB
+├ ƒ /api/v1/stock/movements                              228 B        99.8 kB
+├ ƒ /api/v1/stock/positions                              228 B        99.8 kB
+├ ƒ /api/v1/sync/batches                                 228 B        99.8 kB
+├ ƒ /api/v1/webhooks/payments/[provider]                 228 B        99.8 kB
+├ ○ /closing                                           2.19 kB         102 kB
+├ ○ /expenses                                          1.89 kB         101 kB
+├ ○ /hq                                                3.58 kB         103 kB
+├ ○ /hq/expenses                                         807 B         100 kB
+├ ○ /hq/incidents                                        778 B         100 kB
+├ ○ /hq/verification                                     228 B        99.8 kB
+├ ○ /locations                                           980 B         101 kB
+├ ○ /operator                                          1.01 kB         101 kB
+├ ○ /sell                                              3.59 kB         103 kB
+├ ○ /shift                                             2.05 kB         102 kB
+└ ○ /stock                                             1.95 kB         102 kB
++ First Load JS shared by all                          99.6 kB
+  ├ chunks/4bd1b696-602635ee57868870.js                54.1 kB
+  ├ chunks/5964-ec207aee00ef4fd3.js                    43.5 kB
+  └ other shared chunks (total)                        1.88 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+EXIT=0

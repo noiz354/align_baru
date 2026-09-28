@@ -1,0 +1,37 @@
+
+> strangerlink@0.1.0 build
+> next build
+
+   ▲ Next.js 15.4.6
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 58s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/9) ...
+   Generating static pages (2/9) 
+   Generating static pages (4/9) 
+   Generating static pages (6/9) 
+ ✓ Generating static pages (9/9)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    1.36 kB         101 kB
+├ ○ /_not-found                            989 B         101 kB
+├ ƒ /chat/[sessionId]                    7.96 kB         119 kB
+├ ○ /privacy                             1.54 kB         101 kB
+├ ○ /queue                               3.47 kB         103 kB
+├ ○ /safety                               2.4 kB         102 kB
+├ ○ /start                               2.53 kB         113 kB
+└ ○ /terms                               1.04 kB         101 kB
++ First Load JS shared by all            99.6 kB
+  ├ chunks/4bd1b696-cf72ae8a39fa05aa.js  54.1 kB
+  ├ chunks/964-7a34cadcb7695cec.js       43.5 kB
+  └ other shared chunks (total)          1.88 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+EXIT=0

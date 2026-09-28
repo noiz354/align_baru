@@ -1,0 +1,46 @@
+
+> homeops@0.1.0 lint
+> eslint .
+
+
+/tmp/opencode/align_rl_vps/homeops-household-manager-spec/src/app/api/homeops/chores/[id]/complete/route.ts
+   2:1   error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+   3:1   error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+  29:23  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  29:23  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  31:32  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  31:32  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  31:65  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  31:65  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  34:28  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  34:28  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  36:62  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  36:62  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  37:68  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  37:68  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  39:41  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  39:41  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  49:39  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  49:39  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  50:40  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  50:40  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+
+/tmp/opencode/align_rl_vps/homeops-household-manager-spec/src/app/api/homeops/chores/route.ts
+   2:1   error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+   3:1   error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+  16:13  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  16:13  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+  55:15  error  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  55:15  error  AGENTS.md §4 (Language): no `any` — use `unknown` plus narrowing                                                               homeops/boundaries
+
+/tmp/opencode/align_rl_vps/homeops-household-manager-spec/src/app/api/homeops/rooms/route.ts
+  2:1  error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+  3:1  error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+
+/tmp/opencode/align_rl_vps/homeops-household-manager-spec/src/app/api/homeops/today/route.ts
+  2:1  error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+  3:1  error  MODULE-MAP §1: `app/**` must never import `server` (routes coordinate and render; logic belongs in a feature action or query)  homeops/boundaries
+
+✖ 30 problems (30 errors, 0 warnings)
+
+EXIT=1

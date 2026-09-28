@@ -1,0 +1,13 @@
+
+> homeops@0.1.0 test:integration
+> vitest run --project integration --no-file-parallelism
+
+
+ RUN  v4.1.11 /tmp/opencode/align_rl_vps/homeops-household-manager-spec
+
+
+ Test Files  13 skipped (13)
+      Tests  15 skipped (15)
+   Start at  21:51:17
+   Duration  9.41s (transform 746ms, setup 0ms, import 4.47s, tests 0ms, environment 5ms)
+

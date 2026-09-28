@@ -1,0 +1,30 @@
+
+> majelishub@0.0.0 lint
+> eslint .
+
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/api/v1/checkin/validate/route.ts
+  12:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema/events`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/api/v1/events/[eventId]/checkin/summary/route.ts
+  10:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema/events`) - feature code speaks domain types         majelishub/module-boundaries
+  11:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema/registrations`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/api/v1/events/[eventId]/registrations/route.ts
+  12:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema/events`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/kajian/[slug]/page.tsx
+  3:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/kajian/page.tsx
+  2:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/masjid/[slug]/page.tsx
+  3:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema`) - feature code speaks domain types  majelishub/module-boundaries
+
+/tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec/src/app/masjid/page.tsx
+  2:1  error  Only `src/server/**` may import the Drizzle schema (`@/server/db/schema`) - feature code speaks domain types  majelishub/module-boundaries
+
+✖ 8 problems (8 errors, 0 warnings)
+
+EXIT=1

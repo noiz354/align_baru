@@ -1,0 +1,36 @@
+
+> manga-reader-spec-skeleton-minimal@0.1.0 test
+> node --experimental-strip-types --test tests/unit/reader.test.ts tests/integration/api.test.ts
+
+▶ API Contract and Persistence Integration Tests
+  ✔ Catalog queries return only PUBLISHED manga (5.147424ms)
+  ✔ Chapter manifest returns valid ordered pages and opaque asset keys (0.690404ms)
+  ✔ Reading progress is updated monotonically with incrementing version (5.520454ms)
+  ✔ Reader preferences save and retrieve accurately (3.785263ms)
+✔ API Contract and Persistence Integration Tests (21.99441ms)
+▶ Upload Quarantine Policy (T-UPLOAD-014)
+  ✔ Valid upload enters quarantined state (0.777237ms)
+  ✔ Rejects unsupported media types (3.604524ms)
+  ✔ Rejects payloads exceeding declared byte threshold (2.088008ms)
+✔ Upload Quarantine Policy (T-UPLOAD-014) (10.527828ms)
+▶ T-READER-031 bounded window calculation
+  ✔ calculates single page window correctly (10.520633ms)
+  ✔ clamps window at start of chapter (first page) (0.555854ms)
+  ✔ clamps window at end of chapter (last page) (0.55245ms)
+  ✔ handles single-page chapter (M = 1) (0.566646ms)
+  ✔ enforces hard cap of 12 pages defensively (5.067053ms)
+✔ T-READER-031 bounded window calculation (29.531595ms)
+▶ T-READER-032 / reader-core page math & invariants
+  ✔ displayIndex correctly maps RTL vs LTR and preserves sum invariant (7.638899ms)
+  ✔ stepPage advances along reading order without wrap-around (0.75544ms)
+  ✔ spreadFor pairs double-page spreads correctly (0.962132ms)
+✔ T-READER-032 / reader-core page math & invariants (16.870982ms)
+ℹ tests 15
+ℹ suites 4
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1437.73147
+EXIT=0

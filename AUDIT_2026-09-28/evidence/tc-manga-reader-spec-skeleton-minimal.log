@@ -1,0 +1,5 @@
+
+> manga-reader-spec-skeleton-minimal@0.1.0 typecheck
+> tsc --noEmit
+
+EXIT=0

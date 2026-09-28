@@ -1,0 +1,108 @@
+
+ RUN  v4.1.11 /tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec
+
+{"time":"2026-09-28T14:36:00.209Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"attendance.correct","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.211Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"registration.export","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.212Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"attendance.export","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.212Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"transcript.publish","actorUserId":"user-organizer","action":"SPEAKER","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.213Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"content.withdraw","actorUserId":"user-organizer","action":"ORGANIZER","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.213Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"audio.withdraw","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.213Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"moderation.decide","actorUserId":"user-organizer","action":"MODERATOR","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.214Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"platform.config.manage","actorUserId":"user-organizer","action":"PLATFORM_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.214Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"event.cancel","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.215Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"audit.export","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.358Z","level":"info","service":"authorization","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"audit.export","actorUserId":"user-organizer","action":"MOSQUE_ADMIN","msg":"authorization.reason_recorded"}
+{"time":"2026-09-28T14:36:00.359Z","level":"warn","service":"authorization","outcome":"DENIED_CROSS_ORGANIZATION","organizationId":"01a0e871-b13e-7000-9d75-b443ca28b700","permissionKey":"event.read","actorUserId":"user-organizer","msg":"authorization.denied"}
+ ❯ |integration| tests/integration/audit/chain.test.ts (6 tests | 6 skipped) 15554ms
+ ❯ |integration| tests/integration/security/session-scope.test.ts (9 tests | 9 skipped) 27849ms
+ ❯ |integration| tests/integration/security/session-revocation.test.ts (4 tests | 4 skipped) 27024ms
+ ❯ |integration| tests/integration/auth/session-repository.test.ts (8 tests | 8 skipped) 16547ms
+ ❯ |integration| tests/integration/auth/rate-limit-durable.test.ts (10 tests | 10 skipped) 16933ms
+ ❯ |integration| tests/integration/security/isolation.test.ts (5 tests | 5 skipped) 12389ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/audit/chain.test.ts [ tests/integration/audit/chain.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/audit/chain.test.ts:30:1
+     28| let harness: TestDatabase;
+     29|
+     30| beforeAll(async () => {
+       | ^
+     31|   harness = await createTestDatabase();
+     32| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  |integration| tests/integration/auth/rate-limit-durable.test.ts [ tests/integration/auth/rate-limit-durable.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/auth/rate-limit-durable.test.ts:42:1
+     40| const T0 = new Date("2026-09-27T02:00:00.000Z");
+     41|
+     42| beforeAll(async () => {
+       | ^
+     43|   handle = await createTestDatabase();
+     44|   database = handle.database;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  |integration| tests/integration/auth/session-repository.test.ts [ tests/integration/auth/session-repository.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/auth/session-repository.test.ts:63:1
+     61| }
+     62|
+     63| beforeAll(async () => {
+       | ^
+     64|   handle = await createTestDatabase();
+     65|   database = handle.database;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  |integration| tests/integration/security/isolation.test.ts [ tests/integration/security/isolation.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/security/isolation.test.ts:42:1
+     40| let restoreSink: (() => void) | undefined;
+     41|
+     42| beforeAll(async () => {
+       | ^
+     43|   harness = await createTestDatabase();
+     44|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  |integration| tests/integration/security/session-revocation.test.ts [ tests/integration/security/session-revocation.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/security/session-revocation.test.ts:31:1
+     29| let restoreSink: (() => void) | undefined;
+     30|
+     31| beforeAll(async () => {
+       | ^
+     32|   harness = await createTestDatabase();
+     33|   const previous = setSecurityEventSink((event) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  |integration| tests/integration/security/session-scope.test.ts [ tests/integration/security/session-scope.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/integration/security/session-scope.test.ts:30:1
+     28| let orgB: string;
+     29|
+     30| beforeAll(async () => {
+       | ^
+     31|   harness = await createTestDatabase();
+     32|   const platform = platformScope(PLATFORM_ACTOR);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  6 failed | 4 passed | 47 skipped (57)
+      Tests  22 passed | 42 skipped | 170 todo (234)
+   Start at  21:35:37
+   Duration  215.27s (transform 2.40s, setup 0ms, import 44.45s, tests 141.84s, environment 23ms)
+

@@ -1,0 +1,180 @@
+
+ RUN  v4.1.11 /tmp/opencode/align_rl_vps/majelishub-pengajian-event-platform-spec
+
+ ❯ |integration| tests/integration/security/session-revocation.test.ts (4 tests | 4 skipped) 62ms
+ ❯ |integration| tests/integration/audit/chain.test.ts (6 tests | 6 skipped) 64ms
+ ❯ |integration| tests/integration/security/isolation.test.ts (5 tests | 5 skipped) 69ms
+ ❯ |integration| tests/integration/identity/auth-round-trip.test.ts (8 tests | 8 skipped) 89ms
+ ❯ |integration| tests/integration/security/rate-limits.test.ts (4 tests | 4 skipped) 56ms
+ ❯ |integration| tests/integration/audit/coverage.test.ts (4 tests | 4 skipped) 55ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |integration| tests/integration/audit/chain.test.ts [ tests/integration/audit/chain.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/audit/chain.test.ts:31:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  |integration| tests/integration/audit/chain.test.ts [ tests/integration/audit/chain.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/audit/chain.test.ts:35:17
+     33|
+     34| afterAll(async () => {
+     35|   await harness.close();
+       |                 ^
+     36| });
+     37|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  |integration| tests/integration/audit/coverage.test.ts [ tests/integration/audit/coverage.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/audit/coverage.test.ts:38:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  |integration| tests/integration/audit/coverage.test.ts [ tests/integration/audit/coverage.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/audit/coverage.test.ts:46:17
+     44|
+     45| afterAll(async () => {
+     46|   await harness.close();
+       |                 ^
+     47| });
+     48|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  |integration| tests/integration/identity/auth-round-trip.test.ts [ tests/integration/identity/auth-round-trip.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/identity/auth-round-trip.test.ts:50:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  |integration| tests/integration/identity/auth-round-trip.test.ts [ tests/integration/identity/auth-round-trip.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/identity/auth-round-trip.test.ts:65:17
+     63|
+     64| afterAll(async () => {
+     65|   await harness.close();
+       |                 ^
+     66| });
+     67|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  |integration| tests/integration/security/isolation.test.ts [ tests/integration/security/isolation.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/security/isolation.test.ts:43:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  |integration| tests/integration/security/isolation.test.ts [ tests/integration/security/isolation.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/security/isolation.test.ts:65:17
+     63| afterAll(async () => {
+     64|   restoreSink?.();
+     65|   await harness.close();
+       |                 ^
+     66| });
+     67|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  |integration| tests/integration/security/rate-limits.test.ts [ tests/integration/security/rate-limits.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/security/rate-limits.test.ts:30:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+
+ FAIL  |integration| tests/integration/security/rate-limits.test.ts [ tests/integration/security/rate-limits.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/security/rate-limits.test.ts:34:17
+     32|
+     33| afterAll(async () => {
+     34|   await harness.close();
+       |                 ^
+     35| });
+     36|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/12]⎯
+
+ FAIL  |integration| tests/integration/security/session-revocation.test.ts [ tests/integration/security/session-revocation.test.ts ]
+error: relation "users" already exists
+ ❯ node_modules/pg-pool/index.js:45:11
+ ❯ exec tests/support/db.ts:88:5
+     86|   const db = drizzleNodePg(pool, { schema });
+     87|   const exec = async (sql: string) => {
+     88|     await pool.query(sql);
+       |     ^
+     89|   };
+     90|   for (const migration of migrationFiles()) {
+ ❯ createExternal tests/support/db.ts:91:5
+ ❯ tests/integration/security/session-revocation.test.ts:32:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/12]⎯
+
+ FAIL  |integration| tests/integration/security/session-revocation.test.ts [ tests/integration/security/session-revocation.test.ts ]
+TypeError: Cannot read properties of undefined (reading 'close')
+ ❯ tests/integration/security/session-revocation.test.ts:41:17
+     39| afterAll(async () => {
+     40|   restoreSink?.();
+     41|   await harness.close();
+       |                 ^
+     42| });
+     43|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/12]⎯
+
+
+ Test Files  6 failed | 4 passed | 47 skipped (57)
+      Tests  33 passed | 31 skipped | 170 todo (234)
+   Start at  21:54:09
+   Duration  58.14s (transform 1.57s, setup 0ms, import 19.71s, tests 15.46s, environment 23ms)
+

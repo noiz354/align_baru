@@ -1,0 +1,49 @@
+
+> manga-reader-spec-skeleton-minimal@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.26
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 63s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/17) ...
+   Generating static pages (4/17) 
+   Generating static pages (8/17) 
+   Generating static pages (12/17) 
+ ✓ Generating static pages (17/17)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      192 B         106 kB
+├ ○ /_not-found                            992 B         103 kB
+├ ○ /admin                                 192 B         106 kB
+├ ○ /admin/manga                           192 B         106 kB
+├ ƒ /admin/manga/[id]                      192 B         106 kB
+├ ƒ /admin/manga/[id]/chapters             192 B         106 kB
+├ ○ /admin/uploads                         192 B         106 kB
+├ ƒ /api/auth/login                        141 B         103 kB
+├ ƒ /api/auth/logout                       141 B         103 kB
+├ ƒ /api/v1/catalog                        141 B         103 kB
+├ ƒ /api/v1/chapters/[id]/manifest         141 B         103 kB
+├ ƒ /api/v1/preferences                    141 B         103 kB
+├ ƒ /api/v1/progress                       141 B         103 kB
+├ ○ /discover                              192 B         106 kB
+├ ○ /history                               192 B         106 kB
+├ ○ /library                               192 B         106 kB
+├ ƒ /manga/[slug]                          192 B         106 kB
+├ ƒ /manga/[slug]/chapter/[chapter]      2.96 kB         105 kB
+├ ○ /search                                192 B         106 kB
+└ ○ /settings                              192 B         106 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/255-2dbbf79f36f0dfa2.js       46.4 kB
+  ├ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  └ other shared chunks (total)          1.88 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+EXIT=0

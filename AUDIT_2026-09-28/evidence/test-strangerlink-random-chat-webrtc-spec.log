@@ -1,0 +1,24 @@
+
+> strangerlink@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.7 /tmp/opencode/align_rl_vps/strangerlink-random-chat-webrtc-spec
+
+ ✓ |unit| tests/unit/reports.test.ts (13 tests) 50ms
+ ✓ |unit| tests/unit/matchmaking.test.ts (13 tests) 83ms
+ ✓ |unit| tests/unit/chat.test.ts (8 tests) 262ms
+ ✓ |unit| tests/unit/session.invariants.test.ts (9 tests) 92ms
+ ✓ |realtime| tests/realtime/signaling.test.ts (8 tests) 155ms
+ ✓ |unit| tests/unit/rate-limit.test.ts (7 tests) 62ms
+ ✓ |unit| tests/unit/telemetry.test.ts (9 tests) 83ms
+ ✓ |integration| tests/integration/retention.test.ts (8 tests) 69ms
+ ✓ |unit| tests/unit/ban-enforcement.test.ts (4 tests) 236ms
+ ✓ |realtime| tests/realtime/media.test.ts (6 tests) 40ms
+
+ Test Files  10 passed (10)
+      Tests  85 passed (85)
+   Start at  21:32:11
+   Duration  9.02s (transform 3.41s, setup 0ms, collect 6.41s, tests 1.13s, environment 12ms, prepare 5.79s)
+
+EXIT=0

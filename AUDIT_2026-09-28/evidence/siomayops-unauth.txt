@@ -1,0 +1,10 @@
+### SIOMAYOPS UNAUTH RUNTIME EVIDENCE
+commit: 8ebc15fd68acc6e32046886a10156f73cf9ed2d5
+node: v24.21.0, npm start (NODE_ENV=production)
+
+-- GET /api/v1/sales (no auth)
+{"data":[],"pagination":{"limit":5}} [HTTP=200]
+-- GET /api/v1/audit (no auth)
+{"data":[{"id":"9c7abbe6-9346-4670-928c-29398922f382","organizationId":"00000000-0000-7000-0000-000000000001","actorId":"00000000-0000-7000-0000-000000000002","actorKind":"OPERATOR","action":"incident.submitted","entityType":"incident","entityId":"86d46875-5a4b-4f38-90d8-60d386eecc8b","occurredAt":"2026-09-28T14:51:03.679Z","newValueJson":"{\"category\":\"22222222-2222-7222-8222-222222222222\",\"severity\":\"HIGH\"}","requestId":"cca0e516-f382-4e07-9c57-bb1f7b53d460"},{"id":"3a998e65-a8a1-4e65-92ab-70d55dd9bac4","organizationId":"00000000-0000-7000-0000-000000000001","actorKind":"USER","actorId":"00000000-0000-7000-0000-000000000002","action":"audit.queried","entityKind":"audit","entityId":"search","correlationId":"vsojftht2o9muld72gf","occurredAt":"2026-09-28T14:50:34.673Z","afterSummary":{"filters":{"action":null,"actorId":null,"subjectId":null}}}],"pagination":{"limit":3}} [HTTP=200]
+-- POST /api/v1/incidents (no auth, no Idempotency-Key)
+{"incidentId":"c92872d7-d738-4eb4-b1af-ef37f6972016","status":"REPORTED"} [HTTP=201]

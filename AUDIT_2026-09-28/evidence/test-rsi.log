@@ -1,0 +1,324 @@
+test_deleting_an_audit_record_breaks_the_chain (test_adversarial.AuditTamperTests.test_deleting_an_audit_record_breaks_the_chain) ... ok
+test_editing_an_audit_record_breaks_the_chain (test_adversarial.AuditTamperTests.test_editing_an_audit_record_breaks_the_chain) ... ok
+test_unparseable_record_is_flagged (test_adversarial.AuditTamperTests.test_unparseable_record_is_flagged) ... ok
+test_candidate_cannot_change_the_acceptance_threshold (test_adversarial.EvaluationTamperTests.test_candidate_cannot_change_the_acceptance_threshold) ... ok
+test_candidate_cannot_change_the_benchmark (test_adversarial.EvaluationTamperTests.test_candidate_cannot_change_the_benchmark)
+The benchmark definition is a protected path; editing it is CRITICAL. ... ok
+test_candidate_cannot_change_the_evaluator (test_adversarial.EvaluationTamperTests.test_candidate_cannot_change_the_evaluator) ... ok
+test_candidate_cannot_delete_a_failing_test (test_adversarial.EvaluationTamperTests.test_candidate_cannot_delete_a_failing_test)
+No change set can express 'delete a test': only add/replace/retire lessons. ... ok
+test_candidate_cannot_duplicate_existing_memory (test_adversarial.EvaluationTamperTests.test_candidate_cannot_duplicate_existing_memory) ... ok
+test_candidate_cannot_fabricate_an_untraceable_lesson (test_adversarial.EvaluationTamperTests.test_candidate_cannot_fabricate_an_untraceable_lesson) ... ok
+test_candidate_cannot_inject_instructions_through_a_lesson (test_adversarial.EvaluationTamperTests.test_candidate_cannot_inject_instructions_through_a_lesson) ... ok
+test_candidate_cannot_read_expected_answers (test_adversarial.EvaluationTamperTests.test_candidate_cannot_read_expected_answers) ... ok
+test_candidate_cannot_self_certify_an_unverified_lesson (test_adversarial.EvaluationTamperTests.test_candidate_cannot_self_certify_an_unverified_lesson) ... ok
+test_candidate_cannot_skip_an_assertion (test_adversarial.EvaluationTamperTests.test_candidate_cannot_skip_an_assertion)
+A candidate cannot make the suite pass by skipping what it fails. ... ok
+test_candidate_cannot_special_case_a_benchmark_id (test_adversarial.EvaluationTamperTests.test_candidate_cannot_special_case_a_benchmark_id) ... ok
+test_irrelevant_lessons_are_rejected (test_adversarial.EvaluationTamperTests.test_irrelevant_lessons_are_rejected)
+A lesson nothing needs cannot be justified as an improvement. ... ok
+test_tamper_findings_block_acceptance (test_adversarial.EvaluationTamperTests.test_tamper_findings_block_acceptance) ... ok
+test_feedback_with_injection_is_quarantined (test_adversarial.PromptInjectionTests.test_feedback_with_injection_is_quarantined) ... ok
+test_hazard_markers_are_detected (test_adversarial.PromptInjectionTests.test_hazard_markers_are_detected) ... ok
+test_machine_signal_cannot_mint_human_approval (test_adversarial.PromptInjectionTests.test_machine_signal_cannot_mint_human_approval) ... ok
+test_raw_message_never_becomes_an_instruction (test_adversarial.PromptInjectionTests.test_raw_message_never_becomes_an_instruction)
+The excerpt is data; only structured fields drive proposal generation. ... ok
+test_secret_in_feedback_is_quarantined (test_adversarial.PromptInjectionTests.test_secret_in_feedback_is_quarantined) ... ok
+test_unknown_feedback_source_is_quarantined (test_adversarial.PromptInjectionTests.test_unknown_feedback_source_is_quarantined) ... ok
+test_diff_budget_rejects_a_huge_change_set (test_adversarial.ResourceLimitTests.test_diff_budget_rejects_a_huge_change_set) ... ok
+test_file_patch_diff_budget (test_adversarial.ResourceLimitTests.test_file_patch_diff_budget) ... ok
+test_lesson_budget_rejects_a_wide_change_set (test_adversarial.ResourceLimitTests.test_lesson_budget_rejects_a_wide_change_set) ... ok
+test_tool_call_budget_is_enforced (test_adversarial.ResourceLimitTests.test_tool_call_budget_is_enforced) ... ok
+test_auto_approve_never_covers_high_risk (test_adversarial.RestrictedScopeTests.test_auto_approve_never_covers_high_risk) ... ok
+test_human_approver_can_approve_and_decline (test_adversarial.RestrictedScopeTests.test_human_approver_can_approve_and_decline) ... ok
+test_production_deployment_is_never_auto_approved (test_adversarial.RestrictedScopeTests.test_production_deployment_is_never_auto_approved) ... ok
+test_rao_cannot_rewrite_project_code (test_adversarial.RestrictedScopeTests.test_rao_cannot_rewrite_project_code) ... ok
+test_safety_config_is_protected (test_adversarial.RestrictedScopeTests.test_safety_config_is_protected) ... ok
+test_audit_records_refuse_secrets (test_adversarial.SandboxEscapeTests.test_audit_records_refuse_secrets) ... ok
+test_deleting_the_workspace_root_is_refused (test_adversarial.SandboxEscapeTests.test_deleting_the_workspace_root_is_refused) ... ok
+test_redaction_removes_credential_shaped_values (test_adversarial.SandboxEscapeTests.test_redaction_removes_credential_shaped_values) ... ok
+test_secret_detection_does_not_fire_on_prose (test_adversarial.SandboxEscapeTests.test_secret_detection_does_not_fire_on_prose) ... ok
+test_secret_smuggling_is_refused (test_adversarial.SandboxEscapeTests.test_secret_smuggling_is_refused) ... ok
+test_symlink_escape_is_refused (test_adversarial.SandboxEscapeTests.test_symlink_escape_is_refused) ... ok
+test_traversal_and_absolute_writes_are_refused (test_adversarial.SandboxEscapeTests.test_traversal_and_absolute_writes_are_refused) ... ok
+test_comparable_snapshots_produce_a_delta_table (test_artifacts.BenchmarkTests.test_comparable_snapshots_produce_a_delta_table) ... ok
+test_incomparable_environments_are_refused (test_artifacts.BenchmarkTests.test_incomparable_environments_are_refused) ... ok
+test_matrix_runs_every_arm_and_renders (test_artifacts.BenchmarkTests.test_matrix_runs_every_arm_and_renders) ... ok
+test_same_seed_is_reproducible (test_artifacts.BenchmarkTests.test_same_seed_is_reproducible) ... ok
+test_snapshot_records_environment_and_config (test_artifacts.BenchmarkTests.test_snapshot_records_environment_and_config) ... ok
+test_snapshot_roundtrip (test_artifacts.BenchmarkTests.test_snapshot_roundtrip) ... ok
+test_audit_verify_detects_tampering (test_artifacts.CliTests.test_audit_verify_detects_tampering) ... ok
+test_benchmark_quick_matrix (test_artifacts.CliTests.test_benchmark_quick_matrix) ... ok
+test_cli_is_invocable_as_a_module (test_artifacts.CliTests.test_cli_is_invocable_as_a_module) ... ok
+test_full_run_creates_every_artifact (test_artifacts.CliTests.test_full_run_creates_every_artifact) ... ok
+test_improve_requires_an_existing_memory (test_artifacts.CliTests.test_improve_requires_an_existing_memory) ... no memory store at /tmp/tmpyb8ten6n/runs/memory.json; run `python -m rsi.cli run` first
+ok
+test_parser_exposes_every_command (test_artifacts.CliTests.test_parser_exposes_every_command) ... ok
+test_skills_and_rao_commands (test_artifacts.CliTests.test_skills_and_rao_commands) ... ok
+test_status_and_audit_after_a_run (test_artifacts.CliTests.test_status_and_audit_after_a_run) ... PROVIDER: mock model=mock-model (backend=mock, RSI_PROVIDER=mock)
+========================================================================
+RSI AGENT -- exploration (Curriculum -> Actor -> Verifier)
+========================================================================
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+[cycle 1] APPLIED prop-c96c9a277661 (memory:key:safety) revision mem-c20d0dc6 -> mem-44f78e49
+improvement loop: 1 cycle(s), 1 accepted, 0 rejected, 0 rolled back
+------------------------------------------------------------------------
+RSI AGENT -- improvement loop (propose -> isolate -> evaluate -> apply)
+------------------------------------------------------------------------
+improvement loop: 2 cycle(s), 1 accepted, 1 rejected, 0 rolled back
+------------------------------------------------------------------------
+memory FROZEN at 7 lessons (14 knowledge keys) -- test-time begins
+------------------------------------------------------------------------
+RSI AGENT -- test-time evaluation (frozen memory, no writes)
+------------------------------------------------------------------------
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessons
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 7 lessons
+report written to /tmp/tmpk2t46qpq/runs/report.md
+------------------------------------------------------------------------
+HEADLINE: cold success 0% -> warm success 60% on identical holdout tasks (memory: 7 lessons)
+REPORT:   /tmp/tmpk2t46qpq/runs/report.md
+AUDIT:    chain intact (20 events)
+DASHBOARD:/tmp/tmpk2t46qpq/runs/dashboard.html
+audit chain: BROKEN (20 events)
+  ! event 19 (evt-000020, cycle-finished) has a mutated hash
+[benchmark] running baseline-seed0 ...
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+[DRS round 1/1] 4 tasks | success 3/4 (75%) | avg score 0.89 | memory 10 lessons
+memory FROZEN at 10 lessons (15 knowledge keys) -- test-time begins
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessons
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 10 lessons
+report written to /tmp/tmpnd3vwrnq/runs/baseline-seed0/report.md
+[benchmark] baseline-seed0: cold 0% -> warm 60% (memory 10 lessons)
+[benchmark] running improved-seed0 ...
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+[cycle 1] APPLIED prop-8bf2a95d2e2f (memory:key:safety) revision mem-c4ed09ac -> mem-178c7ac8
+improvement loop: 1 cycle(s), 1 accepted, 0 rejected, 0 rolled back
+[DRS round 1/1] 4 tasks | success 4/4 (100%) | avg score 1.00 | memory 11 lessons
+memory FROZEN at 11 lessons (15 knowledge keys) -- test-time begins
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessons
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 11 lessons
+report written to /tmp/tmpnd3vwrnq/runs/improved-seed0/report.md
+[benchmark] improved-seed0: cold 0% -> warm 60% (memory 11 lessons)
+# Benchmark matrix
+
+| Arm | Seed | Waves | DRS | Holdout | Cold | Warm | Delta | Memory | Keys |
+|---|---|---|---|---|---|---|---|---|---|
+| baseline-seed0 | 0 | 1 | 1 | 6 | 0% | 60% | +0.60 | 10 | 15 |
+| improved-seed0 | 0 | 1 | 1 | 6 | 0% | 60% | +0.60 | 11 | 15 |
+
+snapshot: /tmp/tmpnd3vwrnq/runs/benchmarks/baseline-seed0.json
+snapshot: /tmp/tmpnd3vwrnq/runs/benchmarks/improved-seed0.json
+PROVIDER: mock model=mock-model (backend=mock, RSI_PROVIDER=mock)
+========================================================================
+RSI AGENT -- exploration (Curriculum -> Actor -> Verifier)
+========================================================================
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+[cycle 1] APPLIED prop-7cb691e5eeed (memory:key:safety) revision mem-a04e1730 -> mem-6586dbb6
+improvement loop: 1 cycle(s), 1 accepted, 0 rejected, 0 rolled back
+[DRS round 1/1] 4 tasks | success 4/4 (100%) | avg score 1.00 | memory 11 lessons
+------------------------------------------------------------------------
+RSI AGENT -- improvement loop (propose -> isolate -> evaluate -> apply)
+------------------------------------------------------------------------
+improvement loop: 3 cycle(s), 1 accepted, 0 rejected, 0 rolled back
+------------------------------------------------------------------------
+memory FROZEN at 11 lessons (15 knowledge keys) -- test-time begins
+------------------------------------------------------------------------
+RSI AGENT -- test-time evaluation (frozen memory, no writes)
+------------------------------------------------------------------------
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessons
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 11 lessons
+report written to /tmp/tmp_dsel947/runs/report.md
+------------------------------------------------------------------------
+HEADLINE: cold success 0% -> warm success 60% on identical holdout tasks (memory: 11 lessons)
+REPORT:   /tmp/tmp_dsel947/runs/report.md
+AUDIT:    chain intact (15 events)
+DASHBOARD:/tmp/tmp_dsel947/runs/dashboard.html
+PROVIDER: mock model=mock-model (backend=mock, RSI_PROVIDER=mock)
+========================================================================
+RSI AGENT -- exploration (Curriculum -> Actor -> Verifier)
+========================================================================
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+------------------------------------------------------------------------
+memory FROZEN at 6 lessons (13 knowledge keys) -- test-time begins
+------------------------------------------------------------------------
+RSI AGENT -- test-time evaluation (frozen memory, no writes)
+------------------------------------------------------------------------
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessons
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 6 lessons
+report written to /tmp/tmphwwsskkr/runs/report.md
+------------------------------------------------------------------------
+HEADLINE: cold success 0% -> warm success 60% on identical holdout tasks (memory: 6 lessons)
+REPORT:   /tmp/tmphwwsskkr/runs/report.md
+DASHBOARD:/tmp/tmphwwsskkr/runs/dashboard.html
+wrote SKILL.md -> /tmp/tmphwwsskkr/skills/SKILL.md
+wrote CLAUDE.md -> /tmp/tmphwwsskkr/skills/CLAUDE.md
+{
+  "memory_revision": "mem-5c4094cdfc74a547",
+  "exported_lessons": 6,
+  "knowledge_keys": 13,
+  "deprecated_excluded": 0
+}
+{
+  "proposal_id": "prop-0ab341de4ec7",
+  "outcome": "NOOP",
+  "reasons": [
+    "generated skill files already match memory"
+  ],
+  "paths": [],
+  "risk_level": "LOW",
+  "approver": "none"
+}
+PROVIDER: mock model=mock-model (backend=mock, RSI_PROVIDER=mock)
+========================================================================
+RSI AGENT -- exploration (Curriculum -> Actor -> Verifier)
+========================================================================
+[BRS wave 1/1] 6 tasks | success 1/6 (17%) | avg score 0.64 | memory 6 lessons
+[cycle 1] APPLIED prop-67b817675abd (memory:key:safety) revision mem-b78492fc -> mem-8316a389
+improvement loop: 1 cycle(s), 1 accepted, 0 rejected, 0 rolled back
+------------------------------------------------------------------------
+RSI AGENT -- improvement loop (propose -> isolate -> evaluate -> apply)
+------------------------------------------------------------------------
+improvement loop: 2 cycle(s), 1 accepted, 1 rejected, 0 rolled back
+------------------------------------------------------------------------
+memory FROZEN at 7 lessons (14 knowledge keys) -- test-time begins
+------------------------------------------------------------------------
+RSI AGENT -- test-time evaluation (frozen memory, no writes)
+------------------------------------------------------------------------
+[TEST cold (empty memory)] 6 tasks | success 0/5 (0%) | avg score 0.57 | escalated 1 | memory 0 lessonsok
+test_dashboard_data_reads_the_artifacts (test_artifacts.DashboardTests.test_dashboard_data_reads_the_artifacts) ... ok
+test_dashboard_flags_a_broken_audit_chain (test_artifacts.DashboardTests.test_dashboard_flags_a_broken_audit_chain) ... ok
+test_dashboard_handles_an_empty_runs_dir (test_artifacts.DashboardTests.test_dashboard_handles_an_empty_runs_dir) ... ok
+test_dashboard_is_self_contained_html (test_artifacts.DashboardTests.test_dashboard_is_self_contained_html) ... ok
+test_dashboard_renders_evaluations_and_tamper_findings (test_artifacts.DashboardTests.test_dashboard_renders_evaluations_and_tamper_findings) ... ok
+test_approver_can_allow_a_high_risk_rewrite (test_artifacts.RAOTests.test_approver_can_allow_a_high_risk_rewrite) ... ok
+test_assessment_flags_a_useless_run (test_artifacts.RAOTests.test_assessment_flags_a_useless_run) ... ok
+test_assessment_reports_a_real_delta (test_artifacts.RAOTests.test_assessment_reports_a_real_delta) ... ok
+test_every_rao_decision_is_audited (test_artifacts.RAOTests.test_every_rao_decision_is_audited) ... ok
+test_high_risk_rewrite_is_escalated_not_applied (test_artifacts.RAOTests.test_high_risk_rewrite_is_escalated_not_applied) ... ok
+test_noop_when_the_files_already_match (test_artifacts.RAOTests.test_noop_when_the_files_already_match) ... ok
+test_rao_cannot_target_project_code (test_artifacts.RAOTests.test_rao_cannot_target_project_code) ... ok
+test_rollback_restores_the_archived_files (test_artifacts.RAOTests.test_rollback_restores_the_archived_files) ... ok
+test_written_files_match_what_memory_renders (test_artifacts.RAOTests.test_written_files_match_what_memory_renders) ... ok
+test_claude_fragment_points_at_the_skill_file (test_artifacts.SkillsTests.test_claude_fragment_points_at_the_skill_file) ... ok
+test_deprecated_lessons_are_excluded (test_artifacts.SkillsTests.test_deprecated_lessons_are_excluded) ... ok
+test_export_archives_the_previous_file (test_artifacts.SkillsTests.test_export_archives_the_previous_file) ... ok
+test_export_is_idempotent (test_artifacts.SkillsTests.test_export_is_idempotent) ... ok
+test_export_refuses_a_secret_shaped_lesson (test_artifacts.SkillsTests.test_export_refuses_a_secret_shaped_lesson) ... ok
+test_only_verified_active_lessons_are_exported (test_artifacts.SkillsTests.test_only_verified_active_lessons_are_exported) ... ok
+test_acceptance_requires_a_real_improvement (test_improvement.ImprovementLoopTests.test_acceptance_requires_a_real_improvement)
+A candidate that passes checks but does not move the target is rejected. ... ok
+test_accepted_improvement_changes_the_memory_revision (test_improvement.ImprovementLoopTests.test_accepted_improvement_changes_the_memory_revision) ... ok
+test_applied_ledger_blocks_replay (test_improvement.ImprovementLoopTests.test_applied_ledger_blocks_replay)
+`applied.json` is the durable idempotency ledger for proposals. ... ok
+test_archived_baseline_restores_the_accepted_state (test_improvement.ImprovementLoopTests.test_archived_baseline_restores_the_accepted_state)
+The archived payload is enough to get back to the last known-good. ... ok
+test_baseline_is_archived_before_apply (test_improvement.ImprovementLoopTests.test_baseline_is_archived_before_apply) ... ok
+test_concurrency_lock_serialises_cycles (test_improvement.ImprovementLoopTests.test_concurrency_lock_serialises_cycles) ... ok
+test_cycle_runs_the_full_state_sequence (test_improvement.ImprovementLoopTests.test_cycle_runs_the_full_state_sequence) ... ok
+test_diff_budget_rejects_oversized_change (test_improvement.ImprovementLoopTests.test_diff_budget_rejects_oversized_change) ... ok
+test_duplicate_proposals_are_not_re_applied (test_improvement.ImprovementLoopTests.test_duplicate_proposals_are_not_re_applied) ... ok
+test_every_decision_is_audited (test_improvement.ImprovementLoopTests.test_every_decision_is_audited) ... ok
+test_frozen_memory_blocks_the_loop (test_improvement.ImprovementLoopTests.test_frozen_memory_blocks_the_loop) ... ok
+test_high_risk_requires_human_approval (test_improvement.ImprovementLoopTests.test_high_risk_requires_human_approval) ... ok
+test_iteration_limit_caps_proposals_per_cycle (test_improvement.ImprovementLoopTests.test_iteration_limit_caps_proposals_per_cycle) ... ok
+test_lesson_budget_rejects_oversized_change (test_improvement.ImprovementLoopTests.test_lesson_budget_rejects_oversized_change) ... ok
+test_max_cycles_is_respected (test_improvement.ImprovementLoopTests.test_max_cycles_is_respected) ... ok
+test_post_apply_verification_failure_triggers_rollback (test_improvement.ImprovementLoopTests.test_post_apply_verification_failure_triggers_rollback)
+Apply -> smoke verification -> regression -> rollback -> record. ... ok
+test_rejected_candidate_never_mutates_the_baseline (test_improvement.ImprovementLoopTests.test_rejected_candidate_never_mutates_the_baseline) ... skipped 'this seed accepted a candidate; see the apply tests'
+test_stagnation_stops_the_loop (test_improvement.ImprovementLoopTests.test_stagnation_stops_the_loop) ... ok
+test_wall_clock_budget_stops_the_loop (test_improvement.ImprovementLoopTests.test_wall_clock_budget_stops_the_loop) ... ok
+test_health_aggregates_cycle_records (test_improvement.LoopHealthTests.test_health_aggregates_cycle_records) ... ok
+test_deprecated_lessons_leave_the_read_path (test_improvement.MemoryPolicyTests.test_deprecated_lessons_leave_the_read_path) ... ok
+test_revision_is_stable_for_identical_content (test_improvement.MemoryPolicyTests.test_revision_is_stable_for_identical_content) ... ok
+test_snapshot_survives_a_json_roundtrip (test_improvement.MemoryPolicyTests.test_snapshot_survives_a_json_roundtrip) ... ok
+test_weak_keys_respects_min_coverage (test_improvement.MemoryPolicyTests.test_weak_keys_respects_min_coverage) ... ok
+test_apply_add_replace_retire_roundtrip (test_improvement.PatchTests.test_apply_add_replace_retire_roundtrip) ... ok
+test_change_set_diff_is_inspectable (test_improvement.PatchTests.test_change_set_diff_is_inspectable) ... ok
+test_change_set_requires_a_reason_and_a_base_revision (test_improvement.PatchTests.test_change_set_requires_a_reason_and_a_base_revision) ... ok
+test_frozen_memory_refuses_patches (test_improvement.PatchTests.test_frozen_memory_refuses_patches) ... ok
+test_stale_base_revision_is_refused (test_improvement.PatchTests.test_stale_base_revision_is_refused) ... ok
+test_unverified_lesson_is_refused (test_improvement.PatchTests.test_unverified_lesson_is_refused) ... ok
+test_no_evidence_for_a_key_means_no_proposal_for_it (test_improvement.ProposalTests.test_no_evidence_for_a_key_means_no_proposal_for_it)
+Holdout demand alone is not evidence: it must not mint a lesson. ... ok
+test_no_evidence_no_proposal (test_improvement.ProposalTests.test_no_evidence_no_proposal) ... ok
+test_no_proposal_for_already_covered_key (test_improvement.ProposalTests.test_no_proposal_for_already_covered_key)
+A key the baseline already covers must never generate a proposal. ... ok
+test_proposal_ids_are_deterministic (test_improvement.ProposalTests.test_proposal_ids_are_deterministic) ... ok
+test_proposal_is_evidence_backed_and_measurable (test_improvement.ProposalTests.test_proposal_is_evidence_backed_and_measurable) ... ok
+test_risk_is_computed_from_the_change_not_the_claim (test_improvement.ProposalTests.test_risk_is_computed_from_the_change_not_the_claim) ... ok
+test_vague_tasks_are_rejected_by_the_generator (test_improvement.ProposalTests.test_vague_tasks_are_rejected_by_the_generator)
+'make yourself smarter' has no measurable criteria and no evidence. ... ok
+test_protected_paths_are_critical (test_improvement.RiskTests.test_protected_paths_are_critical) ... ok
+test_restricted_scope_is_critical (test_improvement.RiskTests.test_restricted_scope_is_critical) ... ok
+test_risk_policy_auto_accept_ceiling (test_improvement.RiskTests.test_risk_policy_auto_accept_ceiling) ... ok
+test_security_key_raises_risk (test_improvement.RiskTests.test_security_key_raises_risk) ... ok
+test_single_lesson_is_low_or_medium_risk (test_improvement.RiskTests.test_single_lesson_is_low_or_medium_risk) ... ok
+test_skill_files_are_self_editable (test_improvement.RiskTests.test_skill_files_are_self_editable) ... ok
+test_absolute_and_traversal_paths_are_refused (test_improvement.SandboxTests.test_absolute_and_traversal_paths_are_refused) ... ok
+test_cleanup_removes_the_workspace (test_improvement.SandboxTests.test_cleanup_removes_the_workspace) ... ok
+test_diff_budget_is_enforced (test_improvement.SandboxTests.test_diff_budget_is_enforced) ... ok
+test_file_and_byte_budgets_are_enforced (test_improvement.SandboxTests.test_file_and_byte_budgets_are_enforced) ... ok
+test_prose_mentioning_tokens_is_allowed (test_improvement.SandboxTests.test_prose_mentioning_tokens_is_allowed)
+A lesson titled 'token leaks' must not trip the secret scanner. ... ok
+test_secret_shaped_content_is_refused (test_improvement.SandboxTests.test_secret_shaped_content_is_refused) ... ok
+test_write_stays_inside_the_workspace (test_improvement.SandboxTests.test_write_stays_inside_the_workspace) ... ok
+test_full_cycle_is_auditable_end_to_end (test_manual_qa.ManualQATest.test_full_cycle_is_auditable_end_to_end) ... ok
+test_loop_health_is_reported (test_manual_qa.ManualQATest.test_loop_health_is_reported) ... ok
+test_report_and_dashboard_render_after_a_cycle (test_manual_qa.ManualQATest.test_report_and_dashboard_render_after_a_cycle) ... ok
+test_step_02_observe_failures (test_manual_qa.ManualQATest.test_step_02_observe_failures) ... ok
+test_step_03_generate_proposals (test_manual_qa.ManualQATest.test_step_03_generate_proposals) ... ok
+test_step_08_reject_a_failing_candidate (test_manual_qa.ManualQATest.test_step_08_reject_a_failing_candidate)
+A candidate that does not move the target metric must be rejected. ... ok
+test_steps_04_to_07_isolate_inspect_evaluate_compare (test_manual_qa.ManualQATest.test_steps_04_to_07_isolate_inspect_evaluate_compare) ... ok
+test_steps_09_to_12_accept_apply_verify (test_manual_qa.ManualQATest.test_steps_09_to_12_accept_apply_verify) ... ok
+test_steps_13_to_14_rollback_restores_the_baseline (test_manual_qa.ManualQATest.test_steps_13_to_14_rollback_restores_the_baseline) ... ok
+test_exact_fixed_command_only (test_repo_workflow.RepositoryWorkflowGuardTests.test_exact_fixed_command_only) ... ok
+test_only_allowlisted_relative_target (test_repo_workflow.RepositoryWorkflowGuardTests.test_only_allowlisted_relative_target) ... ok
+test_provider_contract_e2e_in_disposable_git_repo (test_repo_workflow.RepositoryWorkflowGuardTests.test_provider_contract_e2e_in_disposable_git_repo) ... ok
+test_secret_is_rejected_before_audit_write (test_repo_workflow.RepositoryWorkflowGuardTests.test_secret_is_rejected_before_audit_write) ... ok
+test_success_requires_explicit_cli_approval (test_repo_workflow.RepositoryWorkflowGuardTests.test_success_requires_explicit_cli_approval) ... ok
+test_exhausted_step_budget_cannot_report_success (test_rsi.HarnessTests.test_exhausted_step_budget_cannot_report_success) ... ok
+test_react_loop_terminates_with_finish (test_rsi.HarnessTests.test_react_loop_terminates_with_finish) ... ok
+test_deterministic (test_rsi.JevTests.test_deterministic) ... ok
+test_done_requires_all_checks (test_rsi.JevTests.test_done_requires_all_checks) ... ok
+test_guardrail_flags_prompt_injection (test_rsi.JevTests.test_guardrail_flags_prompt_injection) ... ok
+test_routing_hard_task_to_deep_model (test_rsi.JevTests.test_routing_hard_task_to_deep_model) ... ok
+test_freeze_blocks_writes (test_rsi.MemoryTests.test_freeze_blocks_writes) ... ok
+test_roundtrip_and_coverage (test_rsi.MemoryTests.test_roundtrip_and_coverage) ... ok
+test_fresh_run_archives_stale_memory (test_rsi.OrchestratorTests.test_fresh_run_archives_stale_memory) ... ok
+test_injection_task_escalates (test_rsi.OrchestratorTests.test_injection_task_escalates) ... ok
+test_warm_beats_cold_on_holdout (test_rsi.OrchestratorTests.test_warm_beats_cold_on_holdout) ... ok
+
+----------------------------------------------------------------------
+Ran 147 tests in 6.363s
+
+OK (skipped=1)
+
+[TEST warm (frozen memory)] 6 tasks | success 3/5 (60%) | avg score 0.83 | escalated 1 | memory 7 lessons
+report written to /tmp/tmpesuqfkds/runs/report.md
+------------------------------------------------------------------------
+HEADLINE: cold success 0% -> warm success 60% on identical holdout tasks (memory: 7 lessons)
+REPORT:   /tmp/tmpesuqfkds/runs/report.md
+AUDIT:    chain intact (20 events)
+DASHBOARD:/tmp/tmpesuqfkds/runs/dashboard.html
+runs dir          : /tmp/tmpesuqfkds/runs
+memory lessons    : 7 active (7 stored, 0 deprecated)
+knowledge keys    : 14
+memory frozen     : True
+attempts traced   : 12
+improvement cycles: 2
+  accepted        : 1
+  rejected        : 1
+  escalated       : 0
+  rolled back     : 0
+audit events      : 20 (chain intact)
+stop reason       : none
+audit chain: INTACT (20 events)
+[rao] APPLIED prop-8e26c789ad44 -> SKILL.md, CLAUDE.md
+[rao] APPLIED prop-8f0daf71b15f -> SKILL.md, CLAUDE.md
+[rao] ESCALATED prop-311a0fe6649c: risk MEDIUM requires a human approver; none is configured, so the skill-file rewrite was NOT applied
+[rao] APPLIED prop-3596d86a3444 -> SKILL.md, CLAUDE.md
+[rao] APPLIED prop-aa3ba19d149a -> SKILL.md, CLAUDE.md
+[rao] APPLIED prop-abd65aeed5db -> SKILL.md, CLAUDE.md
+[rao] APPLIED prop-2c2cd1d5576b -> SKILL.md, CLAUDE.md

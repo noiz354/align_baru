@@ -1,0 +1,72 @@
+
+> homeops@0.1.0 build
+> next build
+
+▲ Next.js 16.3.6 (Turbopack)
+✓ Running next.config.ts took 310ms
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 81s
+  Running TypeScript ...
+  Finished TypeScript in 45s ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/30) ...
+  Generating static pages using 3 workers (7/30) 
+  Generating static pages using 3 workers (14/30) 
+  Generating static pages using 3 workers (22/30) 
+✓ Generating static pages using 3 workers (30/30) in 3.8s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /activity
+├ ○ /alerts
+├ ƒ /alerts/[id]
+├ ƒ /api/attachments/[id]
+├ ƒ /api/cron/[job]
+├ ƒ /api/health
+├ ƒ /api/homeops/chores
+├ ƒ /api/homeops/chores/[id]/complete
+├ ƒ /api/homeops/rooms
+├ ƒ /api/homeops/today
+├ ƒ /api/push/subscribe
+├ ○ /chores
+├ ƒ /chores/[id]
+├ ○ /chores/new
+├ ƒ /invite/[token]
+├ ○ /issues
+├ ƒ /issues/[id]
+├ ○ /issues/new
+├ ○ /maintenance
+├ ƒ /maintenance/[id]
+├ ○ /maintenance/new
+├ ƒ /manifest.webmanifest
+├ ○ /more
+├ ○ /offline
+├ ○ /onboarding
+├ ○ /reset-password
+├ ƒ /reset/[token]
+├ ○ /resources
+├ ○ /rooms
+├ ƒ /rooms/[id]
+├ ○ /settings/alerts
+├ ○ /settings/data
+├ ○ /settings/household
+├ ○ /settings/members
+├ ○ /settings/notifications
+├ ○ /settings/resources
+├ ○ /sign-in
+├ ○ /sign-up
+├ ƒ /today
+└ ○ /trash
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+EXIT=0

@@ -1,0 +1,14 @@
+
+> homeops@0.1.0 test
+> vitest run --project unit
+
+
+ RUN  v4.1.11 /tmp/opencode/align_rl_vps/homeops-household-manager-spec
+
+
+ Test Files  6 passed | 11 skipped (17)
+      Tests  49 passed (49)
+   Start at  21:32:13
+   Duration  8.94s (transform 2.97s, setup 0ms, import 5.34s, tests 1.78s, environment 30ms)
+
+EXIT=0

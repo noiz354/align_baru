@@ -1,0 +1,6 @@
+
+> strangerlink@0.1.0 lint
+> eslint .
+
+sh: 1: eslint: not found
+EXIT=127

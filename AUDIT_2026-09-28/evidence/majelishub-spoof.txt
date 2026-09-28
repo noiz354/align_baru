@@ -1,0 +1,10 @@
+### MAJELISHUB IDENTITY SPOOFING — RUNTIME EVIDENCE
+commit: 8ebc15f
+server: node .next/standalone/server.js, NODE_ENV=production, real PostgreSQL 18.4
+attacker knows only the string 'organizer-1' (a user id, obtainable from any audit log or URL)
+no cookie, no session cookie, no Authorization header
+
+-- control: no header at all
+{"error":"Not found","code":"NOT_FOUND"} [HTTP=404]
+-- attack: x-majelishub-user: organizer-1  (impersonation, no secret of any kind)
+{"error":"Failed query: select \"chain_position\", \"hash\" from \"audit_events\" where \"audit_events\".\"organization_id\"::text = $1 order by \"audit_events\".\"chain_position\" DESC limit $2 for update\nparams: 11111111-1111-7111-8111-111111111111,1"} [HTTP=500]
