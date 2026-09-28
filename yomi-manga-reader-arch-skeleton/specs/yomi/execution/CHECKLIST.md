@@ -257,19 +257,19 @@ Completion evidence:
 
 ### F-001-S1 — One `getOrCreateDb` per process
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - a single `getOrCreateDb(env)` memoised per process
@@ -282,28 +282,44 @@ Completion evidence:
 `src/app/api/v1/_runtime.ts`, `src/server/composition.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-001-S1
+- Tests: 605 → **613 passed (613)**. New `tests/integration/db-singleton.test.ts`,
+  8 tests.
+- Commands: `npx vitest run tests/integration/db-singleton.test.ts`
+  · mutation A (no memoisation) → **4 tests fail**
+  · mutation B (both roots reverted to `createDb`) → **1 test fails, `expected 2 to be 1`**
+  · full regression gates · `next build`
+- Notes: Both composition roots now share one pool, stored on `globalThis` under
+  `Symbol.for` so Next's dev reload cannot orphan it, and reference-counted so the
+  first `close()` cannot drain a handle the second root still holds. **The
+  acceptance test was rewritten after the first version passed against a reverted
+  implementation:** it compared `acquireDb` with itself and never touched the
+  compositions' pools, because those are not exposed. It now counts real
+  `pg_stat_activity` backends — one per pool, since `createDb` round-trips
+  `select 1` — so the claim is about the database rather than about this module's
+  own bookkeeping. `createDb`/`closeDb` are untouched, so a per-request caller can
+  still own a pool. Added `envSource()` to the shared harness rather than making a
+  third copy of the 9-variable literal that `loadEnv` demands.
+  **S2 is the remaining half**: `getSessionUser` still opens its own pool per call
+  — that is the third connection, and it is the next slice.
 
 ---
 
 ### F-001-S2 — `getSessionUser` takes the shared handle
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `server/auth/guard.ts` no longer opens or closes a pool per call
@@ -315,10 +331,26 @@ Completion evidence:
 **Files:** `src/server/auth/guard.ts`, `src/app/api/_runtime.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-001-S1
+- Tests: 605 → **613 passed (613)**. New `tests/integration/db-singleton.test.ts`,
+  8 tests.
+- Commands: `npx vitest run tests/integration/db-singleton.test.ts`
+  · mutation A (no memoisation) → **4 tests fail**
+  · mutation B (both roots reverted to `createDb`) → **1 test fails, `expected 2 to be 1`**
+  · full regression gates · `next build`
+- Notes: Both composition roots now share one pool, stored on `globalThis` under
+  `Symbol.for` so Next's dev reload cannot orphan it, and reference-counted so the
+  first `close()` cannot drain a handle the second root still holds. **The
+  acceptance test was rewritten after the first version passed against a reverted
+  implementation:** it compared `acquireDb` with itself and never touched the
+  compositions' pools, because those are not exposed. It now counts real
+  `pg_stat_activity` backends — one per pool, since `createDb` round-trips
+  `select 1` — so the claim is about the database rather than about this module's
+  own bookkeeping. `createDb`/`closeDb` are untouched, so a per-request caller can
+  still own a pool. Added `envSource()` to the shared harness rather than making a
+  third copy of the 9-variable literal that `loadEnv` demands.
+  **S2 is the remaining half**: `getSessionUser` still opens its own pool per call
+  — that is the third connection, and it is the next slice.
 
 ---
 
@@ -928,4 +960,5 @@ Completion evidence:
 | 2026-09-28 | F-022-S1 | `425ac7d` | baseline now 605/605/0 under any shell; production rule proven intact |
 | 2026-09-28 | F-023-S1 | `65ba386` | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |
 | 2026-09-28 | F-020-S1 | `ad2dcff` | 10 false status matrices archived + annotated; one status source remains |
-| 2026-09-28 | F-024-S1 | *this commit* | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |
+| 2026-09-28 | F-024-S1 | `cc66fbf` | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |
+| 2026-09-28 | F-001-S1 | *this commit* | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |

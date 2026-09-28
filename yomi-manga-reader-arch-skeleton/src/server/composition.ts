@@ -33,7 +33,7 @@ import { createLibraryService, type LibraryService } from '../features/library';
 import { createResumeService, type HistoryRepository } from '../features/progress';
 import { loadEnv } from '../shared/validation';
 import type { Env, EnvSource } from '../shared/validation';
-import { createDb, closeDb, type Db } from './db/client';
+import { acquireDb, releaseDb, type Db } from './db/client';
 import {
   createProgressPositionReader,
   createReaderProgressRepository,
@@ -111,7 +111,7 @@ export function buildComposition(source?: EnvSource): Composition {
  */
 export async function createCatalogComposition(source?: EnvSource): Promise<CatalogComposition> {
   const { env, logger } = buildComposition(source);
-  const db: Db = await createDb(env);
+  const db: Db = await acquireDb(env);
   const { manga, chapters } = createRepositories(db);
   return {
     catalog: createCatalogService({
@@ -127,7 +127,7 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
       vocabulary: createGenreTagVocabularyPort(db),
     }),
     logger,
-    close: () => closeDb(db),
+    close: () => releaseDb(db),
   };
 }
 
@@ -149,11 +149,9 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
  * Requirements: FR-LIBRARY-001…010, FR-READER-015, NFR-DATA-003/005/006.
  * Tasks: T-LIB-001/002/007, T-LIB-008, T-READER-021/022/025.
  */
-export async function createLibraryComposition(
-  source?: EnvSource,
-): Promise<LibraryComposition> {
+export async function createLibraryComposition(source?: EnvSource): Promise<LibraryComposition> {
   const { env, logger } = buildComposition(source);
-  const db: Db = await createDb(env);
+  const db: Db = await acquireDb(env);
   const { manga, chapters } = createRepositories(db);
   return {
     library: createLibraryService({
@@ -177,7 +175,7 @@ export async function createLibraryComposition(
     manga,
     chapters,
     logger,
-    close: () => closeDb(db),
+    close: () => releaseDb(db),
   };
 }
 

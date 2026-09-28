@@ -234,7 +234,7 @@ export async function createDb(env: Env, options: PostgresClientOptions = {}): P
       // `Db` type, so the handle is narrowed to the shape this call actually needs.
       await (db as unknown as { execute(query: string): Promise<unknown> }).execute('select 1');
     } else {
-      await (client)`select 1`;
+      await client`select 1`;
     }
   } catch (cause) {
     await db.close();
@@ -250,4 +250,104 @@ export async function createDb(env: Env, options: PostgresClientOptions = {}): P
 /** Closes a handle produced by {@link createDb}; safe to call twice. */
 export async function closeDb(db: Db): Promise<void> {
   await db.close();
+}
+
+/* ── process-wide handle (F-001-S1) ────────────────────────────────────────── */
+
+/**
+ * One pool per process, shared by every composition root, with a reference count.
+ *
+ * The problem it solves: a single members' request could hold three pools. Two
+ * composition roots each called `createDb` independently, and
+ * `server/auth/guard.ts` opened and closed a third per call. Under
+ * DEPLOYMENT.md §1 the app is budgeted 10 connections, so three pools for one
+ * request is a third of the budget spent before any work happens.
+ *
+ * Why the cache lives on `globalThis` and not in a module variable: Next's dev
+ * server re-evaluates modules on hot reload, and a module-level cache is thrown
+ * away with the old module — while the pool it held is not, because the driver
+ * holds sockets. A dev-only pool leak is still a leak. `Symbol.for` rather than
+ * `Symbol` so the key is registry-wide and cannot collide with another copy of
+ * this module in the same realm.
+ *
+ * Why reference counting rather than a plain singleton: both composition roots
+ * hold the same handle, and each exposes a `close`. If the first `close` drained
+ * the pool, the second root would keep a handle to a dead pool — a use-after-free
+ * that only appears under shutdown. The last release drains; earlier ones do
+ * nothing.
+ *
+ * Why a rejected promise is not cached: `createDb` is fail-fast, and a
+ * deployment with a briefly unreachable database should recover on the next
+ * request rather than replaying the first failure forever. This mirrors the same
+ * rule in `app/api/_deps.ts`.
+ */
+const DB_SINGLETON_KEY = Symbol.for('yomi.db.pool');
+
+interface DbSingleton {
+  /** The in-flight or settled handle; `null` when there is no live pool. */
+  promise: Promise<Db> | null;
+  /** The DSN the live pool was built from, so a changed env is caught. */
+  dsn: string;
+  /** How many holders still believe they own the handle. */
+  refs: number;
+}
+
+type GlobalWithDb = typeof globalThis & { [DB_SINGLETON_KEY]?: DbSingleton };
+
+function singleton(): DbSingleton {
+  const g = globalThis as GlobalWithDb;
+  g[DB_SINGLETON_KEY] ??= { promise: null, dsn: '', refs: 0 };
+  return g[DB_SINGLETON_KEY];
+}
+
+/**
+ * Acquire the process-wide handle, creating it on first use.
+ *
+ * Each call takes a reference; balance it with {@link releaseDb}. Callers that
+ * want a handle they own outright — a per-request throwaway pool, or a test's
+ * isolated database — should keep calling {@link createDb} and closing it with
+ * {@link closeDb}. This is for the composition roots, whose lifetime is the
+ * process.
+ *
+ * @param env the validated environment
+ * @param options driver overrides, honoured only when the pool is first created
+ * @returns the shared handle
+ * @throws {DatabaseConfigurationError} when the DSN is unusable or unreachable,
+ *   or when it differs from the DSN the live pool was built from
+ */
+export async function acquireDb(env: Env, options: PostgresClientOptions = {}): Promise<Db> {
+  const slot = singleton();
+  if (slot.promise !== null && slot.dsn !== env.databaseUrl) {
+    throw new DatabaseConfigurationError(
+      'DATABASE_URL',
+      'the environment DSN changed while a shared pool was already open; the live pool ' +
+        'was built from a different DSN and cannot be reused',
+    );
+  }
+  slot.refs += 1;
+  if (slot.promise === null) {
+    slot.dsn = env.databaseUrl;
+    slot.promise = createDb(env, options).catch((cause: unknown) => {
+      // Do not memoise a failure: `createDb` is fail-fast, and the next request
+      // should be free to try again.
+      slot.promise = null;
+      slot.refs -= 1;
+      throw cause;
+    });
+  }
+  return slot.promise;
+}
+
+/**
+ * Release one reference taken by {@link acquireDb}; drains the pool when the last
+ * holder lets go. Safe to call more times than acquired — it stops at zero.
+ */
+export async function releaseDb(db: Db): Promise<void> {
+  const slot = singleton();
+  if (slot.promise === null) return;
+  slot.refs -= 1;
+  if (slot.refs > 0) return;
+  slot.promise = null;
+  slot.dsn = '';
+  await closeDb(db);
 }

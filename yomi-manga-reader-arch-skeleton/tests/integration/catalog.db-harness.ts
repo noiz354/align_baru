@@ -41,7 +41,7 @@ import { describe } from 'vitest';
 import { runMigrations } from '../../src/server/db/migrations';
 import { createDb, type Db } from '../../src/server/db/client';
 import { SCHEMA_TABLES } from '../../src/server/db/schema';
-import type { Env } from '../../src/shared/validation';
+import type { Env, EnvSource } from '../../src/shared/validation';
 
 /** The DSN for the run, or `undefined` when there is no database. */
 export const DATABASE_URL = process.env['DATABASE_URL'];
@@ -73,6 +73,36 @@ export function testEnv(databaseUrl: string): Env {
 }
 
 /** The same DSN with a different database name. */
+/**
+ * A COMPLETE `EnvSource` for `createCatalogComposition` / `createLibraryComposition`.
+ *
+ * `testEnv` above is enough for `createDb`, which reads one field. A composition
+ * root is different: it calls `loadEnv` itself, and `loadEnv` refuses to start
+ * unless all nine variables are present (DEPLOYMENT.md §3, plus the
+ * no-variable-values-in-the-error rule of NFR-OBS-006). That refusal is correct
+ * and worth keeping — it is why a misconfigured deployment fails at boot rather
+ * than at the first query — but a test that wants a composition root must satisfy
+ * it.
+ *
+ * It lives here, beside `testEnv`, because the alternative is a third copy of this
+ * literal (media-delivery and seed.harness each have one already) and they drift.
+ * The values are throwaway and never leave the test process.
+ */
+export function envSource(databaseUrl: string): EnvSource {
+  return {
+    NODE_ENV: 'test',
+    APP_ORIGIN: 'http://localhost:3000',
+    SESSION_SECRET: '0'.repeat(64),
+    DATABASE_URL: databaseUrl,
+    NEXT_TELEMETRY_DISABLED: '1',
+    S3_ENDPOINT: 'http://127.0.0.1:9000',
+    S3_REGION: 'auto',
+    S3_BUCKET: 'yomi-media-test',
+    S3_ACCESS_KEY_ID: 'test-access-key',
+    S3_SECRET_ACCESS_KEY: 'test-secret-key-000000000000',
+  };
+}
+
 function dsnFor(databaseName: string): string {
   const url = new URL(DATABASE_URL as string);
   url.pathname = `/${databaseName}`;
