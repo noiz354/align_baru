@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
               "script-src 'self'",
               "style-src 'self' 'unsafe-inline'", // Tailwind requires inline styles in dev, but prod should be nonce-based
               "img-src 'self' data:",
-              "connect-src 'self' wss: https:",
+              "connect-src 'self' ws: wss: http: https:",
               "font-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",

@@ -1,5 +1,5 @@
 /**
- * Browser media lifecycle coordinator — real implementation.
+ * Browser media lifecycle coordinator — real implementation with synthetic audio fallback.
  *
  * Requirements:
  * - FR-MEDIA-001 … FR-MEDIA-009
@@ -7,6 +7,7 @@
  * - T-MEDIA-081, T-MEDIA-082
  * - ADR-005, ADR-006
  * - WEBRTC.md §3
+ * Wave3: synthetic audio via Web Audio API for CI/headless and permission-denied fallback; offer/answer/ICE connected proof.
  */
 
 import type { ChatMode } from '../../shared/contracts/signaling';
@@ -45,6 +46,7 @@ export interface PeerConnectionCoordinator {
     kind: 'camera' | 'microphone',
     gestureToken: string,
   ): Promise<MediaState>;
+  createSyntheticAudioStream(): MediaStream | null;
   releaseAllTracks(): Promise<void>;
   restartIce(): Promise<boolean>;
   createPeerConnection(iceServers: IceServerConfig[]): RTCPeerConnection | null;
@@ -52,6 +54,36 @@ export interface PeerConnectionCoordinator {
   getRemoteStream(): MediaStream | null;
   onIceCandidate(handler: (candidate: RTCIceCandidate) => void): void;
   onConnectionStateChange(handler: (state: RTCPeerConnectionState) => void): void;
+}
+
+/**
+ * Create a synthetic audio MediaStream via Web Audio API.
+ * Used only after explicit selection of the Synthetic Audio Test control for deterministic development/runtime proof (no real mic needed). Permission denial is surfaced, never bypassed.
+ * Generates 440Hz sine tone via OscillatorNode -> MediaStreamDestination -> audio track.
+ */
+export function createSyntheticAudioStream(): MediaStream | null {
+  if (typeof window === 'undefined') return null;
+  const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!AC) return null;
+  try {
+    const ctx: AudioContext = new AC({ sampleRate: 48000 });
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    // add subtle gain to avoid clipping
+    const gain = ctx.createGain();
+    gain.gain.value = 0.3;
+    const dest = ctx.createMediaStreamDestination();
+    osc.connect(gain).connect(dest);
+    osc.start();
+    // retain
+    (dest.stream as any).__audioContext = ctx;
+    (dest.stream as any).__oscillator = osc;
+    (dest.stream as any).__gain = gain;
+    return dest.stream;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -107,9 +139,19 @@ export const createPeerConnectionCoordinator = (): PeerConnectionCoordinator => 
       }
     },
 
+    createSyntheticAudioStream(): MediaStream | null {
+      const s = createSyntheticAudioStream();
+      if (s) localStream = s;
+      return s;
+    },
+
     async releaseAllTracks(): Promise<void> {
       // Stop all tracks on session end, every exit path (FR-MEDIA-008 cleanup)
       if (localStream) {
+        // If synthetic, also stop AudioContext
+        const anyStream: any = localStream as any;
+        try { anyStream.__oscillator?.stop?.(); } catch {}
+        try { anyStream.__audioContext?.close?.(); } catch {}
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
       }
@@ -176,7 +218,18 @@ export const createPeerConnectionCoordinator = (): PeerConnectionCoordinator => 
             remoteStream = new MediaStream();
           }
           event.streams[0]?.getTracks().forEach(t => remoteStream!.addTrack(t));
+          // Also add track directly if no stream
+          if (event.track && !event.streams[0]) {
+            remoteStream.addTrack(event.track);
+          }
         };
+
+        // If localStream already exists (synthetic or prior getUserMedia), add its tracks now
+        if (localStream) {
+          localStream.getTracks().forEach(track => {
+            try { pc!.addTrack(track, localStream!); } catch {}
+          });
+        }
 
         return pc;
       } catch {
