@@ -9,8 +9,17 @@ export interface UserRecord {
   email: string;
   name?: string;
   role: "reader" | "editor" | "admin";
+  passwordHash?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SessionRecord {
+  id: string;
+  userId: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface MangaRecord {
