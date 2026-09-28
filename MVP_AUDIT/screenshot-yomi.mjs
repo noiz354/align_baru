@@ -18,11 +18,19 @@
  *   npm run build && npm run start -- --port 3199
  *   node MVP_AUDIT/screenshot-yomi.mjs http://127.0.0.1:3199
  *
+ * `playwright-core` is resolved through the yomi workspace's own node_modules
+ * rather than by bare specifier. This file sits at the repo root, which has no
+ * node_modules at all, and Node resolves an ESM bare import relative to the
+ * importing FILE — not the working directory — so the usage line above used to
+ * fail with ERR_MODULE_NOT_FOUND no matter which directory it was run from.
+ * Requiring the workspace package.json makes the documented invocation work and
+ * states which project's dependency is being borrowed.
+ *
  * Requires a reachable app (see HARNESS.md §3) with DATABASE_URL pointing at a migrated,
  * seeded PostgreSQL and STORAGE reachable. Nothing here is captured from a guessed state: each
  * page is fetched, the response status is recorded, and the file is written afterwards.
  */
-import { chromium } from 'playwright-core';
+import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +38,10 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(HERE, 'screenshots', 'yomi');
 const BASE = process.argv[2] ?? 'http://127.0.0.1:3199';
+
+const YOMI_WORKSPACE = join(HERE, '..', 'yomi-manga-reader-arch-skeleton');
+const require_ = createRequire(join(YOMI_WORKSPACE, 'package.json'));
+const { chromium } = require_('playwright-core');
 
 const PAGES = [
   { route: '/', file: '01-home.png', what: 'home — continue-reading section and catalog preview' },
