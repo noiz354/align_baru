@@ -1,0 +1,7 @@
+# StrangerLink Wave3 BASELINE
+
+**Wave2 State:** `MVP_PARTIAL` (df0e396) — real WebSocket queue → matchmaking → `MATCH_FOUND` → bidirectional `MESSAGE_SEND`/`MESSAGE_DELIVERED` → `PEER_LEFT` already runtime-proven. Existing `OFFER`, `ANSWER`, `ICE_CANDIDATE` contract and opaque relay existed, as did browser media coordinator, but chat page only had standalone `getUserMedia` controls; it did not attach tracks to a peer connection or exchange offer/answer/ICE with its matched stranger. Therefore no actual audio track reached a remote participant.
+
+**Demo-only boundary:** media was UI decoration without a connected path to signaling. WebRTC stats/connection/remote track were absent; previous implementation couldn't prove offer → answer → ICE → connected or disconnect cleanup. Existing media APIs were not actually wired into `/chat/[sessionId]`.
+
+**Wave3 target:** wire a matched `TEXT_AUDIO` session to a real `RTCPeerConnection`: A creates offer and sends via current WebSocket `OFFER`; B queues early OFFER/ICE while user has not enabled media then applies after mic/synthetic-source explicit click, returns `ANSWER`; both exchange trickle `ICE_CANDIDATE`; `ontrack` attaches remote audio to `<audio>`; connection state reports connected/disconnect and stops tracks. Use synthetic audio only when user explicitly clicks the test control. Prove with two peers through live signaling, then preserve TEXT regression and report/block path.
