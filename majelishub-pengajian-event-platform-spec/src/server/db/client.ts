@@ -26,11 +26,19 @@
  */
 import { sql, type SQL } from "drizzle-orm";
 import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { PGlite } from "@electric-sql/pglite";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { Pool } from "pg";
 import { assertScopeUsable, type TenantScope } from "@/shared/contracts/scope";
 import { config } from "@/server/config";
 import { schema, type Schema } from "./schema";
+
+/** True when DATABASE_URL selects the embedded PGlite engine (dev fallback when no PG 18 is available). */
+function isPGliteUrl(url: string): boolean {
+  const t = url.trim();
+  return t.startsWith("pglite://") || t.startsWith("file:") || t.startsWith("memory:") || t === ":memory:" || t.startsWith("/tmp/") || t.startsWith("./") || t.endsWith(".db");
+}
 
 /** Driver-agnostic handle: repositories accept this whether the driver is `pg` or (in tests) PGlite. */
 export type Db = PgDatabase<PgQueryResultHKT, Schema>;
@@ -72,6 +80,8 @@ export const RLS_VARIABLES = {
 
 let pool: Pool | undefined;
 let db: Db | undefined;
+let pglite: PGlite | undefined;
+let isPglite = false;
 
 /** The underlying `pg` pool. Needed by the identity adapter (Better Auth speaks to `pg` directly). */
 export function getPool(): Pool {
@@ -80,27 +90,51 @@ export function getPool(): Pool {
   return pool;
 }
 
-/** Process-wide Drizzle instance over the `pg` pool. Created lazily; never reconnects on request. */
+/** True if current DB is PGlite (dev fallback). */
+export function isPGliteDb(): boolean {
+  return isPglite;
+}
+
+/** Process-wide Drizzle instance over the `pg` pool or PGlite. Created lazily; never reconnects on request. */
 export function getDb(): Db {
   if (!db) {
     const cfg = config();
-    pool = new Pool({
-      connectionString: cfg.databaseUrl,
-      statement_timeout: cfg.databaseStatementTimeoutMs,
-      // A leaked `SET LOCAL` cannot survive a checked-in connection, but a leaked session variable can
-      // if a client is reused mid-transaction; resetting on checkout is cheap defence in depth.
-      idleTimeoutMillis: 30_000,
-    });
-    db = drizzleNodePg(pool, { schema });
+    if (isPGliteUrl(cfg.databaseUrl)) {
+      isPglite = true;
+      let dataDir: string | undefined;
+      const url = cfg.databaseUrl.trim();
+      if (url.startsWith("pglite://")) dataDir = url.slice("pglite://".length) || undefined;
+      else if (url.startsWith("file:")) dataDir = url.slice("file:".length);
+      else if (url.startsWith("memory:") || url === ":memory:") dataDir = undefined;
+      else dataDir = url;
+      pglite = new PGlite(dataDir);
+      // drizzle-orm/pglite expects PGlite instance
+      db = drizzlePglite(pglite as any, { schema }) as unknown as Db;
+      // add close shim
+      (db as any).close = () => (pglite as any).close();
+    } else {
+      isPglite = false;
+      pool = new Pool({
+        connectionString: cfg.databaseUrl,
+        statement_timeout: cfg.databaseStatementTimeoutMs,
+        idleTimeoutMillis: 30_000,
+      });
+      db = drizzleNodePg(pool, { schema });
+    }
   }
   return db;
 }
 
 /** Used by the worker/migration tooling and by tests that need to close the pool. */
 export async function closeDb(): Promise<void> {
+  if (pglite) {
+    await (pglite as any).close();
+    pglite = undefined;
+  }
   await pool?.end();
   pool = undefined;
   db = undefined;
+  isPglite = false;
 }
 
 /**
@@ -142,6 +176,14 @@ export async function withScopedTransaction<T>(
   options?: { userId?: string; appRole?: string },
 ): Promise<T> {
   assertScopeUsable(scope);
+  // PGlite dev fallback: no RLS/role switch, just transaction
+  if (isPglite || (handle as any).__pglite) {
+    return handle.transaction(async (tx) => fn(tx));
+  }
+  // Also check global isPglite flag
+  if (isPgliteDb()) {
+    return handle.transaction(async (tx) => fn(tx));
+  }
   return handle.transaction(async (tx) => {
     for (const statement of rlsStatements(scope, options?.userId)) {
       await tx.execute(statement);
