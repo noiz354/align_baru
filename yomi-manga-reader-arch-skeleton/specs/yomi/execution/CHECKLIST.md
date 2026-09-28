@@ -358,19 +358,19 @@ Completion evidence:
 
 ### F-010-S1 — `createSearchRepository`: ranking bands, trigram, keyset cursor
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A (the trigram indexes already exist)
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A (anonymous)
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A (the trigram indexes already exist)
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A (anonymous)
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - 4 integer ranking bands in order: exact > prefix > contains (trigram) > related
@@ -383,28 +383,35 @@ Completion evidence:
 **Verify:** `npx vitest run tests/integration/search-repository.test.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-010-S1+S2 (one commit, one file, one query — see the evidence file
+  for why the split would have manufactured two commits over one `WHERE`)
+- Tests: 690 → **711 passed (711)**, 21 new.
+- Commands: 6 mutations, all caught · full regression gates · `next build`
+- Notes: `bound parameters in a UNION default to text` — rank/score came back as
+  strings and every row mapped to 'related' until the `::integer` casts. The
+  fixture named its tag 'SpiralQuest', which contains 'spiral', so the "no tag
+  hit" assertion was wrong about its own fixture; renamed. Removing the id
+  tie-break is unobservable (Postgres's physical order coincides), so the
+  mutation that matters is REVERSING it. `PLANNED_REPOSITORIES` lost 'search'
+  after `check-claims.mjs` failed the build on the stale entry.
 
 ---
 
 ### F-010-S2 — Creator/tag related band; CJK 1–2 char prefix-only path
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - a 1–2 character CJK query takes the **prefix path only** and never the trigram
@@ -419,10 +426,17 @@ Completion evidence:
 **Files:** `src/server/db/repositories/search.repository.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-010-S1+S2 (one commit, one file, one query — see the evidence file
+  for why the split would have manufactured two commits over one `WHERE`)
+- Tests: 690 → **711 passed (711)**, 21 new.
+- Commands: 6 mutations, all caught · full regression gates · `next build`
+- Notes: `bound parameters in a UNION default to text` — rank/score came back as
+  strings and every row mapped to 'related' until the `::integer` casts. The
+  fixture named its tag 'SpiralQuest', which contains 'spiral', so the "no tag
+  hit" assertion was wrong about its own fixture; renamed. Removing the id
+  tie-break is unobservable (Postgres's physical order coincides), so the
+  mutation that matters is REVERSING it. `PLANNED_REPOSITORIES` lost 'search'
+  after `check-claims.mjs` failed the build on the stale entry.
 
 ---
 

@@ -117,5 +117,9 @@ export {
  * of `SessionRepository` rather than the port's six methods (the rest is F-002,
  * on the deferred auth track). The list is "ports without a file", not "ports".
  * Kept as a literal so `check-claims.mjs` can verify it against the filesystem.
+ *
+ * `search` left this list in F-010-S1/S2, when `search.repository.ts` landed —
+ * and `check-claims.mjs` failed the build on the stale entry, which is the
+ * point: the list cannot outlive the code it describes.
  */
-export const PLANNED_REPOSITORIES = ['user', 'search', 'upload-job'] as const;
+export const PLANNED_REPOSITORIES = ['user', 'upload-job'] as const;
