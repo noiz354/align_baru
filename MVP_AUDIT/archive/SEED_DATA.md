@@ -1,5 +1,19 @@
 # Seed Data — Deterministic Demo / Dev Fixtures
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+The Yomi section states plaintext passwords. That is wrong twice over. The seed
+no longer accepts fixed credentials: it **refuses to run** without
+`SEED_ADMIN_PASSWORD` and `SEED_READER_PASSWORD` in the environment, and will not
+invent them. Credentials belong in the environment only (SECURITY.md §9), so the
+values are deliberately not reproduced here. Export your own throwaway values.
+
+
 > **Historical seed inventory:** This describes the earlier Wave1/Wave2 seed state. Wave3 added project-specific seed/migration scripts documented under `wave3/<project>/IMPLEMENTATION.md`; use those docs for current behavior.
 
 

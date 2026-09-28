@@ -1,5 +1,20 @@
 # MVP Matrix — Wave 3 (2026-09-28, Asia/Jakarta)
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+This row records Yomi as `MVP_PARTIAL` on the strength of "authenticated
+user-owned library, bookmarks, and progress". The isolation claim is real and is
+mutation-proven. The authentication claim is not: `grep "insert(users)" src/`
+returns zero hits, so no account can be created through the application at all.
+A seeded account can sign in, which is how the library was verified — a narrower
+claim than this row makes.
+
+
 Branch: `arena/01a0e54f-align-baru`
 Base: `df0e396`
 Scope: narrow evidence-backed changes across all eight projects. Runtime data is not committed; screenshot assets are included only where actual captures exist. Each project's implementation is committed separately from its Wave3 evidence.

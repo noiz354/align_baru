@@ -1,5 +1,18 @@
 # MVP Matrix — Runtime Evidence (2026-09-28, Asia/Jakarta)
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+The one Yomi row here says the app boots with a seeded catalog. That is true and
+it is the smallest true thing. It is recorded as the headline, which is how a
+skeleton with three working pages came to read as coverage. No claim below was
+verified against `7af4e6a`.
+
+
 > **Historical snapshot:** This matrix records the initial runtime audit before Wave2/Wave3 implementation. For current readiness and evidence, use [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md).
 
 

@@ -153,19 +153,19 @@ Completion evidence:
 
 ### F-020-S1 — Archive the stale status documents
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete / N/A
-- [ ] negative-path verification / N/A
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint / N/A
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete / N/A
+- [x] negative-path verification / N/A
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint / N/A
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - the 15 `MVP_AUDIT` markdown files move to `MVP_AUDIT/archive/`; none is deleted
@@ -179,10 +179,25 @@ Completion evidence:
 **Files:** `MVP_AUDIT/**` only
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-020-S1
+- Tests: 605 passed / 0 failed. **0 product files changed** — the diff is
+  documentation only.
+- Commands: `git status --porcelain` (10 × `D` + `??` = renames, not removals)
+  · `grep -rlE "MVP_READY\|MVP_PARTIAL\|RUNNABLE_DEMO" MVP_AUDIT/*.md` → only the
+  new README, which quotes those terms to say they are false
+  · full regression gates
+- Notes: 10 matrices moved to `MVP_AUDIT/archive/` and annotated in place, each
+  naming the specific false claim rather than "outdated". Worst three:
+  `MVP_MATRIX_FINAL` (nothing about `7af4e6a` is compatible with "FINAL");
+  `MVP_MATRIX_WAVE3` (grades Yomi on "authenticated" when no account can be
+  created — the isolation half is true and mutation-proven, the auth half is not);
+  `SEED_DATA` (documents plaintext passwords the seed now **refuses**, so the
+  values were deliberately not reproduced in the annotation). `RUNTIME_COMMANDS`
+  and `SEED_DATA` also contradict each other inside the same archive.
+  **A second record corrected:** the master gap audit said "10 screenshot scripts"
+  — there are 3, and only `screenshot-yomi.mjs` is Yomi's. The other two capture
+  HomeOps (`/chores`) and the parking app (`/queue`) and were **left in place**,
+  labelled rather than archived: they are another project's tooling.
 
 ---
 
@@ -898,4 +913,5 @@ Completion evidence:
 |---|---|---|---|
 | 2026-09-28 | plan authored | `36b36ee` | 24 features, 35 slices, auth deferred |
 | 2026-09-28 | F-022-S1 | `425ac7d` | baseline now 605/605/0 under any shell; production rule proven intact |
-| 2026-09-28 | F-023-S1 | *this commit* | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |
+| 2026-09-28 | F-023-S1 | `65ba386` | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |
+| 2026-09-28 | F-020-S1 | *this commit* | 10 false status matrices archived + annotated; one status source remains |

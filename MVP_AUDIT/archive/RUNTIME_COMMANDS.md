@@ -1,5 +1,18 @@
 # Runtime Commands — Exact Repro
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+Line 67 says Yomi "boots without [PostgreSQL] — discover shows 'catalog
+unavailable'". `SEED_DATA.md` in this same archive documents a seed that verifies
+its own read-back. Both cannot describe the same build. Commands were not
+re-verified when this file was archived.
+
+
 > **Historical commands:** These commands reproduce the earlier baseline audit, not every current Wave3 flow. Use the per-project Wave3 `RUNTIME_PROOF.md` for current commands. The old MajelisHub route-move workaround below has already been applied; do not rerun its `cp`/`rm` commands.
 
 

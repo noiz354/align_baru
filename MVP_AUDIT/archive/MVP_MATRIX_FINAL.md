@@ -1,5 +1,18 @@
 # MVP Matrix — FINAL (2026-09-28, Asia/Jakarta) — Wave 2 complete
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+A file named FINAL is the most likely thing in a repository to be believed. Yomi
+at `7af4e6a` has: no way to create an account, a search page that renders
+`NotYetBuilt`, a reader that erases chapter completion on every page change, and
+seven placeholder admin pages. None of that is compatible with FINAL.
+
+
 > **Historical snapshot:** “Final” refers to the Wave2 audit only. Current Wave3 status is in [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md).
 
 

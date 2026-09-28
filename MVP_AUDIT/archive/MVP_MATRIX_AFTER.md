@@ -1,5 +1,18 @@
 # MVP Matrix — AFTER (2026-09-28, Asia/Jakarta) — incremental advances cc80bac → HEAD (d92529e)
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+Records a wave-2 transition from `SKELETON_ONLY` to `RUNNABLE_DEMO` for Yomi.
+The transition is real. The implication that the catalogue work was done is the
+problem: as of `7af4e6a` search has no repository, no service and no route, and
+none of the seven admin pages renders anything but a placeholder.
+
+
 > **Historical snapshot:** This records the Wave2 incremental state; it is not the current Wave3 matrix. See [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md) for current readiness.
 
 

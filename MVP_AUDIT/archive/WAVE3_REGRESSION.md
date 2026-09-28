@@ -1,5 +1,19 @@
 # Wave3 Regression and Boundary Proof
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+It claims Yomi's library, bookmarks and progress "are isolated and survive
+logout/login and application restart". The isolation half is true and proven:
+injecting a mutation that drops the `userId` filter fails the suite. The
+logout/login half could not have been observed, because no account can be created
+through the application. Splitting a claim like that is the point of this archive.
+
+
 Date: 2026-09-28 (Asia/Jakarta)
 Branch: `arena/01a0e54f-align-baru`
 Baseline: `df0e396`

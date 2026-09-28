@@ -1,5 +1,15 @@
 # Readiness Progress — Incremental MVP Advances
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+The Yomi row's verdict has not been re-derived. See the checklist.
+
+
 > **Historical log:** This is the Wave1/Wave2 progression record. Current Wave3 project status and implementation commits are in [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md).
 
 

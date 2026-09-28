@@ -1,5 +1,16 @@
 # Wave 2 Baseline — cc80bac
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+The Yomi row's own note says `MVP_AUDIT/progress/yomi-manga-reader-arch-skeleton/`
+was "not yet created". A baseline that recorded nothing cannot be a baseline.
+
+
 > **Archive note:** Historical Wave2 baseline snapshot. Commit/tag references below are audit provenance, not the current branch tip; the PR checkout started from shallow/grafted base `df0e396`. Current implementation hashes are listed in [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md).
 
 

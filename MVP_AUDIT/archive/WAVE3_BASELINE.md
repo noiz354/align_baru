@@ -1,5 +1,17 @@
 # Wave 3 Baseline — d5f0974
 
+<!-- F-020-S1: archived 2026-09-28. See ../README.md and yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md -->
+
+> **ARCHIVED 2026-09-28 (F-020-S1).** Not a status source.
+> See `../README.md`, then
+> `yomi-manga-reader-arch-skeleton/specs/yomi/execution/CHECKLIST.md`.
+> Retained as history; the claims below were never verified against `7af4e6a`.
+
+Yomi is graded `MVP_PARTIAL` here and `MVP_READY` elsewhere in this archive
+for other projects. The grade is defined against nothing, and at `7af4e6a` the P0s
+it should have caught — no account creation, completion erasure — are both open.
+
+
 > **Plan snapshot:** This records the Wave3 plan before implementation. Its commit ancestry claims are historical audit notes; this PR checkout started from shallow/grafted base `df0e396`. Current status and implementation hashes are in [`MVP_MATRIX_WAVE3.md`](MVP_MATRIX_WAVE3.md).
 
 
