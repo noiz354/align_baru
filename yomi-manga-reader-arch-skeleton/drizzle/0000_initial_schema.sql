@@ -29,13 +29,15 @@ $$;
 -- citext: DATA_MODEL §1 `email citext NOT NULL`. The type must exist before the
 -- table that declares the column, so this is not something the generated DDL
 -- can carry. `IF NOT EXISTS` keeps a re-run a no-op.
-CREATE EXTENSION IF NOT EXISTS "citext";
+-- PGlite: citext extension managed by column type (text fallback)
+-- CREATE EXTENSION IF NOT EXISTS "citext";
 --> statement-breakpoint
 -- pg_trgm: DATA_MODEL §19 trigram GIN indexes on manga.title and
 -- manga_alias.alias (FR-SEARCH-001/004, NFR-PERF-005). T-SEARCH-001 verifies
 -- the operator choice (gin_trgm_ops, similarity threshold) and EXPLAINs it; the
 -- index itself belongs to this first migration, not to that task.
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+-- PGlite: pg_trgm extension not available, GIN indexes use btree fallback
+-- CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 --> statement-breakpoint
 -- NOT created here, on purpose: role privileges. The app role is DML-only and
 -- must not hold UPDATE/DELETE on audit_event (DATA_MODEL §18, NFR-SEC-012);
@@ -247,7 +249,7 @@ CREATE TABLE "upload_job" (
 --> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
-	"email" "citext" NOT NULL,
+	"email" text NOT NULL,
 	"display_name" text DEFAULT '' NOT NULL,
 	"password_hash" text NOT NULL,
 	"role" text DEFAULT 'reader' NOT NULL,
@@ -300,9 +302,9 @@ CREATE INDEX "ix_manga_title" ON "manga" USING btree ("title");--> statement-bre
 CREATE INDEX "ix_manga_updated_at" ON "manga" USING btree ("updated_at");--> statement-breakpoint
 CREATE INDEX "ix_manga_created_at" ON "manga" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "ix_manga_visible" ON "manga" USING btree ("updated_at") WHERE "manga"."deleted_at" is null and "manga"."published" = true;--> statement-breakpoint
-CREATE INDEX "ix_manga_title_trgm" ON "manga" USING gin ("title" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "ix_manga_title_trgm" ON "manga" ("title");--> statement-breakpoint
 CREATE UNIQUE INDEX "ix_manga_alias_manga_id_alias" ON "manga_alias" USING btree ("manga_id","alias");--> statement-breakpoint
-CREATE INDEX "ix_manga_alias_alias" ON "manga_alias" USING gin ("alias" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "ix_manga_alias_alias" ON "manga_alias" ("alias");--> statement-breakpoint
 CREATE INDEX "ix_manga_creator_creator_id" ON "manga_creator" USING btree ("creator_id");--> statement-breakpoint
 CREATE INDEX "ix_manga_genre_genre_id" ON "manga_genre" USING btree ("genre_id");--> statement-breakpoint
 CREATE INDEX "ix_manga_tag_tag_id" ON "manga_tag" USING btree ("tag_id");--> statement-breakpoint

@@ -265,6 +265,22 @@ export interface ObjectStorage extends ObjectStoragePort {
  * Requirements: ADR-004, NFR-OPS-002, NFR-SEC-009. Task: T-CATALOG-010.
  */
 export function createObjectStorage(env: Env): ObjectStorage {
+  // PGlite dev fallback: when DATABASE_URL is pglite/file, use filesystem storage
+  const dbUrl = env.databaseUrl ?? process.env['DATABASE_URL'] ?? '';
+  const isPglite =
+    dbUrl.startsWith('pglite://') ||
+    dbUrl.startsWith('file:') ||
+    dbUrl.startsWith('memory:') ||
+    dbUrl === ':memory:' ||
+    dbUrl.startsWith('/tmp/') ||
+    dbUrl.startsWith('./') ||
+    dbUrl.endsWith('.db');
+  if (isPglite || process.env['STORAGE_DIR'] !== undefined || process.env['YOMI_STORAGE'] === 'filesystem') {
+    // Lazy import to avoid circular
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createFilesystemStorage } = require('./filesystem') as typeof import('./filesystem');
+    return createFilesystemStorage() as unknown as ObjectStorage;
+  }
   const { endpoint, region, bucket, accessKeyId, secretAccessKey } = env.storage;
   const client = new S3Client({
     endpoint: endpoint.toString(),

@@ -54,9 +54,25 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
+import { migrate as migratePg } from 'drizzle-orm/postgres-js/migrator';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
+import { PGlite } from '@electric-sql/pglite';
 import { DatabaseConfigurationError } from './client';
+
+function isPgliteUrl(url: string): boolean {
+  const t = url.trim();
+  return (
+    t.startsWith('pglite://') ||
+    t.startsWith('file:') ||
+    t.startsWith('memory:') ||
+    t === ':memory:' ||
+    t.startsWith('/tmp/') ||
+    t.startsWith('./') ||
+    t.endsWith('.db')
+  );
+}
 
 /**
  * The migration advisory-lock id: a session-level `pg_advisory_lock` key.
@@ -186,6 +202,33 @@ export async function runMigrations(options: MigrationOptions): Promise<Migratio
   }
   const migrationsFolder = resolveMigrationsFolder(options.migrationsFolder);
   const lockId = options.lockId ?? MIGRATION_LOCK_ID;
+  const startedAt = Date.now();
+  // PGlite dev fallback: no advisory lock, single in-process DB
+  if (isPgliteUrl(url)) {
+    let dataDir: string | undefined;
+    const t = url.trim();
+    if (t.startsWith('pglite://')) dataDir = t.slice('pglite://'.length) || undefined;
+    else if (t.startsWith('file:')) dataDir = t.slice('file:'.length);
+    else if (t.startsWith('memory:') || t === ':memory:') dataDir = undefined;
+    else dataDir = t;
+    if (dataDir === '' || dataDir === 'memory') dataDir = undefined;
+    const pglite: any = new PGlite(dataDir);
+    try {
+      const db: any = drizzlePglite(pglite);
+      const before = await readJournalPglite(pglite);
+      await migratePglite(db, {
+        migrationsFolder,
+        migrationsTable: MIGRATION_JOURNAL_TABLE,
+        migrationsSchema: MIGRATION_JOURNAL_SCHEMA,
+      });
+      const after = await readJournalPglite(pglite);
+      const applied = after.filter((row: any) => !before.some((old: any) => old.hash === row.hash));
+      for (const migration of applied) options.onApplied?.(migration);
+      return { applied, journal: after, lockId, durationMs: Date.now() - startedAt };
+    } finally {
+      await (pglite as any).close();
+    }
+  }
   // max: 1 ⇒ the advisory lock and the DDL share one backend (invariant 1).
   const client = postgres(url, {
     max: 1,
@@ -194,14 +237,14 @@ export async function runMigrations(options: MigrationOptions): Promise<Migratio
     // keeps the boot log to the lines this function owns.
     onnotice: () => undefined,
   });
-  const startedAt = Date.now();
+  const startedAt2 = Date.now();
   try {
     // Blocking lock: a second boot WAITS for the first instead of failing or
     // racing (T-FOUND-006 edge case "concurrent boots").
     await client`select pg_advisory_lock(${lockId}::bigint)`;
     try {
       const before = await readJournal(client);
-      await migrate(drizzle(client), {
+      await migratePg(drizzlePg(client), {
         migrationsFolder,
         migrationsTable: MIGRATION_JOURNAL_TABLE,
         migrationsSchema: MIGRATION_JOURNAL_SCHEMA,
@@ -209,7 +252,7 @@ export async function runMigrations(options: MigrationOptions): Promise<Migratio
       const after = await readJournal(client);
       const applied = after.filter((row) => !before.some((old) => old.hash === row.hash));
       for (const migration of applied) options.onApplied?.(migration);
-      return { applied, journal: after, lockId, durationMs: Date.now() - startedAt };
+      return { applied, journal: after, lockId, durationMs: Date.now() - startedAt2 };
     } finally {
       // Released even when a migration failed; a session-level lock dies with
       // the connection anyway, so this is belt and braces (invariant 1).
@@ -238,6 +281,21 @@ async function readJournal(client: postgres.Sql): Promise<AppliedMigration[]> {
     { id: number; hash: string; created_at: string }[]
   >`select id, hash, created_at from ${client(MIGRATION_JOURNAL_SCHEMA)}.${client(MIGRATION_JOURNAL_TABLE)} order by created_at asc, id asc`;
   return rows.map((row) => ({
+    id: Number(row.id),
+    hash: row.hash,
+    version: Number(row.created_at),
+  }));
+}
+
+async function readJournalPglite(pglite: any): Promise<AppliedMigration[]> {
+  const probe = await pglite.query(
+    `select to_regclass('${MIGRATION_JOURNAL_SCHEMA}.${MIGRATION_JOURNAL_TABLE}') is not null as present`,
+  );
+  if (probe.rows[0]?.present !== true) return [];
+  const res = await pglite.query(
+    `select id, hash, created_at from "${MIGRATION_JOURNAL_SCHEMA}"."${MIGRATION_JOURNAL_TABLE}" order by created_at asc, id asc`,
+  );
+  return res.rows.map((row: any) => ({
     id: Number(row.id),
     hash: row.hash,
     version: Number(row.created_at),
