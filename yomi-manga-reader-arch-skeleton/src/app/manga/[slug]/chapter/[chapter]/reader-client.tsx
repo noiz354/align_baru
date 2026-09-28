@@ -9,14 +9,14 @@
  *   POST /api/chapters/{id}/progress     save position (401 when anonymous)
  *   GET  /media/{assetKey}.jpeg          the image
  *
- * What exists: real page images with an honest "image missing" state, and
- * next/previous PAGE disabled at the bounds.
+ * What exists: real page images with an honest "image missing" state; next and
+ * previous PAGE disabled at the bounds; and previous/next CHAPTER as real links,
+ * from the `prevChapter`/`nextChapter` the same page-list response already carried
+ * and the client used to drop.
  *
  * What does not, and is not pretending to:
- * - Previous/next CHAPTER. The chapter list is fetched ONLY to resolve the
- *   current id and is then discarded. The neighbours are already available from
- *   `ChapterRepository.pageList`. → F-007-S1
- * - `?page=N`. The server shell reads no search params. → F-007-S2
+ * - `?page=N`. The server shell reads no search params, so a shared deep link and
+ *   the `/bookmarks` jump both land on page 1. → F-007-S2
  * - `readingDirection` is fetched and shown as TEXT but never applied to layout.
  *   Harmless for a single page, and still a lie in the response.
  * - The save `fetch` has no `.catch`, so a 401 discards the position silently.
@@ -25,15 +25,20 @@
  * - The save goes through `queries/reader-state.ts:248`, which overwrites
  *   `completed` with `false`. Reading past the end of a finished chapter
  *   silently un-finishes it. This is the worst bug in the product: no error, and
- *   the reader's own record is wrong. → F-006-S1
+ *   the reader's own record is wrong. → F-006-S1 (fixed: the route now writes
+ *   through `ReaderProgressRepository`)
+ * - A `Debug` panel and a "reload or restart to verify" line are rendered to
+ *   readers. Recorded, not fixed here — it is a separate slice from navigation
+ *   and folding it in would make this commit about two things.
  *
  * Requirements: FR-READER-011, FR-READER-012, FR-READER-014, FR-READER-015,
- * NFR-PERF-014
- * Tasks: T-READER-001, T-READER-014, T-UPLOAD-004 (image-missing state);
- * gaps F-006-S1, F-007-S1, F-007-S2
+ * FR-READER-016 (chapter neighbours), NFR-PERF-014
+ * Tasks: T-READER-001, T-READER-014, T-READER-016 (chapter neighbours),
+ * T-UPLOAD-004 (image-missing state); gaps F-007-S2
  */
 'use client';
 import { useEffect, useState } from 'react';
+import type { ChapterPagesResponse, PageAsset } from '../../../../../shared/contracts/chapter';
 
 /** `Response.json()` is typed `any`; reading it as `unknown` keeps that out of the call sites. */
 async function readJson(res: Response): Promise<unknown> {
@@ -55,7 +60,9 @@ function readChapterList(raw: unknown): ChapterListItem[] {
   if (!Array.isArray(candidate)) return [];
   return candidate.filter(
     (entry): entry is ChapterListItem =>
-      typeof entry === 'object' && entry !== null && typeof (entry as ChapterListItem).id === 'string',
+      typeof entry === 'object' &&
+      entry !== null &&
+      typeof (entry as ChapterListItem).id === 'string',
   );
 }
 
@@ -68,18 +75,28 @@ function readProgressPageNumber(raw: unknown): number | undefined {
   return typeof pageNumber === 'number' ? pageNumber : undefined;
 }
 
-interface PageAsset {
-  pageNumber: number;
-  urlAvif: string;
-  urlWebp: string;
-  urlJpeg: string;
-  width: number;
-  height: number;
-}
+/**
+ * A chapter neighbour, as delivered. Both fields are needed to build the href, and
+ * `title` is shown when the chapter has one.
+ */
+type ChapterNeighbour = { slug: string; number: number; title: string | null };
 
-interface ChapterPagesResponse {
-  chapter: { id: string; mangaSlug: string; mangaTitle: string; number: number; title: string; readingDirection: string; pageCount: number };
-  pages: PageAsset[];
+/**
+ * Reads a neighbour out of an untrusted response.
+ *
+ * `prevChapter`/`nextChapter` are `null` at the ends of a manga, and a response
+ * that omits them entirely must not crash the reader — so an unusable value
+ * becomes `null` (no neighbour) rather than a link that goes nowhere.
+ */
+function readNeighbour(raw: unknown): ChapterNeighbour | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const record = raw as Record<string, unknown>;
+  const slug = record['slug'];
+  const number = record['number'];
+  if (typeof slug !== 'string' || slug === '') return null;
+  if (typeof number !== 'number' || !Number.isFinite(number)) return null;
+  const title = record['title'];
+  return { slug, number, title: typeof title === 'string' ? title : null };
 }
 
 export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNumber: number }) {
@@ -95,6 +112,12 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
   // icon with no explanation, which reads as a product fault rather than a missing object.
   // Keyed by page number so moving off the failed page and back re-attempts the fetch.
   const [imageFailed, setImageFailed] = useState<number | null>(null);
+  // Chapter neighbours, straight from the page-list response (FR-READER-016). They
+  // used to be fetched and thrown away: the chapters list above is requested ONLY
+  // to resolve the current chapter's id, and the `prevChapter`/`nextChapter` the
+  // same response already carries were dropped on the floor.
+  const [prevChapter, setPrevChapter] = useState<ChapterNeighbour | null>(null);
+  const [nextChapter, setNextChapter] = useState<ChapterNeighbour | null>(null);
 
   // Resolve chapterId via manga chapters list, then fetch pages + progress
   useEffect(() => {
@@ -109,24 +132,29 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         const chData = await readJson(chRes);
         const chapters = readChapterList(chData);
         // Find by number
-        const target = chapters.find(c => String(c.number) === String(chapterNumber));
+        const target = chapters.find((c) => String(c.number) === String(chapterNumber));
         if (!target) throw new Error(`Chapter ${chapterNumber} not found for ${slug}`);
         if (cancelled) return;
         setChapterId(target.id);
         // Fetch pages
         const pRes = await fetch(`/api/v1/chapters/${target.id}/pages`);
         if (!pRes.ok) throw new Error(`pages ${pRes.status}`);
-        const pData = (await readJson(pRes)) as ChapterPagesResponse;
+        const pData = await readJson(pRes);
+        if (typeof pData !== 'object' || pData === null)
+          throw new Error('pages response was not an object');
+        const parsed = pData as unknown as ChapterPagesResponse;
         if (cancelled) return;
-        setPages(pData.pages);
-        setMangaTitle(pData.chapter.mangaTitle);
-        setReadingDirection(pData.chapter.readingDirection);
+        setPages(parsed.pages);
+        setMangaTitle(parsed.chapter.mangaTitle);
+        setReadingDirection(parsed.chapter.readingDirection);
+        setPrevChapter(readNeighbour((parsed as { prevChapter?: unknown }).prevChapter));
+        setNextChapter(readNeighbour((parsed as { nextChapter?: unknown }).nextChapter));
         // Fetch progress
         const progRes = await fetch(`/api/chapters/${target.id}/progress`);
         if (progRes.ok) {
           const prog = await readJson(progRes);
           const pn = readProgressPageNumber(prog);
-          if (pn !== undefined && Number.isInteger(pn) && pn >= 1 && pn <= pData.pages.length) {
+          if (pn !== undefined && Number.isInteger(pn) && pn >= 1 && pn <= parsed.pages.length) {
             setPage(pn);
           }
         }
@@ -137,7 +165,9 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
       }
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [slug, chapterNumber]);
 
   // Save progress on page change
@@ -145,44 +175,86 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
     if (!chapterId) return;
     const t = setTimeout(() => {
       void (async () => {
-      setSaving(true);
-      try {
-        await fetch(`/api/chapters/${chapterId}/progress`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ pageNumber: page }),
-        });
-      } finally {
-        setSaving(false);
-      }
+        setSaving(true);
+        try {
+          await fetch(`/api/chapters/${chapterId}/progress`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ pageNumber: page }),
+          });
+        } finally {
+          setSaving(false);
+        }
       })();
     }, 300);
     return () => clearTimeout(t);
   }, [page, chapterId]);
 
   if (loading) return <div style={{ padding: 24 }}>Loading reader…</div>;
-  if (error) return <div style={{ padding: 24 }}><h2>Reader error</h2><pre>{error}</pre></div>;
+  if (error)
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>Reader error</h2>
+        <pre>{error}</pre>
+      </div>
+    );
 
   // Binding the first page and testing the binding is what proves it exists:
   // `pages.length === 0` does not narrow `pages[0]` under noUncheckedIndexedAccess.
   const firstPage = pages[0];
   if (!firstPage) return <div style={{ padding: 24 }}>No pages</div>;
 
-  const current = pages.find(p => p.pageNumber === page) ?? firstPage;
+  const current = pages.find((p) => p.pageNumber === page) ?? firstPage;
   const maxPage = pages.length;
-  const prev = () => setPage(p => Math.max(1, p - 1));
-  const next = () => setPage(p => Math.min(maxPage, p + 1));
+  const prev = () => setPage((p) => Math.max(1, p - 1));
+  const next = () => setPage((p) => Math.min(maxPage, p + 1));
+
+  // A neighbour is a different URL, not different state, so these are plain
+  // `<a href>` further down rather than a router push. Two chapters must never
+  // share one address, or the reader's own Back button lies.
+  const hrefFor = (n: ChapterNeighbour) => `/manga/${n.slug}/chapter/${n.number}`;
+  const labelFor = (n: ChapterNeighbour) => `Chapter ${n.number}${n.title ? `: ${n.title}` : ''}`;
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <p style={{ color: '#666' }}>{mangaTitle} • {readingDirection === 'rtl' ? 'Right to left' : 'Left to right'} • {pages.length} pages • Progress: page {page} {saving ? '• saving…' : ''}</p>
+      <p style={{ color: '#666' }}>
+        {mangaTitle} • {readingDirection === 'rtl' ? 'Right to left' : 'Left to right'} •{' '}
+        {pages.length} pages • Progress: page {page} {saving ? '• saving…' : ''}
+      </p>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-        <button onClick={prev} disabled={page <= 1} aria-label="Previous page" style={{ padding: '8px 16px' }}>Prev</button>
-        <span aria-live="polite">Page {page} / {maxPage} {saving ? '• saving...' : ''}</span>
-        <button onClick={next} disabled={page >= maxPage} aria-label="Next page" style={{ padding: '8px 16px' }}>Next</button>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{chapterId?.slice(0, 8)} • {slug} ch{chapterNumber}</span>
+        <button
+          onClick={prev}
+          disabled={page <= 1}
+          aria-label="Previous page"
+          style={{ padding: '8px 16px' }}
+        >
+          Prev
+        </button>
+        <span aria-live="polite">
+          Page {page} / {maxPage} {saving ? '• saving...' : ''}
+        </span>
+        <button
+          onClick={next}
+          disabled={page >= maxPage}
+          aria-label="Next page"
+          style={{ padding: '8px 16px' }}
+        >
+          Next
+        </button>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>
+          {chapterId?.slice(0, 8)} • {slug} ch{chapterNumber}
+        </span>
       </div>
-      <div style={{ border: '1px solid #ddd', background: '#fafafa', minHeight: 720, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          border: '1px solid #ddd',
+          background: '#fafafa',
+          minHeight: 720,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {imageFailed === page ? (
           // The honest state: the object is missing, the page row is not. Says which,
           // says it is not the reader's fault, and offers the one action that can
@@ -213,25 +285,92 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         )}
       </div>
       <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {pages.map(p => (
+        {pages.map((p) => (
           <button
             key={p.pageNumber}
             onClick={() => setPage(p.pageNumber)}
             aria-current={p.pageNumber === page ? 'page' : undefined}
             style={{
-              width: 40, height: 40,
+              width: 40,
+              height: 40,
               background: p.pageNumber === page ? '#0f766e' : '#e5e7eb',
               color: p.pageNumber === page ? 'white' : 'black',
-              border: 'none', borderRadius: 4, cursor: 'pointer'
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
             }}
           >
             {p.pageNumber}
           </button>
         ))}
       </div>
-      <p style={{ marginTop: 12, fontSize: 12, color: '#666' }}>Progress persists via /api/chapters/{chapterId}/progress — reload or restart to verify.</p>
-      <div style={{ marginTop: 24, padding: 12, background: '#f0fdfa', border: '1px solid #ccfbf1', fontSize: 12 }}>
-        <strong>Debug</strong>: chapterId {chapterId} • slug {slug} • ch{chapterNumber} • page {page}/{maxPage} • {readingDirection}
+      {/* Chapter navigation (FR-READER-016). Rendered only when a neighbour
+          exists, so the absence of one is a real absence and not a dead control.
+          Both are real links, so they are keyboard- and middle-click-navigable and
+          can be opened in a new tab — a <button> with a router push would offer
+          none of that. */}
+      <nav
+        aria-label="Chapter navigation"
+        style={{
+          marginTop: 16,
+          display: 'flex',
+          gap: 12,
+          alignItems: 'stretch',
+          justifyContent: 'space-between',
+        }}
+      >
+        {prevChapter ? (
+          <a
+            href={hrefFor(prevChapter)}
+            aria-label={`Previous chapter: ${labelFor(prevChapter)}`}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ddd',
+              borderRadius: 4,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            ← Previous chapter ({prevChapter.number})
+          </a>
+        ) : (
+          <span style={{ color: '#888', padding: '8px 16px' }}>No previous chapter</span>
+        )}
+        {nextChapter ? (
+          <a
+            href={hrefFor(nextChapter)}
+            aria-label={`Next chapter: ${labelFor(nextChapter)}`}
+            style={{
+              marginLeft: 'auto',
+              padding: '8px 16px',
+              border: '1px solid #ddd',
+              borderRadius: 4,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            Next chapter ({nextChapter.number}) →
+          </a>
+        ) : (
+          <span style={{ marginLeft: 'auto', color: '#888', padding: '8px 16px' }}>
+            No next chapter
+          </span>
+        )}
+      </nav>
+      <p style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
+        Progress persists via /api/chapters/{chapterId}/progress — reload or restart to verify.
+      </p>
+      <div
+        style={{
+          marginTop: 24,
+          padding: 12,
+          background: '#f0fdfa',
+          border: '1px solid #ccfbf1',
+          fontSize: 12,
+        }}
+      >
+        <strong>Debug</strong>: chapterId {chapterId} • slug {slug} • ch{chapterNumber} • page{' '}
+        {page}/{maxPage} • {readingDirection}
       </div>
     </div>
   );

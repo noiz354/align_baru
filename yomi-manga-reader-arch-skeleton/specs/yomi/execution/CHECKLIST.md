@@ -563,19 +563,19 @@ Completion evidence:
 
 ### F-007-S1 — Previous/next chapter from inside the reader
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A (reading is anonymous)
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A (reading is anonymous)
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - the reader stops **discarding** the chapter list it already fetches (`:78`)
@@ -588,10 +588,27 @@ Completion evidence:
 **Files:** `src/app/manga/[slug]/chapter/[chapter]/reader-client.tsx`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-007-S1
+- Tests: 618 → **625 passed (625)**, 7 new, 0 removed.
+- Commands: 3 mutations, all caught
+  · full regression gates · `next build`
+- Notes: The data was **already there** — `pageList` has returned
+  `prevChapter`/`nextChapter` since FR-READER-016, and the `/pages` route has
+  returned them since F-006-S2. The reader declared its OWN local
+  `ChapterPagesResponse` without those fields, so the server sent them and the
+  client dropped them. The client now imports the contract's type and the two
+  local redeclarations are gone, which removes the drift that made it invisible.
+  Neighbours are real `<a href>` links, not a router push: keyboard-reachable is
+  not the same as middle-clickable, new-tab-able or copy-linkable, and one chapter
+  per address is what makes the reader's Back button honest. `readNeighbour`
+  treats a non-object, a bad slug and a bad number all as "no neighbour" rather
+  than a link that goes nowhere. **One mutation passed and forced a test fix:**
+  removing the raw-object guard — the one that prevents a *throw* when a response
+  omits the field — was not asserted, so it passed. It is now. **Not claimed:**
+  that a click actually navigates; the href is asserted, the navigation is
+  browser work. The reader's `Debug` panel and "reload or restart to verify"
+  line are left in place and named in its header as a recorded gap, not folded in
+  here.
 
 ---
 
@@ -998,4 +1015,5 @@ Completion evidence:
 | 2026-09-28 | F-001-S1 | `fa225cf` | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |
 | 2026-09-28 | F-001-S2 | `03b67c0` | guard no longer opens its own pool; Wave 1 complete |
 | 2026-09-28 | F-006-S1 | `73874dc` | **P0 fixed** — reading no longer erases completion; `last_read_at` maintained |
-| 2026-09-28 | F-006-S2 | *this commit* | `reader-state.ts` deleted; sessions adapter; pages route untested → 4 tests |
+| 2026-09-28 | F-006-S2 | `9646ad8` | `reader-state.ts` deleted; sessions adapter; pages route untested → 4 tests |
+| 2026-09-28 | F-007-S1 | *this commit* | chapter navigation shipped from data the response already carried |
