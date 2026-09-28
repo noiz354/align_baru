@@ -46,8 +46,16 @@ const REPO_ROOT = new URL('..', import.meta.url).pathname;
 const TASKS_MD = join(REPO_ROOT, 'TASKS.md');
 
 const SKIP_DIRECTORIES = new Set([
-  'node_modules', '.next', 'dist', 'build', 'coverage', '.git',
-  '__pycache__', '.turbo', 'playwright-report', 'test-results',
+  'node_modules',
+  '.next',
+  'dist',
+  'build',
+  'coverage',
+  '.git',
+  '__pycache__',
+  '.turbo',
+  'playwright-report',
+  'test-results',
 ]);
 
 const args = new Set(process.argv.slice(2));
@@ -77,10 +85,11 @@ function main() {
   const taskIds = [...tasksSource.matchAll(/^## (T-[A-Z0-9]+-\d+)/gm)].map((m) => m[1]);
 
   // One pass over the tree, bucketing every task id the files mention.
-  const throwsFor = new Map();     // id -> [files]
-  const todosFor = new Map();      // id -> [files]
+  const throwsFor = new Map(); // id -> [files]
+  const todosFor = new Map(); // id -> [files]
   const placeholdersFor = new Map(); // id -> [files]
-  const mentions = new Map();       // id -> [files]  (audit only, never a state)
+  const mentions = new Map(); // id -> [files]  (audit only, never a state)
+  const placeholderPageFiles = []; // files that render NotYetBuilt, counted from the tree
   const allFiles = walk(REPO_ROOT);
 
   for (const file of allFiles) {
@@ -118,7 +127,20 @@ function main() {
     // read off the component's own `task` prop rather than by scanning the file for any id,
     // because the page's docstring names every task it depends on — including several that are
     // genuinely done.
-    for (const m of text.matchAll(/<NotYetBuilt\b[\s\S]{0,400}?\btask=["'`](T-[A-Z0-9]+-\d+)["'`]/g)) {
+    //
+    // The PAGE is recorded separately from the task ids, because the two answer different
+    // questions and only one of them survived. `admin/manga/[id]/page.tsx` writes
+    // `task="T-ADMIN-002…005"` — a range with an ellipsis — which the id pattern below
+    // cannot match, so that page attributed to no task at all and the summary understated
+    // itself by one. Deriving the page list from the files removes the dependency on the
+    // prop being well-formed: a page that renders `NotYetBuilt` is a placeholder page
+    // whatever it happens to call itself.
+    if (rel.endsWith('page.tsx') && text.includes('NotYetBuilt')) {
+      placeholderPageFiles.push(rel);
+    }
+    for (const m of text.matchAll(
+      /<NotYetBuilt\b[\s\S]{0,400}?\btask=["'`](T-[A-Z0-9]+-\d+)["'`]/g,
+    )) {
       add(placeholdersFor, m[1], rel);
     }
 
@@ -159,7 +181,7 @@ function main() {
   // kept failing to answer. PLACEHOLDER is nearly always shadowed by STUB — a placeholder page
   // usually also carries a TODO naming its blocker — so the bucket reads 0 while fifteen pages
   // are still placeholders. The count is stated separately for exactly that reason.
-  const placeholderPages = report.flatMap((r) => r.placeholder);
+  const placeholderPages = placeholderPageFiles;
 
   if (args.has('--json')) {
     process.stdout.write(
@@ -173,8 +195,7 @@ function main() {
 
   console.log('check-task-status — derived from the tree, not asserted\n');
   console.log(
-    `  ${report.length} tasks: ` +
-      order.map((s) => `${s} ${counts[s] ?? 0}`).join(' · '),
+    `  ${report.length} tasks: ` + order.map((s) => `${s} ${counts[s] ?? 0}`).join(' · '),
   );
   console.log(
     `  ${placeholderPages.length} page(s) render NotYetBuilt: a route that answers, and says so.\n`,

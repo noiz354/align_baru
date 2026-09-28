@@ -134,6 +134,18 @@ const EXPECTED: { readonly [K in ErrorCode]: ExpectedMapping } = {
     logLevel: 'info',
     alerts: false,
   },
+  LIBRARY_BOOKMARK_NOT_FOUND: {
+    httpStatus: 404,
+    userMessage: 'Bookmark not found.',
+    logLevel: 'info',
+    alerts: false,
+  },
+  VALIDATION_FIELD_INVALID: {
+    httpStatus: 422,
+    userMessage: 'One of the fields is not valid.',
+    logLevel: 'info',
+    alerts: false,
+  },
   SEARCH_QUERY_INVALID: {
     httpStatus: 422,
     userMessage: 'Search query is empty or too long.',

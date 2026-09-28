@@ -55,6 +55,14 @@ export function requestIdOf(request: Request): string {
 /** The JSON content type (API_CONTRACT §1: JSON only). */
 const JSON_TYPE = 'application/json; charset=utf-8';
 
+/**
+ * Cache header for any response that is scoped to one reader (API_CONTRACT §1:
+ * the shelf, bookmarks and history are `no-store`; only the public catalog is
+ * cacheable). Named here because four route files needed it and a rule copied
+ * into four files is the same rule in four places (SQ-LIB-5).
+ */
+export const PRIVATE_CACHE_CONTROL = 'no-store';
+
 export interface JsonOptions {
   /** The `x-request-id` to echo (API_CONTRACT §1). */
   readonly requestId: string;

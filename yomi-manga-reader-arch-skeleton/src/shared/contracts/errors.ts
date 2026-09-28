@@ -58,6 +58,8 @@ export type ErrorCode =
   | 'READER_INVALID_PAGE'
   // LIBRARY_*/SEARCH_*/UPLOAD_*/STORAGE_*
   | 'LIBRARY_BOOKMARK_EXISTS'
+  | 'LIBRARY_BOOKMARK_NOT_FOUND'
+  | 'VALIDATION_FIELD_INVALID'
   | 'SEARCH_QUERY_INVALID'
   | 'UPLOAD_BAD_CONTAINER'
   | 'UPLOAD_TOO_LARGE'
@@ -243,6 +245,24 @@ const ERROR_MAPPINGS_DATA = {
     code: 'LIBRARY_BOOKMARK_EXISTS',
     httpStatus: 409,
     userMessage: 'You already bookmarked this page.',
+    logLevel: 'info',
+    alerts: false,
+  },
+  LIBRARY_BOOKMARK_NOT_FOUND: {
+    code: 'LIBRARY_BOOKMARK_NOT_FOUND',
+    httpStatus: 404,
+    // Deliberately the same sentence an unknown id would get: the repository
+    // returns one answer for "not yours" and "not there" alike (THREAT T-04), and
+    // a distinct message would turn this 404 into an oracle for whether some other
+    // reader's bookmark id exists.
+    userMessage: 'Bookmark not found.',
+    logLevel: 'info',
+    alerts: false,
+  },
+  VALIDATION_FIELD_INVALID: {
+    code: 'VALIDATION_FIELD_INVALID',
+    httpStatus: 422,
+    userMessage: 'One of the fields is not valid.',
     logLevel: 'info',
     alerts: false,
   },
@@ -493,6 +513,10 @@ export function getErrorMapping(code: ErrorCode): ErrorMapping {
       return ERROR_MAPPINGS.READER_INVALID_PAGE;
     case 'LIBRARY_BOOKMARK_EXISTS':
       return ERROR_MAPPINGS.LIBRARY_BOOKMARK_EXISTS;
+    case 'LIBRARY_BOOKMARK_NOT_FOUND':
+      return ERROR_MAPPINGS.LIBRARY_BOOKMARK_NOT_FOUND;
+    case 'VALIDATION_FIELD_INVALID':
+      return ERROR_MAPPINGS.VALIDATION_FIELD_INVALID;
     case 'SEARCH_QUERY_INVALID':
       return ERROR_MAPPINGS.SEARCH_QUERY_INVALID;
     case 'UPLOAD_BAD_CONTAINER':

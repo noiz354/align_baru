@@ -363,6 +363,8 @@ Legend: V = user-visible message; L = logged level (always ≥ warn on 5xx); A =
 | CHAPTER_LIST_TOO_LARGE | 409 | "Chapter list too large to display." | error | yes | > 1000 chapters (data problem) |
 | READER_INVALID_PAGE | 422 | "Page is out of range for this chapter." | info | — | progress write / deep link |
 | LIBRARY_BOOKMARK_EXISTS | 409 | "You already bookmarked this page." | info | — | duplicate bookmark |
+| LIBRARY_BOOKMARK_NOT_FOUND | 404 | "Bookmark not found." | info | — | delete a bookmark that is not the caller's (same answer as "does not exist" — THREAT T-04) |
+| VALIDATION_FIELD_INVALID | 422 | "One of the fields is not valid." | info | — | a body field fails its documented bound (e.g. a bookmark note over 280 chars) |
 | SEARCH_QUERY_INVALID | 422 | "Search query is empty or too long." | info | — | bad q |
 | UPLOAD_BAD_CONTAINER | 415 | "Only ZIP archives are accepted." | warn | — | intake type |
 | UPLOAD_TOO_LARGE | 413 | "Upload exceeds the size limit." | warn | — | caps (NFR-SEC-007) |

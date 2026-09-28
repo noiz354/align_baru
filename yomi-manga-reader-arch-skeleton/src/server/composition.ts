@@ -26,17 +26,27 @@
  *   dependency runs server ← app and never the other way round.
  *
  * TODO(T-PROD-*): the remaining services —
- *   chapters, progress, library, search, admin, uploads, auth, media,
- *   storage, telemetry, guards.
+ *   search, admin, uploads, auth, media, storage, telemetry, guards.
  */
 import { createCatalogService, type CatalogService } from '../features/catalog';
-import { createResumeService } from '../features/progress';
+import { createLibraryService, type LibraryService } from '../features/library';
+import { createResumeService, type HistoryRepository } from '../features/progress';
 import { loadEnv } from '../shared/validation';
 import type { Env, EnvSource } from '../shared/validation';
 import { createDb, closeDb, type Db } from './db/client';
-import { createProgressPositionReader } from './db/repositories/progress.repository';
+import {
+  createProgressPositionReader,
+  createReaderProgressRepository,
+} from './db/repositories/progress.repository';
 import { createGenreTagVocabularyPort } from './db/repositories/vocabulary.repository';
+import { createHistoryRepository } from './db/repositories/history.repository';
+import {
+  createBookmarkRepository,
+  createLibraryRepository,
+} from './db/repositories/library.repository';
 import { createRepositories } from './db/repositories';
+import type { MangaRepository } from '../features/manga';
+import type { ChapterRepository } from '../features/chapters';
 import { createLogger, type Logger } from './telemetry/logger';
 
 /** What the boot plan holds before any connection is opened. */
@@ -119,4 +129,73 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
     logger,
     close: () => closeDb(db),
   };
+}
+
+/**
+ * The members' half of the composition: the library, its bookmarks, and reading
+ * history — the personal surface behind `/library`, `/bookmarks` and `/history`.
+ *
+ * Separate from {@link createCatalogComposition} rather than folded into it because
+ * the two answer to different visibility rules: the catalog is public, these three
+ * are THREAT T-04 surfaces scoped to the session caller. A single bundle would make
+ * "which service can an anonymous request reach?" a question about a shared object
+ * rather than about a named one.
+ *
+ * @param source the raw environment; defaults to `process.env`
+ * @returns the library service, the history repository, and the pool drain
+ *
+ * @throws {DatabaseConfigurationError} when the DSN is unusable or unreachable
+ *
+ * Requirements: FR-LIBRARY-001…010, FR-READER-015, NFR-DATA-003/005/006.
+ * Tasks: T-LIB-001/002/007, T-LIB-008, T-READER-021/022/025.
+ */
+export async function createLibraryComposition(
+  source?: EnvSource,
+): Promise<LibraryComposition> {
+  const { env, logger } = buildComposition(source);
+  const db: Db = await createDb(env);
+  const { manga, chapters } = createRepositories(db);
+  return {
+    library: createLibraryService({
+      library: createLibraryRepository(db),
+      bookmarks: createBookmarkRepository(db),
+      // The same resume reader the catalog injects: one implementation, two
+      // consumers, so "continue reading" cannot disagree with the library badge.
+      progress: createResumeService({ reads: createProgressPositionReader(db) }),
+      chapters,
+      // The only dependency that spans two ports — `setReadStatus` writes through
+      // the progress repository, which is also the single writer of
+      // `library_entry.last_read_at` (data-flow.md §5).
+      readerProgress: createReaderProgressRepository(db),
+    }),
+    history: createHistoryRepository(db),
+    // Exposed so a route can answer "is this title/chapter there?" with a 404
+    // instead of letting the foreign key speak. Without it, `POST /api/library`
+    // with an unknown mangaId surfaced the driver's 23503 as a bare 500, and a
+    // bookmark past the end of a chapter was accepted outright — both
+    // regressions from taking the direct-database path away.
+    manga,
+    chapters,
+    logger,
+    close: () => closeDb(db),
+  };
+}
+
+/** The members' services plus the shutdown seam. */
+export interface LibraryComposition {
+  /** Library, bookmarks and read status (T-LIB-001). */
+  readonly library: LibraryService;
+  /** Reading history sessions and the history list (T-READER-025). */
+  readonly history: HistoryRepository;
+  /**
+   * The catalog read ports, for existence checks a route must answer itself:
+   * an unknown manga is 404 `MANGA_NOT_FOUND`, a page past the chapter's end is
+   * 422 `READER_INVALID_PAGE`. Read-only here; writes still belong to services.
+   */
+  readonly manga: MangaRepository;
+  readonly chapters: ChapterRepository;
+  /** The process logger, so a route reports through the real one. */
+  readonly logger: Logger;
+  /** Drains the database pool (DEPLOYMENT.md §5). */
+  close(): Promise<void>;
 }

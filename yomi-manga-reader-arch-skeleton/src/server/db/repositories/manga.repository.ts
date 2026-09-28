@@ -845,6 +845,22 @@ export function createMangaRepository(db: Db): MangaRepository {
       );
     },
 
+    /**
+     * One title by row id (T-LIB-001: `POST /api/library` must 404 an unknown
+     * `mangaId` rather than let the foreign key raise a bare 500). The same
+     * visibility clauses as `bySlug`, so a draft or deleted title reads as "not
+     * found" rather than "forbidden" — a 403 would tell a reader which ids exist.
+     */
+    async byId(id: MangaId, caller: CallerContext): Promise<MangaSummary | null> {
+      const [row] = (await db
+        .select({ ...MANGA_COLUMNS })
+        .from(manga)
+        .where(and(eq(manga.id, id), ...mangaReadClauses(caller)))) as MangaRow[];
+      if (row === undefined) return null;
+      const latest = await latestChapters(db, [row.id], mayReadDrafts(caller));
+      return toSummary(row, latest.get(row.id) ?? null);
+    },
+
     async bySlug(slug: MangaSlug, caller: CallerContext): Promise<MangaDetail | null> {
       // `ix_manga_slug` (unique): the URL identity is a single-row seek, and
       // the visibility clauses ride along so a hidden row is simply not found.

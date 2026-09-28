@@ -31,6 +31,16 @@ export interface MangaRepository {
   /** Public detail (visibility rule applied). 404-shaped for hidden. */
   bySlug(slug: MangaSlug, caller: CallerContext): Promise<MangaDetail | null>;
 
+  /**
+   * One title by its row id, or `null`.
+   *
+   * Added for T-LIB-001: `POST /api/library` takes a `mangaId` and must answer
+   * 404 `MANGA_NOT_FOUND` for an id that is not there. Without this the route could
+   * only resolve a SLUG, so an unknown id reached `library_entry`'s foreign key
+   * and the driver's 23503 surfaced as an untyped 500.
+   */
+  byId(id: MangaId, caller: CallerContext): Promise<MangaSummary | null>;
+
   /** Catalog list (published & non-deleted only). */
   list(query: CatalogQuery): Promise<{ items: MangaSummary[]; nextCursor: string | null }>;
 
