@@ -93,19 +93,19 @@ Completion evidence:
 
 ### F-023-S1 — Make the status checker cover everything unimplemented
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete / N/A
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete / N/A
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `PLANNED_REPOSITORIES` (or an equivalent machine-checked list) names all 10
@@ -124,10 +124,30 @@ Completion evidence:
 `src/server/db/repositories/index.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-023-S1
+- Tests: 605 passed / 0 failed (unchanged). Claims checked 38 → **61**, all
+  consistent. Task state **unchanged** at BLOCKED 20 · STUB 36 · ABSENT 81 — the
+  scan now excludes documentation, which corrects the *evidence* without moving a
+  single task. Skipped suites surfaced: 0 → **13**, 0 unnamed.
+- Commands: `node ../scripts/check-claims.mjs [--json]`
+  · `node scripts/check-task-status.mjs [--json|--strict]`
+  · 4 planted mutations · `npx tsc --noEmit` · `npx eslint .`
+  · `node scripts/check-boundaries.mjs` · `npx vitest run`
+- Notes: **Four mutations, all caught.** Deleting the `T-OBS-001` throw → 60/1
+  contradicted; deleting a listed stub's file → contradicted; planting an unnamed
+  `describe.todo` → reported and fails `--strict`; planting `TODO(T-FOUND-001)` on
+  an `ABSENT` task → ABSENT 81→80, STUB 36→37, restored. **Three earlier attempts
+  at those mutations were wrong**: one replaced a string that had a suffix so it
+  was a no-op, one planted a TODO on a task that was already `STUB` so the counts
+  could not move, and the id pattern initially rejected `INT-SEARCH-001` and called
+  a correctly-identified file unnamed. All were caught by printing the counts
+  instead of trusting the assertion. **Also fixed here:** adding `specs/` had given
+  T-READER-021 a `todo` pointing at `CHECKLIST.md` — a promise read as a stub.
+  `specs`, `MVP_AUDIT` and `docs` are now excluded from the evidence scan;
+  `TASKS.md` deliberately stays. Not fixed, recorded: `../scripts/check-claims.mjs`
+  fails `prettier --check`, as it already did at `HEAD~1`; it is root-harness code
+  outside the Yomi prettier gate, and formatting it would add unrelated churn to a
+  file 8 projects share.
 
 ---
 
@@ -877,4 +897,5 @@ Completion evidence:
 | Date | Slice | Commit | Result |
 |---|---|---|---|
 | 2026-09-28 | plan authored | `36b36ee` | 24 features, 35 slices, auth deferred |
-| 2026-09-28 | F-022-S1 | *this commit* | baseline now 605/605/0 under any shell; production rule proven intact |
+| 2026-09-28 | F-022-S1 | `425ac7d` | baseline now 605/605/0 under any shell; production rule proven intact |
+| 2026-09-28 | F-023-S1 | *this commit* | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |

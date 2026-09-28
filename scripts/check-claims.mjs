@@ -226,6 +226,81 @@ function lineOf(text, index) {
   return line;
 }
 
+// `export const PLANNED_STUB_PORTS = [{ file, task }] as const;` — the assertion is
+// the INVERSE of a planned file: the file is expected to exist AND still to contain
+// `Not implemented: T-…` for that task.
+//
+// A file-existence check is the wrong instrument for most of this codebase's gaps.
+// A port that has no implementation usually still HAS a file: `search.repository.ts`
+// declares the interface, `admin.service.ts` declares the service, and the factory
+// inside throws. Checking "does the file exist" would report those as done, which is
+// precisely the false completion the `WIRED` bucket was deleted for. So this class
+// asserts the stub itself: the throw is the evidence, and the inventory fails when
+// the throw disappears without the inventory being updated. That is the same drift
+// guard as `PLANNED_LIST`, pointed the other way.
+const STUB_LIST =
+  /(?:export\s+)?const\s+PLANNED_STUB_PORTS\s*(?::[^=]+)?=\s*\[([\s\S]*?)\]\s*as\s+const/g;
+const STUB_ENTRY = /\{\s*file\s*:\s*['"]([^'"]+)['"]\s*,\s*task\s*:\s*['"](T-[A-Z0-9]+-\d+)['"]\s*\}/g;
+const NOT_IMPLEMENTED = /Not implemented:\s*(T-[A-Z0-9]+-\d+)/;
+
+function collectStubClaims() {
+  const claims = [];
+
+  for (const file of walkFiles(REPO_ROOT)) {
+    let text;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+
+    for (const list of text.matchAll(STUB_LIST)) {
+      for (const entry of list[1].matchAll(STUB_ENTRY)) {
+        const [, relPath, task] = entry;
+        // Resolved against the CLAIMING file's directory, like the two classes
+        // above — this repository is a monorepo, so a "repo root" is ambiguous and
+        // a path that silently meant the wrong root is exactly the kind of
+        // false-green this tool exists to prevent.
+        const target = join(dirname(file), relPath);
+        let verdict;
+        let detail;
+        if (!existsSync(target)) {
+          verdict = 'CONTRADICTED';
+          detail = 'the file named as a stub does not exist';
+        } else {
+          let body = '';
+          try {
+            body = readFileSync(target, 'utf8');
+          } catch {
+            body = '';
+          }
+          if (NOT_IMPLEMENTED.test(body)) {
+            // Present and still throwing — but only a verdict if it is throwing for
+            // THIS task. A file that throws a different id is drift, not agreement.
+            verdict = body.includes(`Not implemented: ${task}`) ? 'CONSISTENT' : 'CONTRADICTED';
+            detail = verdict === 'CONTRADICTED' ? 'it no longer throws the task it is listed under' : '';
+          } else {
+            verdict = 'CONTRADICTED';
+            detail = 'it no longer throws — the port is implemented but still listed as pending';
+          }
+        }
+        claims.push({
+          kind: 'stub-port',
+          file: relative(REPO_ROOT, file),
+          line: lineOf(text, list.index),
+          subject: `${relPath} (${task})`,
+          resolvesTo: relPath,
+          excerpt: excerptAt(text, list.index),
+          detail,
+          verdict,
+        });
+      }
+    }
+  }
+
+  return claims;
+}
+
 function excerptAt(text, index) {
   const start = text.lastIndexOf('\n', index) + 1;
   const end = text.indexOf('\n', index);
@@ -239,7 +314,7 @@ function main() {
 
   const declared = collectDeclaredPackages();
   const importSites = collectImportSites();
-  const fileClaims = collectFileLandmarkClaims(dirname);
+  const fileClaims = [...collectFileLandmarkClaims(dirname), ...collectStubClaims()];
 
   const findings = [];
   let scannedFiles = 0;

@@ -56,6 +56,17 @@ const SKIP_DIRECTORIES = new Set([
   '.turbo',
   'playwright-report',
   'test-results',
+  // Documentation ABOUT the tree is not the tree. A plan that says
+  // "T-READER-021 is BLOCKED" is a promise, not a stub, and reading it as one
+  // makes the checker report the plan as the evidence that the code is
+  // unfinished — which inverts the tool's whole purpose. Found the hard way:
+  // adding `specs/` gave T-READER-021 a `todo` pointing at
+  // specs/yomi/execution/CHECKLIST.md, and that file is nothing but a list of
+  // tasks to do. TASKS.md deliberately stays in scope: it is the inventory this
+  // report is computed from, not a description of it.
+  'specs',
+  'MVP_AUDIT',
+  'docs',
 ]);
 
 const args = new Set(process.argv.slice(2));
@@ -187,11 +198,14 @@ function main() {
     process.stdout.write(
       `${JSON.stringify({ total: report.length, counts, placeholderPages: placeholderPages.length, report }, null, 2)}\n`,
     );
-    process.exit(args.has('--strict') && (counts.BLOCKED ?? 0) > 0 ? 1 : 0);
+    process.exit(args.has('--strict') && (counts.BLOCKED ?? 0) + unnamedSuites.length > 0 ? 1 : 0);
   }
 
   const order = ['BLOCKED', 'STUB', 'PLACEHOLDER', 'ABSENT'];
   const shown = args.has('--blocked') ? report.filter((r) => r.state === 'BLOCKED') : report;
+
+  const skippedSuites = auditSkippedSuites();
+  const unnamedSuites = skippedSuites.filter((s) => s.ids.length === 0);
 
   console.log('check-task-status — derived from the tree, not asserted\n');
   console.log(
@@ -200,6 +214,13 @@ function main() {
   console.log(
     `  ${placeholderPages.length} page(s) render NotYetBuilt: a route that answers, and says so.\n`,
   );
+  console.log(
+    `  ${skippedSuites.length} test file(s) are skipped: assertions that never run. ` +
+      `${unnamedSuites.length} of them name no task id.\n`,
+  );
+  for (const s of unnamedSuites) console.log(`    NO TASK ID  ${s.rel}`);
+  if (skippedSuites.length > 0) console.log('');
+
   console.log(
     '  Every state is read from a file. There is no "looks wired" bucket: a task counts as\n' +
       '  nothing here unless something in the tree is explicitly unfinished about it.\n',
@@ -223,11 +244,51 @@ function main() {
     console.log('');
   }
 
-  process.exit(args.has('--strict') && (counts.BLOCKED ?? 0) > 0 ? 1 : 0);
+  process.exit(args.has('--strict') && (counts.BLOCKED ?? 0) + unnamedSuites.length > 0 ? 1 : 0);
 }
 
 function pad(value, width) {
   return String(value).padEnd(width);
+}
+
+/**
+ * A skipped suite is a hole, and a hole that names nothing is a hole nobody will
+ * ever close. Vitest reports 13 skipped test files as "13 skipped" — a number that
+ * looks like coverage — while their assertions never execute.
+ *
+ * Every one of those files already names its task ids in the `describe.todo`
+ * title, and that is the convention worth keeping: it is the only place a reader
+ * of the file learns which task the skip belongs to. So this checks the
+ * convention rather than restating it, and it fails the build the first time a
+ * `describe.todo` appears without one.
+ *
+ * The count is reported in the summary line so the number is never invisible:
+ * a silent skip and a counted skip are different things, and only the second one
+ * can be planned against.
+ */
+function auditSkippedSuites() {
+  const skipped = [];
+  for (const file of walk(REPO_ROOT)) {
+    const rel = relative(REPO_ROOT, file);
+    if (!/^tests[\\/](unit|integration)[\\/].*\.test\.ts$/.test(rel)) continue;
+    let text;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    if (!/^describe(?:Db)?\.(?:todo|skip)\(/m.test(text)) continue;
+    // Both id schemes count, because the tree really uses both: `T-…` is a task
+    // from TASKS.md, and `INT-…` / `UNIT-…` is a planned test from
+    // TEST_STRATEGY.md. `tests/integration/search.test.ts` names only
+    // `INT-SEARCH-001`, and refusing that would have been the checker being
+    // wrong about the convention it is meant to enforce.
+    const ids = [
+      ...new Set([...text.matchAll(/\b((?:T|INT|UNIT|E2E)-[A-Z0-9]+-\d+)\b/g)].map((m) => m[1])),
+    ];
+    skipped.push({ rel, ids });
+  }
+  return skipped;
 }
 
 main();
