@@ -15,10 +15,11 @@
  * shell (its two actions were 19 px tall, below the 44 px the product commits
  * to). A route returning 200 is not evidence that its controls are hittable.
  *
- * a11y gate note: @axe-core/playwright is NOT installed (no research-registry
- * row; AGENTS.md §4.4), so the axe leg of ACCESSIBILITY.md §7 is not wired.
- * These are the geometric + accessibility-tree checks that can be made with
- * what is available. They do not replace axe; see the report.
+ * a11y gate note: this file runs NO axe leg. @axe-core/playwright IS installed
+ * and IS exercised by catalog-a11y.e2e.spec.ts, so the axe coverage of
+ * ACCESSIBILITY.md §7 is partial, not absent: catalog pages are axe-checked,
+ * the shell and route map are not. Closing that gap is the open work here —
+ * these geometric and accessibility-tree checks are a floor, not a substitute.
  */
 import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';

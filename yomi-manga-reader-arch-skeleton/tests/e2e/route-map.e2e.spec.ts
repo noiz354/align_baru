@@ -12,11 +12,13 @@
  * T-FOUND-003 smoke (spec-question: the row needs adding by whoever owns
  * TEST_STRATEGY.md) — recorded, not silently invented.
  *
- * a11y gate note: @axe-core/playwright is NOT installed in this repository
- * yet, so the axe leg of ACCESSIBILITY.md §7 is not wired here. These
- * assertions are the structural checks that can be made without it
- * (landmarks, one h1, skip link, focus move, forced-colors degradation).
- * They do not replace axe; they fail loudly if the shell regresses.
+ * a11y gate note: this file runs NO axe leg. @axe-core/playwright IS installed
+ * and IS exercised by catalog-a11y.e2e.spec.ts, so the axe coverage of
+ * ACCESSIBILITY.md §7 is partial, not absent — and because this spec walks every
+ * route in the map, it is the cheapest place to add the missing leg. The
+ * structural assertions below (landmarks, one h1, skip link, focus move,
+ * forced-colors degradation) fail loudly if the shell regresses, but they are a
+ * floor, not a substitute for axe.
  */
 import { expect, test, type Page } from '@playwright/test';
 
