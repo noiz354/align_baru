@@ -18,6 +18,7 @@
  * the deployment's robots policy. Recorded rather than decided.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -27,6 +28,12 @@ export default function SignInPage() {
   return (
     <>
       <h1>Sign in</h1>
+      <NotYetBuilt
+        headingId="auth-signin-not-built"
+        task="T-AUTH-012"
+        intent="sign a reader in"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-AUTH-012): sign-in form (labeled, error-linked, a11y) */}
     </>
   );

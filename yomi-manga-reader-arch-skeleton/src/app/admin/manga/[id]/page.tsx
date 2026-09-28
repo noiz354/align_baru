@@ -18,6 +18,7 @@
  * title in a shell would be the fake product data AGENTS.md §4.3 forbids.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Manga',
@@ -27,6 +28,12 @@ export default function AdminMangaEditPage(/* { params } */) {
   return (
     <>
       <h1>Manga</h1>
+      <NotYetBuilt
+        headingId="admin-manga-edit-not-built"
+        task="T-ADMIN-002…005"
+        intent="edit a title’s metadata, cover, publication state and chapters"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-002…005): metadata form + cover + publish + delete */}
     </>
   );

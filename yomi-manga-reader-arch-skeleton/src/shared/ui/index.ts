@@ -21,6 +21,8 @@
  *   Dialog      — native <dialog> (focus trap from the platform)
  *   ItemList    — real ul/ol + li
  *   FocusRegion — initial focus for not-found / error states
+ *   StateRegion — the one "something went wrong / not built yet" shape, so a page is
+ *                 never a blank main (ACCESSIBILITY.md §6)
  *   classNames  — the one class-list assembly helper (T-CATALOG-003/004/005/006/008)
  *
  * Stylesheets are imported by the root layout, not by the components:
@@ -37,4 +39,5 @@ export * from './FocusRegion';
 export * from './FormField';
 export * from './Link';
 export * from './List';
+export * from './StateRegion';
 export * from './hydration';

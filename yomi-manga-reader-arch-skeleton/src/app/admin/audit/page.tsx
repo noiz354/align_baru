@@ -19,6 +19,7 @@
  * not something the list streams into the page.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Audit',
@@ -28,6 +29,12 @@ export default function AdminAuditPage() {
   return (
     <>
       <h1>Audit</h1>
+      <NotYetBuilt
+        headingId="admin-audit-not-built"
+        task="T-ADMIN-007"
+        intent="list the audit trail and let an operator filter it"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-007): audit list + filters + before/after view */}
     </>
   );

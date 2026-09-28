@@ -19,6 +19,7 @@
  * the FormField primitive does not yet cover.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Settings',
@@ -28,6 +29,12 @@ export default function SettingsPage() {
   return (
     <>
       <h1>Settings</h1>
+      <NotYetBuilt
+        headingId="settings-not-built"
+        task="T-READER-018"
+        intent="edit your reader preferences and account details"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-READER-018): reader preferences form */}
       {/* TODO(T-AUTH-011): account section (password, delete) */}
     </>

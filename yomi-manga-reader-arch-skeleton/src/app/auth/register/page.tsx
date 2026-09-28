@@ -12,6 +12,7 @@
  * Task: T-FOUND-003. API_CONTRACT §5 row 5: features/auth.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Register',
@@ -21,6 +22,12 @@ export default function RegisterPage() {
   return (
     <>
       <h1>Create an account</h1>
+      <NotYetBuilt
+        headingId="auth-register-not-built"
+        task="T-AUTH-012"
+        intent="let a reader create an account"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-AUTH-012): register form (labeled, policy hints, a11y) */}
     </>
   );

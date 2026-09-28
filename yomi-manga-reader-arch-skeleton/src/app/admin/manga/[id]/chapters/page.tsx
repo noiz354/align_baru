@@ -19,6 +19,7 @@
  * formatted string. That is T-ADMIN-004's row rendering.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Chapters',
@@ -28,6 +29,12 @@ export default function AdminChaptersPage(/* { params } */) {
   return (
     <>
       <h1>Chapters</h1>
+      <NotYetBuilt
+        headingId="admin-manga-chapters-not-built"
+        task="T-ADMIN-004"
+        intent="order a title’s chapters and manage their pages"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-004): chapter table + create/edit + delete */}
       {/* TODO(T-UPLOAD-010): upload/re-ingest entry points */}
     </>

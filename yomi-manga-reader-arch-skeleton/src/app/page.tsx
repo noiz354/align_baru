@@ -22,6 +22,7 @@
  * layout) is not suffixed; every other route in the map is.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Yomi',
@@ -31,6 +32,12 @@ export default function HomePage() {
   return (
     <>
       <h1>Yomi</h1>
+      <NotYetBuilt
+        headingId="home-not-built"
+        task="T-CATALOG-003"
+        intent="show you what to read next and what changed"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       <p className="note">
         A reading room for the manga and comics you own or are licensed to read.
       </p>

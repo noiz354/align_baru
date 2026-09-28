@@ -17,6 +17,7 @@
  * 006) but never in a URL, a log line or an analytics event (NFR-OBS-006).
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Users',
@@ -26,6 +27,12 @@ export default function AdminUsersPage() {
   return (
     <>
       <h1>Users</h1>
+      <NotYetBuilt
+        headingId="admin-users-not-built"
+        task="T-ADMIN-006"
+        intent="list reader accounts and manage their access"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-006): user list + role/status controls (guarded) */}
     </>
   );

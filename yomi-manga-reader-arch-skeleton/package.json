@@ -2,7 +2,7 @@
   "name": "yomi",
   "version": "0.0.0",
   "private": true,
-  "description": "Yomi — self-hosted manga & comic reader. ARCHITECTURE PHASE: documentation + non-functional skeletons only. No feature is implemented. See README.md, TASKS.md, AGENTS.md.",
+  "description": "Yomi \u2014 self-hosted manga & comic reader. ARCHITECTURE PHASE: documentation + non-functional skeletons only. No feature is implemented. See README.md, TASKS.md, AGENTS.md.",
   "type": "module",
   "engines": {
     "node": ">=24 <25"
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:boundaries": "node scripts/check-boundaries.mjs",
+    "check:tasks": "node scripts/check-task-status.mjs",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

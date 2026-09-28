@@ -13,6 +13,7 @@
  * for slug generation); handlers `src/app/api/v1/admin/manga*`.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Manga',
@@ -22,6 +23,12 @@ export default function AdminMangaListPage() {
   return (
     <>
       <h1>Manga</h1>
+      <NotYetBuilt
+        headingId="admin-manga-not-built"
+        task="T-ADMIN-002"
+        intent="list every title and start a new one"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-002): manga list + create form entry */}
     </>
   );

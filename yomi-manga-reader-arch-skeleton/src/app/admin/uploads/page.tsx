@@ -19,6 +19,7 @@
  * (ACCESSIBILITY.md §3.3).
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Uploads',
@@ -28,6 +29,12 @@ export default function AdminUploadsPage() {
   return (
     <>
       <h1>Uploads</h1>
+      <NotYetBuilt
+        headingId="admin-uploads-not-built"
+        task="T-UPLOAD-010"
+        intent="list uploaded assets and manage them"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-UPLOAD-010): job list (live states) + failure reasons */}
     </>
   );

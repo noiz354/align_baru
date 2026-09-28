@@ -13,6 +13,7 @@
  * rendered by `admin/layout.tsx`, not here.
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Admin',
@@ -22,6 +23,12 @@ export default function AdminDashboardPage() {
   return (
     <>
       <h1>Admin</h1>
+      <NotYetBuilt
+        headingId="admin-not-built"
+        task="T-ADMIN-008"
+        intent="link together the admin sections that exist"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-ADMIN-008): stats + onboarding empty state */}
     </>
   );

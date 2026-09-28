@@ -158,6 +158,22 @@ a:hover {
   color: var(--ink-muted);
 }
 
+/* A page state: the heading that names it, the cause, the next action, and where to go.
+   Left-aligned and measured rather than centred — a state is something to read, and
+   `.state-region` is the single definition behind not-found, error, the catalog and detail
+   unavailability, and every route that is still a shell (ACCESSIBILITY.md §6). */
+.state-region {
+  display: grid;
+  gap: var(--sp-3);
+  justify-items: start;
+  max-width: var(--measure);
+  padding-block: var(--sp-6);
+}
+
+.state-region code {
+  font-size: 0.95em;
+}
+
 /* A row of actions. Wraps, so it survives the 320px floor. */
 .page-actions {
   display: flex;

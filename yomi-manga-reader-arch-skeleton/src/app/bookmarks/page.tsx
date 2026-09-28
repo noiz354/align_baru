@@ -15,6 +15,7 @@
  * `<dialog>`, so the focus trap is the platform's, NFR-A11Y-003).
  */
 import type { Metadata } from 'next';
+import { NotYetBuilt } from '../../shared/ui/StateRegion';
 
 export const metadata: Metadata = {
   title: 'Bookmarks',
@@ -24,6 +25,12 @@ export default function BookmarksPage() {
   return (
     <>
       <h1>Bookmarks</h1>
+      <NotYetBuilt
+        headingId="bookmarks-not-built"
+        task="T-LIB-008"
+        intent="list the pages you have bookmarked and remove them"
+        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      />
       {/* TODO(T-LIB-008): bookmark list + jump + remove (dialog) */}
     </>
   );
