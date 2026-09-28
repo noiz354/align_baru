@@ -614,19 +614,19 @@ Completion evidence:
 
 ### F-007-S2 — `?page=N` deep link, clamped
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `?page=N` opens page N
@@ -639,10 +639,28 @@ Completion evidence:
 **Files:** `src/app/manga/[slug]/chapter/[chapter]/page.tsx`, `reader-client.tsx`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-007-S2
+- Tests: 625 → **638 passed (638)**, 13 new, 0 removed.
+- Commands: 4 mutations, all caught
+  · full regression gates · `next build`
+- Notes: The shell read `params` and nothing else, so `/bookmarks` built a
+  contract-correct `?page=N` href that landed on page 1 — a link built right and
+  pointing wrong, which is worse than no link because it looks right. Two rules are
+  argued in the code: a **deep link beats saved progress** (someone who followed a
+  link to page 12 asked for page 12, and a link that lies cannot be shared — which
+  also skips a pointless round trip), and a page past the end is **clamped, not
+  refused** (a stale bookmark, not an attack). Clamping is in the client where
+  `pageCount` is known; the shell holds no clamp and the test asserts that absence.
+  The two pure functions live in `features/reader/deep-link.ts` because a test
+  **cannot import them from the route directory** — `[slug]` and `[chapter]` are
+  not valid module-specifier characters and there is no `paths` mapping. Coercion
+  follows `Number()` deliberately, so `?page= 5 ` is 5; a first version of the test
+  asserted it was refused and was wrong. **Two mutations initially "passed" and
+  both were my fault:** one replaced a parameter name that did not exist, so
+  nothing changed at all — the harness now refuses to report an unapplied mutation
+  as a pass — and one had no test, so disabling the branch was invisible. **Not
+  claimed: that the reader lands on the page.** Arithmetic is unit-tested, wiring is
+  source-asserted, the navigation itself is browser work.
 
 ---
 
@@ -765,19 +783,19 @@ Completion evidence:
 
 ### F-008-S1 — `unsetCompleted`: the missing port operation
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `unsetCompleted(userId, chapterId)` on the port and the repository
@@ -792,10 +810,28 @@ Completion evidence:
 - `setReadStatus`'s zero-caller status is resolved: it is either wired or deleted
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-007-S2
+- Tests: 625 → **638 passed (638)**, 13 new, 0 removed.
+- Commands: 4 mutations, all caught
+  · full regression gates · `next build`
+- Notes: The shell read `params` and nothing else, so `/bookmarks` built a
+  contract-correct `?page=N` href that landed on page 1 — a link built right and
+  pointing wrong, which is worse than no link because it looks right. Two rules are
+  argued in the code: a **deep link beats saved progress** (someone who followed a
+  link to page 12 asked for page 12, and a link that lies cannot be shared — which
+  also skips a pointless round trip), and a page past the end is **clamped, not
+  refused** (a stale bookmark, not an attack). Clamping is in the client where
+  `pageCount` is known; the shell holds no clamp and the test asserts that absence.
+  The two pure functions live in `features/reader/deep-link.ts` because a test
+  **cannot import them from the route directory** — `[slug]` and `[chapter]` are
+  not valid module-specifier characters and there is no `paths` mapping. Coercion
+  follows `Number()` deliberately, so `?page= 5 ` is 5; a first version of the test
+  asserted it was refused and was wrong. **Two mutations initially "passed" and
+  both were my fault:** one replaced a parameter name that did not exist, so
+  nothing changed at all — the harness now refuses to report an unapplied mutation
+  as a pass — and one had no test, so disabling the branch was invisible. **Not
+  claimed: that the reader lands on the page.** Arithmetic is unit-tested, wiring is
+  source-asserted, the navigation itself is browser work.
 
 ---
 
@@ -1016,4 +1052,5 @@ Completion evidence:
 | 2026-09-28 | F-001-S2 | `03b67c0` | guard no longer opens its own pool; Wave 1 complete |
 | 2026-09-28 | F-006-S1 | `73874dc` | **P0 fixed** — reading no longer erases completion; `last_read_at` maintained |
 | 2026-09-28 | F-006-S2 | `9646ad8` | `reader-state.ts` deleted; sessions adapter; pages route untested → 4 tests |
-| 2026-09-28 | F-007-S1 | *this commit* | chapter navigation shipped from data the response already carried |
+| 2026-09-28 | F-007-S1 | `b9a3b58` | chapter navigation shipped from data the response already carried |
+| 2026-09-28 | F-007-S2 | *this commit* | `?page=N` deep link; /bookmarks jump no longer lands on page 1 |

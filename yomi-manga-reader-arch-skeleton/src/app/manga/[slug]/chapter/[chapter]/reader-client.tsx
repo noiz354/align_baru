@@ -15,8 +15,6 @@
  * and the client used to drop.
  *
  * What does not, and is not pretending to:
- * - `?page=N`. The server shell reads no search params, so a shared deep link and
- *   the `/bookmarks` jump both land on page 1. → F-007-S2
  * - `readingDirection` is fetched and shown as TEXT but never applied to layout.
  *   Harmless for a single page, and still a lie in the response.
  * - The save `fetch` has no `.catch`, so a 401 discards the position silently.
@@ -34,11 +32,12 @@
  * Requirements: FR-READER-011, FR-READER-012, FR-READER-014, FR-READER-015,
  * FR-READER-016 (chapter neighbours), NFR-PERF-014
  * Tasks: T-READER-001, T-READER-014, T-READER-016 (chapter neighbours),
- * T-UPLOAD-004 (image-missing state); gaps F-007-S2
+ * T-UPLOAD-004 (image-missing state); gaps F-005 (route guard, deferred)
  */
 'use client';
 import { useEffect, useState } from 'react';
 import type { ChapterPagesResponse, PageAsset } from '../../../../../shared/contracts/chapter';
+import { clampRequestedPage } from '../../../../../features/reader/deep-link';
 
 /** `Response.json()` is typed `any`; reading it as `unknown` keeps that out of the call sites. */
 async function readJson(res: Response): Promise<unknown> {
@@ -99,7 +98,23 @@ function readNeighbour(raw: unknown): ChapterNeighbour | null {
   return { slug, number, title: typeof title === 'string' ? title : null };
 }
 
-export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNumber: number }) {
+export function ReaderClient({
+  slug,
+  chapterNumber,
+  requestedPage,
+}: {
+  slug: string;
+  chapterNumber: number;
+  /**
+   * `?page=N`, already reduced to a positive integer or `null` by the server shell.
+   *
+   * RAW on purpose: this shell cannot clamp, because `page_count` is not known
+   * until the page list arrives. The clamp happens below, in the client, which is
+   * where the count is known — and it belongs here rather than in the repository,
+   * which returns stored position raw on purpose (EC-RDR-10).
+   */
+  requestedPage: number | null;
+}) {
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [mangaTitle, setMangaTitle] = useState(slug);
   const [readingDirection, setReadingDirection] = useState('ltr');
@@ -149,13 +164,20 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         setReadingDirection(parsed.chapter.readingDirection);
         setPrevChapter(readNeighbour((parsed as { prevChapter?: unknown }).prevChapter));
         setNextChapter(readNeighbour((parsed as { nextChapter?: unknown }).nextChapter));
-        // Fetch progress
-        const progRes = await fetch(`/api/chapters/${target.id}/progress`);
-        if (progRes.ok) {
-          const prog = await readJson(progRes);
-          const pn = readProgressPageNumber(prog);
-          if (pn !== undefined && Number.isInteger(pn) && pn >= 1 && pn <= parsed.pages.length) {
-            setPage(pn);
+        // A deep link BEATS saved progress. Someone who followed a link to page 12
+        // asked for page 12; silently substituting their last position would make
+        // the link lie, and a shared link would be unusable. Progress is only the
+        // starting point when there is no deep link.
+        if (requestedPage !== null) {
+          setPage(clampRequestedPage(requestedPage, parsed.pages.length));
+        } else {
+          const progRes = await fetch(`/api/chapters/${target.id}/progress`);
+          if (progRes.ok) {
+            const prog = await readJson(progRes);
+            const pn = readProgressPageNumber(prog);
+            if (pn !== undefined && Number.isInteger(pn) && pn >= 1 && pn <= parsed.pages.length) {
+              setPage(pn);
+            }
           }
         }
       } catch (e: unknown) {
@@ -168,7 +190,7 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
     return () => {
       cancelled = true;
     };
-  }, [slug, chapterNumber]);
+  }, [slug, chapterNumber, requestedPage]);
 
   // Save progress on page change
   useEffect(() => {

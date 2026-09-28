@@ -128,4 +128,22 @@ describe('the reader consumes the chapter neighbours (INT-RDR-NAV, F-007-S1)', (
     expect(client).toMatch(/FR-READER-016/);
     expect(client).toMatch(/T-READER-016/);
   });
+
+  it('lets the deep link win over saved progress, and clamps it', () => {
+    // The rule that makes a shared link meaningful: someone who followed a link to
+    // page 12 asked for page 12. Substituting their last position would make the
+    // link lie, and a link that lies cannot be shared.
+    //
+    // Neither half of this is observable without mounting the component — which is
+    // why the arithmetic is unit-tested in `reader-deeplink.test.ts` and the
+    // WIRING is asserted here. The first version of this file asserted neither, and
+    // a mutation that disabled the branch passed the whole suite.
+    expect(client).toMatch(/if \(requestedPage !== null\) \{\s*setPage\(clampRequestedPage\(/);
+    // The progress fetch is the ELSE branch, so a deep link also skips the round
+    // trip it makes pointless.
+    expect(client).toMatch(/\} else \{\s*const progRes = await fetch/);
+    // The shell that hands the parsed value down is asserted in
+    // `reader-deeplink.test.ts`, which owns the deep link; this file only reads
+    // the client, and asserting a file it never loaded would be theatre.
+  });
 });
