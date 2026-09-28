@@ -152,27 +152,42 @@ Full list in [DOCUMENTATION_RECONCILIATION.md](DOCUMENTATION_RECONCILIATION.md).
 
 ## Corrections to this audit
 
-`ADR-003` says documentation is a claim until a command settles it. That rule applies to the audit
-too, and one of my own findings did not survive its own test.
+`ADR-003` says documentation is a claim until a command settles it. That rule applies to this audit
+too, and **two of my own findings did not survive their own test**.
 
 | Claim I made | Correction | How it was caught |
 |---|---|---|
 | `majelishub/README.md:35` ("the lint rule checks all 53" stub ids) is **FALSE** — "53 does not match either count" | **The README is correct.** 53 unique `T-XXX-NNN` ids appear in `Not implemented:` across `src/`, at 80 throw sites; 52 of the 53 are thrown, one appears only in a `TODO(...)` marker. My draft measured only the ids appearing *inside throw statements* and concluded the claim was overstated. | A re-measurement of every cited number against the tree, after the audit documents were written. The count is right for the quantity the README actually names. |
 
-A second apparent discrepancy was **not** an error in the documents: `grep -rl "ROUTE SHELL" src/app`
+| siomayops business state is `IN_MEMORY` and **nothing survives a restart** | **Wrong, and material.** `src/server/db/memory-store.ts` is file-backed: `persistStore()` writes `data/db.json` via `writeFileSync` + atomic `renameSync`, and is wired into every `Map.set`/`delete`/`clear` and `auditEvents.push` at module load. Verified surviving `kill -9`: an incident created at 15:53:07 was still readable from `/api/v1/audit` after a fresh process. Corrected to `LOCAL_FILE` in `PERSISTENCE_REALITY.md`, `FEATURE_REALITY_MATRIX.md`, `specs/DATA_MODEL.md` and the siomayops audit. | A rebuild after moving the repo produced an untracked `data/` directory. Chasing it instead of cleaning it revealed the file header contradicting the audit's own claim. `SPEC §Persistence` had been written from `withTransaction` and from `IMPLEMENTATION_STATUS.md` — both of which are about *transactions*, not *durability*. I had inferred one from the other. |
+
+A third apparent discrepancy was **not** an error in the documents: `grep -rl "ROUTE SHELL" src/app`
 returns 66 files, but 22 of those are API route files whose doc comment contains the same phrase.
 Measured against `page.tsx` only — the thing the README is counting — it is 44 shells and 5 real
 pages, which is what the audit states.
 
+**The lesson is about method, not about the number.** Both corrections came from checking a
+mechanical property — "does this file exist", "does this directory exist" — rather than from reading
+one more document. The claim I got wrong came from reading `IMPLEMENTATION_STATUS.md` and
+`withTransaction`; the code that made it false was in a file header three lines long, at
+`memory-store.ts:5`, saying *"file-backed via data/db.json (survives restart), atomic write."*
+**No P0, no status, and no priority changes as a result of this correction** — GAP-P0-SIO-01 is about
+identity, not storage, and was re-verified after the correction.
+
 **Neither correction changes any status, gap, priority, or recommendation.** They are recorded here
 because a plan that quietly fixes its own errors is worth less than one that publishes them.
+
+One more, for honesty: the second correction was found only *after* the documents were written and
+pushed, while moving the working directory. A reviewer who only read the pushed branch would have
+inherited the error.
 
 ## What is genuinely good, and should be preserved
 
 Not everything here is bad. These are the assets a follow-up agent should not break:
 
 - **siomayops** is the only project whose `typecheck`, `lint`, `build`, `check:docs` and `npm test`
-  are all green on a clean install. Its payment webhook verifier is correct: HMAC-SHA256,
+  are all green on a clean install, and its store is file-backed and atomic — it survives a hard kill,
+  which an earlier draft of this audit denied. Its payment webhook verifier is correct: HMAC-SHA256,
   `timingSafeEqual`, fail-closed on missing secret or non-hex signature
   (`src/server/payments/webhook-verifier.ts:27-43`). Its design intent is the strongest in the repo.
 - **rsi-agent** is the only project whose deliverable register (`DELIVERABLES.md`) explicitly
@@ -188,6 +203,7 @@ Not everything here is bad. These are the assets a follow-up agent should not br
 | # | Claim | Settle it with |
 |---|---|---|
 | C1 | siomayops accepts unauthenticated writes in production | `siomayops && npm start` then `curl -X POST localhost:3200/api/v1/incidents` |
+| C1b | siomayops state survives a hard kill (`data/db.json`) | kill -9 the server, restart, `GET /api/v1/audit` |
 | C2 | homeops serves any household's data without a session | `curl "localhost:3101/api/homeops/rooms?householdId=<uuid>"` |
 | C3 | homeops has no RLS | `select relname from pg_class where relkind='r' and relrowsecurity` |
 | C4 | homeops' deploy migration omits rooms/chores | `npm run db:migrate` then `\dt` |

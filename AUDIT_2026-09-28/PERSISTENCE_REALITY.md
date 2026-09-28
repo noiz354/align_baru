@@ -8,7 +8,7 @@ again.** A workflow that fails the restart step is not a product.
 
 | Project | Business state | Survives restart? | Class |
 |---|---|---|---|
-| siomayops | every shift, sale, payment, stock movement, audit row | **NO** | `IN_MEMORY` |
+| siomayops | every shift, sale, payment, stock movement, audit row | **YES** — via `data/db.json` (see §1) | `LOCAL_FILE` |
 | homeops | 17 tables | yes **if** `0001` were registered — it is not | `REAL_DATABASE` (broken deploy) |
 | majelishub | organizations, memberships, mosques, events, registrations, attendance, audit | **YES** | `REAL_DATABASE` |
 | strangerlink | queue, sessions, messages | no (by design, correct) | `IN_MEMORY` |
@@ -33,7 +33,41 @@ again.** A workflow that fails the restart step is not a product.
 
 ## Per-project detail
 
-### siomayops — `IN_MEMORY`, and presented as durable
+### siomayops — `LOCAL_FILE`, file-backed and atomic (corrected)
+
+**Correction.** An earlier draft of this audit recorded siomayops as `IN_MEMORY` with no persistence
+and stated that nothing survives a restart. That is **wrong**. `src/server/db/memory-store.ts` is
+file-backed:
+
+```
+line   5: * Persistence: file-backed via data/db.json (survives restart), atomic write.
+line 484: fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
+line 485: fs.renameSync(tmp, DB_PATH);          // atomic replace
+```
+
+`persistStore()` is wired into every mutating path — `Map.set`, `Map.delete`, `Map.clear`, and
+`auditEvents.push` are wrapped at module load (lines 537–560).
+
+**Verified on a production build** (`NODE_ENV=production`, `next start`, commit `8ebc15f`):
+
+```
+POST /api/v1/incidents (no cookie)  → 201  id 8f6c49d8-…
+  disk: data/db.json  incidents: 1  auditEvents: 1
+kill -9 the process
+next start, same data dir, empty process memory
+GET /api/v1/audit?limit=5
+  audit.queried       | entity: search                                | 16:24:40
+  incident.submitted  | entity: 8f6c49d8-9de4-402a-88d8-af592f587fa7   | 15:53:07   ← pre-restart
+```
+
+The record and its audit entry **survived a hard kill**. This is `LOCAL_FILE`, not `IN_MEMORY`.
+
+**What remains true, and what this does not fix.** `data/db.json` is a single JSON document rewritten
+in full on every mutation: it does not scale, does not support concurrent writers safely beyond
+single-process, and cannot express a real transaction. `withTransaction` is still
+`return fn({})`. And `GET /api/v1/incidents` returns an empty body — the record persists, but the
+list route does not read it back, so the pilot cannot actually see its own surviving data. The
+unauthenticated-write finding (GAP-P0-SIO-01) is **unaffected**: it is about identity, not storage.
 
 `src/server/db/memory-store.ts` holds every aggregate; 44 modules import it. `drizzle` and `pg` are
 declared dependencies and `src/server/db/schema.ts` defines real `pgTable` statements that nothing

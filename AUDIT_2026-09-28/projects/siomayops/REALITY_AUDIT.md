@@ -38,11 +38,11 @@ but `.github/workflows/project-checks.yml` runs only `typecheck`, `test`, `build
 
 | Concern | Reality |
 |---|---|
-| All business state | `IN_MEMORY` — `src/server/db/memory-store.ts`, imported by 44 modules |
+| All business state | `LOCAL_FILE` — `src/server/db/memory-store.ts` (44 importers) persists to `data/db.json` via atomic `writeFileSync` + `renameSync`. **Verified surviving a hard kill.** An earlier draft of this audit said `IN_MEMORY` with no persistence; that was wrong. |
 | Transactions | **None.** `src/server/db/repository.ts:21`: `export async function withTransaction<T>(fn) { return fn({}); }` with the comment *"In-memory: no real transaction… For Postgres, this would be a real transaction."* |
 | Drizzle schema | `src/server/db/schema.ts` defines real `pgTable` definitions — **never used at runtime** |
 | `pg` dependency | declared, unused |
-| Restart | every shift, sale, payment, stock movement, audit row is lost |
+| Restart | state survives — `data/db.json`. But `GET /api/v1/incidents` returns an empty body, so the pilot cannot read its own surviving data back |
 
 `IMPLEMENTATION_STATUS.md:40` ("Modules Completed") does not list the absence of a database or a
 transaction as a boundary. This is the single most consequential undocumented fact in the project.

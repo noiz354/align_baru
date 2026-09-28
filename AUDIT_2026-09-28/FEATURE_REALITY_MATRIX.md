@@ -13,20 +13,20 @@ Legend: `YES` works end to end · `PARTIAL` works for the happy path only · `NO
 
 | Feature | Backend | UI | Persistence | Auth | Validation | Failure handling | Test | User usable? |
 |---|---|---|---|---|---|---|---|---|
-| Start shift + opening float | YES | YES | IN_MEMORY | **FAKE** | YES (zod) | YES | YES | **NO** — no real identity |
-| Record cash sale, change calc | YES | YES | IN_MEMORY | **FAKE** | YES | YES | YES | **NO** |
-| Sale idempotency (`clientSaleId`) | **PARTIAL** | n/a | IN_MEMORY | FAKE | YES | silent skip when no `Idempotency-Key` | YES | NO |
-| Price resolution LOCATION>AREA>ORG | YES | YES | IN_MEMORY | FAKE | YES | YES (AMBIGUOUS, NOT_SELLABLE) | YES | NO |
-| Digital payment, webhook verify | YES | n/a | IN_MEMORY | FAKE | YES | YES — HMAC + `timingSafeEqual`, fail-closed | YES (7 cases) | NO |
+| Start shift + opening float | YES | YES | LOCAL_FILE | **FAKE** | YES (zod) | YES | YES | **NO** — no real identity |
+| Record cash sale, change calc | YES | YES | LOCAL_FILE | **FAKE** | YES | YES | YES | **NO** |
+| Sale idempotency (`clientSaleId`) | **PARTIAL** | n/a | LOCAL_FILE | FAKE | YES | silent skip when no `Idempotency-Key` | YES | NO |
+| Price resolution LOCATION>AREA>ORG | YES | YES | LOCAL_FILE | FAKE | YES | YES (AMBIGUOUS, NOT_SELLABLE) | YES | NO |
+| Digital payment, webhook verify | YES | n/a | LOCAL_FILE | FAKE | YES | YES — HMAC + `timingSafeEqual`, fail-closed | YES (7 cases) | NO |
 | QRIS settlement | **NO** (by design) | n/a | — | — | — | raises, cannot reach PAID | YES | n/a — correct refusal |
-| Stock movements & derived positions | YES | YES | IN_MEMORY | FAKE | YES | YES (variance requires reason) | YES | NO |
-| Expense review state machine | YES | YES | IN_MEMORY | FAKE | YES | YES (reason required) | YES | NO |
-| Close shift + cash reconciliation | YES | YES | IN_MEMORY | FAKE | YES | YES (immutable, idempotent) | YES | NO |
-| HQ dashboard, 10 cards | YES | YES | IN_MEMORY | FAKE | n/a | n/a | YES | NO |
-| Loyalty redeem | YES | YES | IN_MEMORY | FAKE | YES | YES (single-use, concurrent-safe) | YES | NO |
-| Incidents | YES | YES | IN_MEMORY | FAKE | YES | YES | YES | NO — **writable unauthenticated** |
-| Offline outbox | YES | YES | IN_MEMORY | FAKE | n/a | n/a | YES | NO |
-| Transactions / DB | **NO** | — | IN_MEMORY | — | — | — | — | NO |
+| Stock movements & derived positions | YES | YES | LOCAL_FILE | FAKE | YES | YES (variance requires reason) | YES | NO |
+| Expense review state machine | YES | YES | LOCAL_FILE | FAKE | YES | YES (reason required) | YES | NO |
+| Close shift + cash reconciliation | YES | YES | LOCAL_FILE | FAKE | YES | YES (immutable, idempotent) | YES | NO |
+| HQ dashboard, 10 cards | YES | YES | LOCAL_FILE | FAKE | n/a | n/a | YES | NO |
+| Loyalty redeem | YES | YES | LOCAL_FILE | FAKE | YES | YES (single-use, concurrent-safe) | YES | NO |
+| Incidents | YES | YES | LOCAL_FILE | FAKE | YES | YES | YES | NO — **writable unauthenticated** |
+| Offline outbox | YES | YES | LOCAL_FILE | FAKE | n/a | n/a | YES | NO |
+| Real transactions | **NO** | — | LOCAL_FILE, no tx | — | — | — | — | NO |
 | Operator authentication | **NO** | **NO** | — | **FAKE** | — | — | none | **NO** |
 
 ## homeops-household-manager-spec

@@ -7,7 +7,7 @@ plus the one cross-project rule that keeps being violated.
 
 | Project | Store | Tenant column | RLS | Tables | Transactions |
 |---|---|---|---|---:|---|
-| siomayops | `IN_MEMORY` (`memory-store.ts`) | `organizationId` in the type layer only | none | 0 (a drizzle schema exists, unused) | none — `withTransaction` is `fn({})` |
+| siomayops | `LOCAL_FILE` — `memory-store.ts` persists to `data/db.json` (atomic tmp+rename); survives a hard kill, verified | `organizationId` on every stored row | none | 0 (a drizzle schema exists, unused) | none — `withTransaction` is `fn({})` |
 | homeops | PostgreSQL via `scripts/migrate.ts` | `household_id` on 6+ tables | **0 tables** | 14 applied / **17 defined** (`0001` unregistered) | drizzle-orm |
 | majelishub | PostgreSQL, 6 reviewed migrations | `organization_id` | **4 tables**; `event_registrations` and `event_attendance` unprotected | 13 | real, with `SET LOCAL ROLE` + RLS session variables |
 | strangerlink | process `Map`s | none (no database) | n/a | 0 | n/a |
