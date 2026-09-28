@@ -1,6 +1,6 @@
-# MVP Matrix — AFTER (2026-09-28, Asia/Jakarta) — incremental advances 7641230 → 33ea9ea
+# MVP Matrix — AFTER (2026-09-28, Asia/Jakarta) — incremental advances 7641230 → 916f198
 
-> Branch: `arena/01a0e54f-align-baru` · Base `df0e396` → Baseline `7641230` → Head `33ea9ea (rsi)` (parking ed6938f+d7ab082, minimal 25fe21c+5a74fdf, siomayops 01ef95f+4393775, strangerlink 4046583, rsi 33ea9ea)
+> Branch: `arena/01a0e54f-align-baru` · Base `df0e396` → Baseline `7641230` → Head `916f198` (rsi 33ea9ea) (parking ed6938f+d7ab082, minimal 25fe21c+5a74fdf, siomayops 01ef95f+4393775, strangerlink 4046583, rsi 33ea9ea)
 > Ports: parking 3201, minimal 3202, siomayops 3106 (file-backed), strangerlink 3105+3001 (ws), others not booted this session after baseline.
 > Chrome: `headless-shell` 153.0.8010.0 via `@sparticuz/chromium` at `/tmp/chromium`, `page.setBypassCSP(true)` where CSP strict, `LD_LIBRARY_PATH=/tmp/al2023/lib`.
 
