@@ -22,6 +22,23 @@ export default defineConfig({
     // needs Docker (AGENTS.md §3: narrowest relevant verification first).
     include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
     environment: 'node',
+    // `NODE_ENV` is pinned HERE, not in a test file and not in CI, because the
+    // suite must give the same answer whoever runs it. Vitest does not set this
+    // value, so without the pin it is inherited from the invoking shell — and a
+    // shell that happens to export `NODE_ENV=production` makes `loadEnv()`
+    // correctly refuse to boot over `http://` (NFR-SEC-009), after which
+    // `app/media/[assetKey]/route.ts` turns the boot failure into a §6 500 by
+    // design. The result is four phantom failures in media-delivery that look
+    // like a production defect and are not one; they were reported as exactly
+    // that on 2026-09-28 and nearly produced a remediation for a bug that does
+    // not exist. CI has always set `NODE_ENV=test`
+    // (.github/workflows/project-checks.yml:108) and was never red.
+    //
+    // This does not weaken the production rule: it scopes to the Vitest process
+    // only. `next build` and `next start` do not read it, and a dev server over
+    // http:// in production mode still refuses to start, which is the point of
+    // NFR-SEC-009.
+    env: { NODE_ENV: 'test' },
     globals: false,
     // Skeleton tests are `describe.todo`; they report as skipped, not passed.
     passWithNoTests: false,

@@ -13,12 +13,14 @@ Companions: [MASTER_PLAN.md](MASTER_PLAN.md) (plan) · [DEPENDENCY_GRAPH.md](DEP
 - **tests:** 605
 - **pass:** 605
 - **fail:** 0
-- **known baseline failures:** **0.** Expected baseline failures = 0.
-  Four media tests were reported failing on 2026-09-28; that report was **wrong** —
-  the suite had been run with `NODE_ENV=production` over `http://`, which
-  `loadEnv()` correctly refuses (NFR-SEC-009). CI has always set `NODE_ENV=test`
-  (`.github/workflows/project-checks.yml:108`). The harness gap that allowed the
-  mistake is F-022-S1, below.
+- **known baseline failures:** **0.** Expected baseline failures = 0. ✅ *Verified
+  2026-09-28 under `NODE_ENV=production` by F-022-S1 — the shell no longer changes
+  the answer.* The four media failures once reported here were a **measurement
+  error**: the suite had been run with `NODE_ENV=production` over `http://`, which
+  `loadEnv()` correctly refuses (NFR-SEC-009), after which the media route returns a
+  §6 500 by design. CI always set `NODE_ENV=test`
+  (`.github/workflows/project-checks.yml:108`) and was never red. That harness gap is
+  now closed.
 - **authority:** auth deferred 2026-09-28. See [MASTER_PLAN.md](MASTER_PLAN.md).
 - **verification limit:** none. A seeded account can sign in, so member journeys are
   browser-verifiable. Only *registration* is impossible.
@@ -47,19 +49,19 @@ Nothing below is trustworthy until these four land. No product code changes.
 
 ### F-022-S1 — Pin `NODE_ENV=test` in the local test harness
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `vitest.config.ts` sets `NODE_ENV='test'` for the test environment
@@ -73,10 +75,19 @@ Nothing below is trustworthy until these four land. No product code changes.
 **Files:** `vitest.config.ts` (1 file)
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-022-S1
+- Tests: `NODE_ENV=production` media-delivery 4 fail/15 pass → **19 pass (19)**.
+  Full suite **601 pass / 4 fail → 605 pass / 0 fail**. Identical with no `NODE_ENV`
+  and with `NODE_ENV=bogus`.
+- Commands: `NODE_ENV=production npx vitest run tests/integration/media-delivery.test.ts`
+  · `NODE_ENV=production npx vitest run tests/unit tests/integration`
+  · `npx tsc --noEmit` · `npx eslint .` · `node scripts/check-boundaries.mjs`
+  · `node ../scripts/check-claims.mjs` · `npx next build`
+- Notes: **Mutation recorded** — removing the `env` line returns exactly 4 failures;
+  restoring it returns 19/19, so the pin is the cause. **The production rule is
+  intact**: production + `http://` still refuses to boot (NFR-SEC-009), so the pin
+  scopes to the Vitest process only. Diff is 1 file, +17 lines, nothing under
+  `src/`, `src/app/media/` byte-identical.
 
 ---
 
@@ -865,4 +876,5 @@ Completion evidence:
 
 | Date | Slice | Commit | Result |
 |---|---|---|---|
-| 2026-09-28 | plan authored | *pending* | 24 features, 35 slices, auth deferred |
+| 2026-09-28 | plan authored | `36b36ee` | 24 features, 35 slices, auth deferred |
+| 2026-09-28 | F-022-S1 | *this commit* | baseline now 605/605/0 under any shell; production rule proven intact |
