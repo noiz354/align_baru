@@ -22,7 +22,8 @@
  * DSN: `DATABASE_URL`; SKIPS without it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { acquireDb, closeDb, createDb, releaseDb } from '../../src/server/db/client';
+import { acquireDb, closeDb, createDb, releaseDb, type Db } from '../../src/server/db/client';
+import { getSessionUser } from '../../src/server/auth/guard';
 import { createCatalogComposition, createLibraryComposition } from '../../src/server/composition';
 import { envSource } from './catalog.db-harness';
 import type { Env, EnvSource } from '../../src/shared/validation';
@@ -82,6 +83,39 @@ async function countBackends(): Promise<number> {
     return Number((rows as unknown as Array<{ n: number }>)[0]?.n ?? -1);
   } finally {
     await closeDb(probe);
+  }
+}
+
+/**
+ * Cumulative connections to this database, from `pg_stat_database.sessions`.
+ *
+ * Why a cumulative counter and not a backend count: a per-call pool opens AND
+ * closes before the test can look, so sampling `pg_stat_activity` after the call
+ * sees nothing. Reverting the guard to `createDb`/`closeDb` therefore PASSED the
+ * first version of this test — the regression was real and the measurement missed
+ * it. A monotonic counter does not care when you look.
+ *
+ * `pg_stat_database` is refreshed by the stats collector (~500ms), so
+ * `settledSessions` polls past the lag instead of sleeping a guessed interval.
+ */
+async function readSessions(probe: Db): Promise<number> {
+  // The probe MUST be a handle that already exists. Reading the counter through a
+  // freshly opened connection increments the very number being read, so the
+  // measurement reports its own probe — which is what the first version did, and
+  // why its baseline failed even against the correct implementation.
+  const rows = await probe.execute(
+    'select sessions::int as n from pg_stat_database where datname = current_database()',
+  );
+  return Number((rows as unknown as Array<{ n: number }>)[0]?.n ?? -1);
+}
+
+/** Waits up to `ms` for the collector to publish a value above `floor`. */
+async function sessionsExceed(floor: number, probe: Db, ms = 3000): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    if ((await readSessions(probe)) > floor) return true;
+    if (Date.now() > deadline) return false;
+    await new Promise((r) => setTimeout(r, 150));
   }
 }
 
@@ -186,5 +220,42 @@ describeDb('the process-wide database handle (INT-DB-SINGLETON, F-001-S1)', () =
     // than one root having released it.
     expect(library.library).toBeDefined();
     expect(catalog.catalog).toBeDefined();
+  });
+});
+
+describeDb('the session guard shares the pool (INT-DB-GUARD, F-001-S2)', () => {
+  it('opens no connection of its own, and takes an injected handle when given one', async () => {
+    // The guard used to `createDb` and `closeDb` on every call, so a members'
+    // request with a session cost THREE pools: catalog root, library root, guard.
+    // F-001-S1 removed the first two; this asserts the third is gone too, and that
+    // the injected-handle path works, since that is the seam a future
+    // SessionRepository will use.
+    const request = new Request('http://localhost:3000/api/library', {
+      headers: { cookie: 'session_token=definitely-not-a-real-token' },
+    });
+
+    // A shared pool is already warm, as it would be in a live process, so any
+    // connection the guard opens is a connection it should not have opened.
+    const warm = await acquireDb(env(DATABASE_URL as string));
+    const floor = await readSessions(warm);
+
+    expect(await getSessionUser(request, warm)).toBeNull();
+    expect(await getSessionUser(request)).toBeNull();
+    for (let i = 0; i < 4; i += 1) await getSessionUser(request);
+
+    // Five guard calls, zero new connections.
+    expect(await sessionsExceed(floor, warm)).toBe(false);
+  });
+
+  it('never touches the pool for a request with no token at all', async () => {
+    // The common case: an anonymous visit to /discover, /search or the reader. If
+    // the guard acquires before checking for a cookie, every anonymous request
+    // pays for a pool it never uses.
+    const probe = await acquireDb(env(DATABASE_URL as string));
+    const floor = await readSessions(probe);
+    for (let i = 0; i < 4; i += 1) {
+      expect(await getSessionUser(new Request('http://localhost:3000/discover'))).toBeNull();
+    }
+    expect(await sessionsExceed(floor, probe)).toBe(false);
   });
 });

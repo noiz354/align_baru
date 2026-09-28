@@ -961,4 +961,5 @@ Completion evidence:
 | 2026-09-28 | F-023-S1 | `65ba386` | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |
 | 2026-09-28 | F-020-S1 | `ad2dcff` | 10 false status matrices archived + annotated; one status source remains |
 | 2026-09-28 | F-024-S1 | `cc66fbf` | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |
-| 2026-09-28 | F-001-S1 | *this commit* | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |
+| 2026-09-28 | F-001-S1 | `fa225cf` | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |
+| 2026-09-28 | F-001-S2 | *this commit* | guard no longer opens its own pool; Wave 1 complete |
