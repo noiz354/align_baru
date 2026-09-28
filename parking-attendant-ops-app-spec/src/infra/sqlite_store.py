@@ -9,6 +9,7 @@ TASK-103.
 
 import json
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -135,6 +136,35 @@ MIGRATIONS: List[tuple] = [
         CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
         """,
     ),
+    (
+        2,
+        "checkout_idempotency_payments_receipts",
+        """
+        ALTER TABLE sessions ADD COLUMN checkout_payment_method TEXT;
+        ALTER TABLE sessions ADD COLUMN payment_id TEXT;
+        ALTER TABLE sessions ADD COLUMN receipt_id TEXT;
+        CREATE TABLE checkout_payments (
+            payment_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL UNIQUE,
+            method TEXT NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES sessions(session_id)
+        );
+        CREATE TABLE receipts (
+            receipt_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL UNIQUE,
+            payment_id TEXT NOT NULL UNIQUE,
+            payload_json TEXT NOT NULL,
+            issued_at TEXT NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES sessions(session_id),
+            FOREIGN KEY(payment_id) REFERENCES checkout_payments(payment_id)
+        );
+        CREATE INDEX idx_checkout_payments_session ON checkout_payments(session_id);
+        CREATE INDEX idx_receipts_session ON receipts(session_id);
+        """,
+    ),
 ]
 
 
@@ -249,8 +279,20 @@ class SqliteParkingStore:
 
     # -- TASK-103: transactional wrapper ----------------------------------
     @contextmanager
-    def transaction(self):
-        self._conn.execute("BEGIN")
+    def transaction(self, immediate: bool = False):
+        """Composable transactions; checkout can serialize read-modify-write."""
+        if self._conn.in_transaction:
+            name = f"sp_{uuid.uuid4().hex}"
+            self._conn.execute(f"SAVEPOINT {name}")
+            try:
+                yield self._conn
+                self._conn.execute(f"RELEASE SAVEPOINT {name}")
+            except Exception:
+                self._conn.execute(f"ROLLBACK TO SAVEPOINT {name}")
+                self._conn.execute(f"RELEASE SAVEPOINT {name}")
+                raise
+            return
+        self._conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
         try:
             yield self._conn
             self._conn.execute("COMMIT")
@@ -359,7 +401,8 @@ class SqliteParkingStore:
                 "color, slot_id, check_in_time, check_in_attendant_id, shift_id, state, "
                 "initial_condition_notes, observed_items_json, photos_json, "
                 "check_out_time, check_out_attendant_id, pricing_json, payment_status, "
-                "has_active_incident) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "has_active_incident, checkout_payment_method, payment_id, receipt_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     session.session_id,
                     session.plate_number.raw_value,
@@ -380,11 +423,70 @@ class SqliteParkingStore:
                     _serialize_pricing(session.pricing),
                     session.payment_status.value,
                     1 if session.has_active_incident else 0,
+                    session.checkout_payment_method,
+                    session.payment_id,
+                    session.receipt_id,
                 ),
             )
             # Persist attached photos so retention/forensics can find them.
             for photo in session.photos:
                 self._save_photo_row(photo)
+
+    def record_checkout_payment_receipt(
+        self, session_id: str, method: str, amount: float, status: str, issued_at: datetime
+    ) -> tuple[str, str]:
+        """Create one durable logical payment and receipt per finalized stay.
+
+        Caller holds the outer checkout transaction (BEGIN IMMEDIATE); unique
+        session constraints are a durable dedupe backstop.
+        """
+        row = self._conn.execute(
+            "SELECT payment_id, method, amount FROM checkout_payments WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        if row:
+            if row["method"] != method or float(row["amount"]) != float(amount):
+                raise ValueError("Checkout already has a different payment")
+            receipt = self._conn.execute(
+                "SELECT receipt_id FROM receipts WHERE session_id = ?", (session_id,)
+            ).fetchone()
+            if not receipt:
+                raise RuntimeError("Payment exists without its receipt")
+            return str(row["payment_id"]), str(receipt["receipt_id"])
+
+        payment_id = "pay_" + uuid.uuid4().hex
+        receipt_id = "rcpt_" + uuid.uuid4().hex
+        payload = {
+            "receipt_id": receipt_id, "payment_id": payment_id,
+            "session_id": session_id, "method": method,
+            "amount": float(amount), "status": status,
+            "issued_at": _iso(issued_at),
+        }
+        self._conn.execute(
+            "INSERT INTO checkout_payments(payment_id, session_id, method, amount, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (payment_id, session_id, method, float(amount), status, _iso(issued_at)),
+        )
+        self._conn.execute(
+            "INSERT INTO receipts(receipt_id, session_id, payment_id, payload_json, issued_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (receipt_id, session_id, payment_id, json.dumps(payload, sort_keys=True), _iso(issued_at)),
+        )
+        return payment_id, receipt_id
+
+    def list_checkout_payments(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        if session_id:
+            rows = self._conn.execute("SELECT * FROM checkout_payments WHERE session_id = ?", (session_id,)).fetchall()
+        else:
+            rows = self._conn.execute("SELECT * FROM checkout_payments ORDER BY created_at").fetchall()
+        return [dict(row) for row in rows]
+
+    def list_receipts(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        if session_id:
+            rows = self._conn.execute("SELECT * FROM receipts WHERE session_id = ?", (session_id,)).fetchall()
+        else:
+            rows = self._conn.execute("SELECT * FROM receipts ORDER BY issued_at").fetchall()
+        return [dict(row) for row in rows]
 
     def get_session(self, session_id: str) -> Optional[ParkingSession]:
         row = self._conn.execute(
@@ -449,6 +551,9 @@ class SqliteParkingStore:
                 "src.core.domain", fromlist=["PaymentStatus"]
             ).PaymentStatus(row["payment_status"]),
             has_active_incident=bool(row["has_active_incident"]),
+            checkout_payment_method=row["checkout_payment_method"],
+            payment_id=row["payment_id"],
+            receipt_id=row["receipt_id"],
         )
 
     # -- Photos ------------------------------------------------------------
