@@ -107,9 +107,15 @@ export {
  * root `check-claims.mjs` fails the build if this array names one that exists,
  * which is what caught the list outliving the code it described.
  *
+ * `session` left this list in F-006-S2, when `session.repository.ts` appeared —
+ * and `check-claims.mjs` FAILED the build on the stale entry, which is the point:
+ * the list cannot outlive the code it describes.
+ *
  * Note the naming: `bookmark` is no longer planned but has no file of its own,
  * because `library.repository.ts` implements `BookmarkRepository` beside
- * `LibraryRepository`. The list is "ports without a file", not "ports".
+ * `LibraryRepository`, and `session.repository.ts` likewise implements a MINIMUM
+ * of `SessionRepository` rather than the port's six methods (the rest is F-002,
+ * on the deferred auth track). The list is "ports without a file", not "ports".
  * Kept as a literal so `check-claims.mjs` can verify it against the filesystem.
  */
-export const PLANNED_REPOSITORIES = ['user', 'session', 'search', 'upload-job'] as const;
+export const PLANNED_REPOSITORIES = ['user', 'search', 'upload-job'] as const;

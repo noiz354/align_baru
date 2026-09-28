@@ -6,9 +6,10 @@
  * in place and the browser keeps sending it. That is a quiet failure — logout
  * appears to work and the token stays valid.
  *
- * Same known debt as the login route: session storage is reached through
- * `queries/reader-state.ts` rather than the `SessionRepository` port, whose
- * implementation throws `T-AUTH-006`, and the handle is opened per request. →
+ * Session storage lives in `server/db/repositories/session.repository.ts` on the
+ * process-wide handle (F-001-S1), so this route opens no pool of its own. It is
+ * still NOT the `SessionRepository` port, whose implementation throws `T-AUTH-006`;
+ * the adapter is the minimum these two routes need. → F-002
  * F-001, F-002
  *
  * Revocation is by token, so it is immediate. There is no `revokeAll` path for
@@ -17,9 +18,9 @@
  * Requirements: FR-AUTH-003, NFR-SEC-016
  * Tasks: T-AUTH-004; debt F-001, F-002
  */
-import { createDb, closeDb } from '../../../../server/db/client';
+import { acquireDb, releaseDb, type Db } from '../../../../server/db/client';
 import { loadEnv } from '../../../../shared/validation/env';
-import { deleteSessionByToken } from '../../../../server/db/queries/reader-state';
+import { deleteSessionByToken } from '../../../../server/db/repositories/session.repository';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,11 +38,11 @@ function parseCookies(header: string | null): Record<string, string> {
 export async function POST(request: Request): Promise<Response> {
   const token = parseCookies(request.headers.get('cookie'))['session_token'];
   if (token) {
-    const db = await createDb(loadEnv());
+    const db: Db = await acquireDb(loadEnv());
     try {
       await deleteSessionByToken(db, token);
     } finally {
-      await closeDb(db);
+      await releaseDb(db);
     }
   }
   // The cookie is cleared whether or not a session row existed: logout is idempotent, and a

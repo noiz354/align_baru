@@ -49,8 +49,8 @@ import {
   createLibraryRepository,
 } from './db/repositories/library.repository';
 import { createRepositories } from './db/repositories';
-import type { MangaRepository } from '../features/manga';
 import type { ChapterRepository } from '../features/chapters';
+import type { MangaRepository } from '../features/manga';
 import { createLogger, type Logger } from './telemetry/logger';
 
 /** What the boot plan holds before any connection is opened. */
@@ -68,6 +68,15 @@ export interface Composition {
 export interface CatalogComposition {
   /** The catalog service (T-CATALOG-002/006/007/009). */
   readonly catalog: CatalogService;
+  /**
+   * The chapter read port, for the chapter-pages route.
+   *
+   * It was reading `queries/reader-state.ts` directly — its own connection, no
+   * service, no port — and that file is deleted in F-006-S2. `pageList` also
+   * carries the prev/next published neighbours (FR-READER-016), so routing through
+   * it hands the reader chapter navigation for free. → F-006-S2, F-007-S1
+   */
+  readonly chapters: ChapterRepository;
   /** The process logger, so a route reports through the real one. */
   readonly logger: Logger;
   /** Drains the database pool (DEPLOYMENT.md §5). */
@@ -130,6 +139,7 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
       // showed its unavailable state on a perfectly healthy deployment.
       vocabulary: createGenreTagVocabularyPort(db),
     }),
+    chapters,
     logger,
     close: () => releaseDb(db),
   };

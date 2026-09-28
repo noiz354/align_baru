@@ -690,19 +690,19 @@ Completion evidence:
 
 ### F-006-S2 — Delete `queries/reader-state.ts`; move `pageList` behind the seam
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `src/server/db/queries/reader-state.ts` is **deleted** — it is the source of both
@@ -721,10 +721,28 @@ auth-track work. Until F-002 lands, they move to a **non-auth** home
 slice does not depend on the session port. F-002 then makes the port the authority.
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-006-S2
+- Tests: 620 → **618 passed (618)**. Deleted 11, added 9; 4 behaviours ported
+  rather than dropped.
+- Commands: mutation "route 404s regardless of the port" → **3 of 4 fail**
+  · mutation "port stops returning prev/next" → **1 fails**
+  · full regression gates · `next build`
+- Notes: `queries/reader-state.ts` (252 lines) is **deleted** and the `queries/`
+  directory with it. `PLANNED_REPOSITORIES` lost `'session'` and check-claims FAILED
+  the build on the stale entry first — the guard working as intended. Session work
+  moved to `server/db/repositories/session.repository.ts` as the MINIMUM login and
+  logout need; the six-method port with sliding expiry stays F-002 (deferred), so
+  this deletes the bypassing file without producing a fourth disagreeing
+  implementation. **The chapter-pages route had no test at all and I rewrote it**,
+  so `chapter-pages-route.test.ts` was written — and it immediately found that the
+  port returns `/media/{key}` with no extension while the old route appended
+  `.jpeg`. The port is right: `/media/{key}` negotiates format by `Accept`
+  (ADR-005), and the old route had LOST that. Two recorded behaviour changes:
+  **409 → 404** for an unpublished chapter (the old answer confirmed a draft exists
+  to an anonymous caller), and the response gained `prevChapter`/`nextChapter`
+  (already in the contract, dropped by the old route) — which is where F-007-S1
+  gets its data. `library.test.ts` was deleted rather than left failing, with its
+  4 real progress behaviours ported to the shipping repository.
 
 ---
 
@@ -979,4 +997,5 @@ Completion evidence:
 | 2026-09-28 | F-024-S1 | `cc66fbf` | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |
 | 2026-09-28 | F-001-S1 | `fa225cf` | 3 pools → 1 shared, refcounted, dev-reload-safe; proven by counting DB backends |
 | 2026-09-28 | F-001-S2 | `03b67c0` | guard no longer opens its own pool; Wave 1 complete |
-| 2026-09-28 | F-006-S1 | *this commit* | **P0 fixed** — reading no longer erases completion; `last_read_at` maintained |
+| 2026-09-28 | F-006-S1 | `73874dc` | **P0 fixed** — reading no longer erases completion; `last_read_at` maintained |
+| 2026-09-28 | F-006-S2 | *this commit* | `reader-state.ts` deleted; sessions adapter; pages route untested → 4 tests |

@@ -124,6 +124,7 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
   ): Promise<Response> => {
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => caller,
       logger: silentLogger(),
     };
@@ -254,6 +255,7 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
   it('sets the catalog Cache-Control and echoes x-request-id', async () => {
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => ANON,
       logger: silentLogger(),
     };
@@ -277,6 +279,7 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
   it('ignores a forged x-request-id rather than echoing it into a log line', async () => {
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => ANON,
       logger: silentLogger(),
     };
@@ -331,6 +334,7 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
     });
     const deps: ApiV1Deps = {
       catalog: wrapped,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => READER,
       logger: silentLogger(),
     };

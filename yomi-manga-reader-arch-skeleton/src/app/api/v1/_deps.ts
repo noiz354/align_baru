@@ -46,12 +46,19 @@
  */
 import type { CallerContext } from '../../../shared/contracts';
 import type { CatalogService } from '../../../features/catalog';
+import type { ChapterRepository } from '../../../features/chapters';
 import type { Logger } from '../../../server/telemetry/logger';
 
 /** Everything an `/api/v1` route handler is allowed to reach for. */
 export interface ApiV1Deps {
   /** The catalog service (features/catalog's public surface). */
   readonly catalog: CatalogService;
+  /**
+   * The chapter read port. On this seam because the chapter-pages route used to
+   * build its own `Db` and read `queries/reader-state.ts` directly — a
+   * direct-database path that also carried the P0 in its sibling. → F-006-S2
+   */
+  readonly chapters: ChapterRepository;
   /**
    * Resolves the CALLER from the verified session, or null for anonymous.
    * T-AUTH-007 owns the real implementation; until then the registry carries

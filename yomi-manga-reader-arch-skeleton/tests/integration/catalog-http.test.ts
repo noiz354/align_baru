@@ -44,6 +44,7 @@ describeDb('INT-CAT-001 (T-CATALOG-002) GET /api/v1/catalog — the HTTP boundar
   const call = async (query: string): Promise<Response> => {
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => null,
       logger: silentLogger(),
     };
@@ -182,6 +183,7 @@ describeDb('INT-CAT-001 (T-CATALOG-002) GET /api/v1/catalog — the HTTP boundar
   it('GET /api/v1/catalog/facets lists the public genre and tag vocabulary', async () => {
     const response = await createCatalogFacetsHandler({
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => null,
       logger: silentLogger(),
     })(new Request('http://yomi.test/api/v1/catalog/facets'));
@@ -203,6 +205,7 @@ describeDb('INT-CAT-001 (T-CATALOG-002) GET /api/v1/catalog — the HTTP boundar
   it('omits a genre that no VISIBLE title carries (a filter that cannot match)', async () => {
     const response = await createCatalogFacetsHandler({
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => null,
       logger: silentLogger(),
     })(new Request('http://yomi.test/api/v1/catalog/facets'));
@@ -216,6 +219,7 @@ describeDb('INT-CAT-001 (T-CATALOG-002) GET /api/v1/catalog — the HTTP boundar
     const facets = (await (
       await createCatalogFacetsHandler({
         catalog: harness.service,
+        chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
         resolveCaller: async () => null,
         logger: silentLogger(),
       })(new Request('http://yomi.test/api/v1/catalog/facets'))

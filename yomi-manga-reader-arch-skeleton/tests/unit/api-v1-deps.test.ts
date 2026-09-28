@@ -40,6 +40,10 @@ function stubDeps(): ApiV1Deps {
   const catalog = { list: vi.fn() } as unknown as CatalogService;
   return {
     catalog,
+    // The seam carries the chapter port for the chapter-pages route. This test
+    // only observes that the registered bundle is the one returned, so the port
+    // is a stub here rather than a real one — nothing in the file exercises it.
+    chapters: {} as ApiV1Deps['chapters'],
     resolveCaller: async () => null,
     logger: SILENT_LOGGER,
   };

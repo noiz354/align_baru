@@ -17,20 +17,24 @@
  * Known debt, recorded not hidden:
  * - `argon2` is imported here directly rather than through a `PasswordHasher`
  *   port, so the parameters are not in one reviewable place. → F-002
- * - Session storage is reached through `queries/reader-state.ts`, bypassing the
- *   `SessionRepository` port entirely, and the port's own implementation throws
- *   `T-AUTH-006`. Three code paths answer "is this user signed in". → F-002
- * - `createDb`/`closeDb` per request: a third connection per members' request
- *   alongside the two composition roots. → F-001
+ * - Session storage now lives in `server/db/repositories/session.repository.ts`,
+ *   and the handle is the process-wide one (F-001-S1), so this route no longer
+ *   opens a pool of its own. What is still missing is the PORT: it declares six
+ *   methods with sliding-idle expiry and the implementation is the minimum these
+ *   two routes need. → F-002
  *
  * Requirements: FR-AUTH-001, FR-AUTH-002, NFR-SEC-016
  * Tasks: T-AUTH-003; debt F-001, F-002, F-003
  */
 import * as argon2 from 'argon2';
-import { createDb, closeDb } from '../../../../server/db/client';
+import { acquireDb, releaseDb, type Db } from '../../../../server/db/client';
 import { loadEnv } from '../../../../shared/validation/env';
 import { readJsonBody } from '../../../../shared/http/request-body';
-import { findUserByEmail, insertSession, touchLastLogin } from '../../../../server/db/queries/reader-state';
+import {
+  findUserByEmail,
+  insertSession,
+  touchLastLogin,
+} from '../../../../server/db/repositories/session.repository';
 
 /**
  * Request bodies are untrusted, so a field is only treated as a string when it really is one.
@@ -47,17 +51,25 @@ const SESSION_LIFETIME_MS = 30 * 24 * 3600 * 1000;
 
 export async function POST(request: Request): Promise<Response> {
   // Untrusted credentials input: typed by the fields read here, then coerced explicitly.
-  const body = await readJsonBody<{ email?: unknown; password?: unknown }>(request).catch(() => undefined);
+  const body = await readJsonBody<{ email?: unknown; password?: unknown }>(request).catch(
+    () => undefined,
+  );
   if (!body) {
-    return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } }, { status: 422 });
+    return Response.json(
+      { error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } },
+      { status: 422 },
+    );
   }
   const email = asString(body.email).trim();
   const password = asString(body.password);
   if (!email || !password) {
-    return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
+    return Response.json(
+      { error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } },
+      { status: 401 },
+    );
   }
 
-  const db = await createDb(loadEnv());
+  const db: Db = await acquireDb(loadEnv());
   try {
     const user = await findUserByEmail(db, email);
 
@@ -69,10 +81,16 @@ export async function POST(request: Request): Promise<Response> {
       } catch {
         /* the dummy hash never verifies; the cost was the point */
       }
-      return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
+      return Response.json(
+        { error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } },
+        { status: 401 },
+      );
     }
     if (user.status === 'disabled') {
-      return Response.json({ error: { code: 'AUTH_DISABLED', message: 'Account disabled' } }, { status: 403 });
+      return Response.json(
+        { error: { code: 'AUTH_DISABLED', message: 'Account disabled' } },
+        { status: 403 },
+      );
     }
 
     let verified = false;
@@ -82,7 +100,10 @@ export async function POST(request: Request): Promise<Response> {
       verified = false;
     }
     if (!verified) {
-      return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
+      return Response.json(
+        { error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } },
+        { status: 401 },
+      );
     }
 
     const token = crypto.randomUUID();
@@ -103,10 +124,13 @@ export async function POST(request: Request): Promise<Response> {
     // loopback, and a secure cookie there would never be stored by the browser.
     const cookie = `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}`;
     return new Response(
-      JSON.stringify({ ok: true, user: { id: user.id, email: user.email, displayName: user.displayName } }),
+      JSON.stringify({
+        ok: true,
+        user: { id: user.id, email: user.email, displayName: user.displayName },
+      }),
       { status: 200, headers: { 'content-type': 'application/json', 'set-cookie': cookie } },
     );
   } finally {
-    await closeDb(db);
+    await releaseDb(db);
   }
 }

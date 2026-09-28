@@ -50,14 +50,14 @@ describeDb('INT-CAT-002 (T-CATALOG-011) GET /api/v1/manga/{slug}', () => {
   const call = async (slug: string, query = ''): Promise<Response> => {
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => null,
       logger: silentLogger(),
     };
     const path = `/api/v1/manga/${encodeURIComponent(slug)}${query}`;
-    return createMangaDetailHandler(deps)(
-      new Request(`http://yomi.test${path}`),
-      { params: Promise.resolve({ slug }) },
-    );
+    return createMangaDetailHandler(deps)(new Request(`http://yomi.test${path}`), {
+      params: Promise.resolve({ slug }),
+    });
   };
 
   beforeAll(async () => {
@@ -194,6 +194,7 @@ describeDb('INT-CAT-002 (T-CATALOG-011) GET /api/v1/manga/{slug}', () => {
     const slug = VISIBLE_SLUGS[0] as string;
     const deps: ApiV1Deps = {
       catalog: harness.service,
+      chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
       resolveCaller: async () => CALLERS.reader,
       logger: silentLogger(),
     };
