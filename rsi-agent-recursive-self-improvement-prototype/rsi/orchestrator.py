@@ -237,11 +237,13 @@ class RSIOrchestrator:
         limits=None,
         approval=None,
         feedback: Sequence = (),
+        provider: Any | None = None,
     ) -> list:
         """Run the bounded self-improvement loop over persistent memory.
 
         The loop is never run at test time: memory is frozen there, so any
         write is refused. Call it after exploration and before ``freeze()``.
+        `provider` is the RSI provider boundary (mock default, fail-closed for real).
         """
         from .audit import AuditLog
         from .evaluator import AcceptancePolicy, EvaluationEngine, EvaluationLimits
@@ -253,6 +255,36 @@ class RSIOrchestrator:
             self.log("memory is frozen; improvement loop not started")
             return []
 
+        # Resolve provider boundary: explicit arg > RSI_PROVIDER env > mock default
+        resolved_provider = provider
+        if resolved_provider is None:
+            try:
+                from .providers import get_provider
+                resolved_provider = get_provider()
+            except Exception as exc:
+                # Fail-closed for real provider without credentials: audit + safe exit
+                try:
+                    import os
+                    name = (os.environ.get("RSI_PROVIDER") or "mock").strip().lower() or "mock"
+                    if name not in ("mock", "", "mock-provider"):
+                        # Real provider requested but misconfigured
+                        msg = f"provider misconfigured ({exc}); improvement loop not started — set RSI_API_KEY or switch to RSI_PROVIDER=mock"
+                        self.log(msg)
+                        # Audit the rejection (hash-chained, no secret)
+                        try:
+                            audit = AuditLog(self.runs_dir / "audit.jsonl")
+                            audit.append("provider-config-error", actor="rsi-improvement-loop", details={
+                                "provider": name,
+                                "error": str(exc)[:300],
+                                "reason": "missing_credentials: real provider without RSI_API_KEY — fail-closed, no patch applied",
+                            })
+                        except Exception:
+                            pass
+                        return []
+                except Exception:
+                    pass
+                resolved_provider = None
+
         holdout = self.curriculum.holdout(12, split="improve")
         engine = EvaluationEngine(
             self.evaluate_against,
@@ -263,18 +295,25 @@ class RSIOrchestrator:
             ),
             policy=AcceptancePolicy(min_target_delta=limits.min_target_delta),
         )
+        # Ensure approval policy respects provider human gate
+        if approval is not None and hasattr(approval, "provider") and getattr(approval, "provider", None) is None:
+            try:
+                approval.provider = resolved_provider
+            except Exception:
+                pass
         loop = ImprovementLoop(
             self.memory,
             engine,
             holdout,
             runs_dir=self.runs_dir,
             limits=limits,
-            approval=approval or ApprovalPolicy(),
+            approval=approval or ApprovalPolicy(provider=resolved_provider),
             audit=AuditLog(self.runs_dir / "audit.jsonl"),
             generator=ProposalGenerator(
                 max_lessons_per_proposal=limits.max_changed_lessons,
             ),
             log=self.log,
+            provider=resolved_provider,
         )
         self.improvement_loop = loop
         cycles = loop.run(

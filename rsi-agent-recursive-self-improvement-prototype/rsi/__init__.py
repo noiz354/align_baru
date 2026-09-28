@@ -77,6 +77,10 @@ from .evaluator import (
 from .proposals import ImprovementProposal, ProposalGenerator, ProposalStatus
 from .improvement import ImprovementLoop, ImprovementLimits, ApprovalPolicy, CycleState
 from .metrics import LoopHealth, compute_loop_health
+from .repo_workflow import (
+    RepositoryImprovementWorkflow, RepositoryWorkflowError, WorkflowResult,
+    ALLOWED_PATCH_PATHS, ALLOWED_TEST_COMMAND, validate_relative_path, validate_command,
+)
 
 __version__ = "0.2.0"
 
@@ -104,4 +108,6 @@ __all__ = [
     "ImprovementProposal", "ProposalGenerator", "ProposalStatus",
     "ImprovementLoop", "ImprovementLimits", "ApprovalPolicy", "CycleState",
     "LoopHealth", "compute_loop_health",
+    "RepositoryImprovementWorkflow", "RepositoryWorkflowError", "WorkflowResult",
+    "ALLOWED_PATCH_PATHS", "ALLOWED_TEST_COMMAND", "validate_relative_path", "validate_command",
 ]

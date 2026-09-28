@@ -136,6 +136,10 @@ class ParkingSession:
     pricing: Optional[PricingBreakdown] = None
     payment_status: PaymentStatus = PaymentStatus.UNPAID
     has_active_incident: bool = False
+    # Stable durable checkout/payment/receipt references; populated atomically at checkout.
+    checkout_payment_method: Optional[str] = None
+    payment_id: Optional[str] = None
+    receipt_id: Optional[str] = None
 
 
 # Repository Interfaces (Ports)

@@ -36,8 +36,21 @@ import { customType, numeric, timestamp, uuid } from 'drizzle-orm/pg-core';
  * a custom type whose DDL spelling is exactly `citext`. The extension itself is
  * created by the initial migration (T-FOUND-006) before any table that uses it.
  */
+/** PGlite dev fallback cannot load the `citext` extension; map it to `text` there. */
+function useCitext(): boolean {
+  const url = process.env['DATABASE_URL'] ?? '';
+  return !(
+    url.startsWith('pglite://') ||
+    url.startsWith('file:') ||
+    url.startsWith('memory:') ||
+    url === ':memory:' ||
+    url.startsWith('/tmp/') ||
+    url.startsWith('./') ||
+    url.endsWith('.db')
+  );
+}
 export const citextColumn = customType<{ data: string; driverData: string }>({
-  dataType: () => 'citext',
+  dataType: () => (useCitext() ? 'citext' : 'text'),
 });
 
 /** The `uuidv7()` DEFAULT expression, shared by every uuid primary key. */

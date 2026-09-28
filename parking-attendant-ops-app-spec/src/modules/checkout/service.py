@@ -66,6 +66,34 @@ class CheckOutUseCase:
         self,
         session_id: str,
         attendant_id: str,
+        payment_method: str,
+        is_lost_ticket: bool = False,
+        is_waived: bool = False,
+        supervisor_pin: Optional[str] = None,
+    ) -> ParkingSession:
+        """Atomically finalize one stay; identical checkout replay returns its result."""
+        transaction = getattr(self.parking_repo, "transaction", None)
+        if callable(transaction):
+            try:
+                with transaction(immediate=True):
+                    return self._execute_once(session_id, attendant_id, payment_method,
+                                              is_lost_ticket, is_waived, supervisor_pin)
+            except TypeError as exc:
+                # Do not silently fall back if this was an error inside a repo
+                # transaction; only legacy port implementations lacking the
+                # immediate keyword use their ordinary unit of work.
+                if "immediate" not in str(exc):
+                    raise
+                with transaction():
+                    return self._execute_once(session_id, attendant_id, payment_method,
+                                              is_lost_ticket, is_waived, supervisor_pin)
+        return self._execute_once(session_id, attendant_id, payment_method,
+                                  is_lost_ticket, is_waived, supervisor_pin)
+
+    def _execute_once(
+        self,
+        session_id: str,
+        attendant_id: str,
         payment_method: str,  # CASH or WAIVED; QRIS requires verified provider integration
         is_lost_ticket: bool = False,
         is_waived: bool = False,
@@ -79,6 +107,14 @@ class CheckOutUseCase:
         if payment_method not in ("CASH", "WAIVED") or (payment_method == "WAIVED") != is_waived:
             raise ValueError("Payment method must be CASH, or WAIVED with is_waived=True")
         session = self.parking_repo.get_session(session_id)
+        if session and session.state == SessionState.CHECKED_OUT:
+            # Same logical cashier checkout is an idempotent replay, not another
+            # fee/payment/receipt/shift collection/audit event.
+            if (session.check_out_attendant_id == attendant_id
+                    and session.checkout_payment_method == payment_method
+                    and not is_lost_ticket and not is_waived):
+                return session
+            raise ValueError(f"Sesi parkir {session_id} sudah di-checkout dengan transaksi lain.")
         if not session or session.state not in (SessionState.ACTIVE, SessionState.UNDER_INVESTIGATION):
             raise ValueError(f"Sesi parkir {session_id} tidak dalam status dapat di-checkout.")
 
@@ -101,7 +137,17 @@ class CheckOutUseCase:
         session.check_out_attendant_id = attendant_id
         session.pricing = pricing
         session.payment_status = PaymentStatus.OVERRIDE_WAIVED if is_waived else PaymentStatus.PAID
+        session.checkout_payment_method = payment_method
         session.state = SessionState.CHECKED_OUT
+        record_payment = getattr(self.parking_repo, "record_checkout_payment_receipt", None)
+        if callable(record_payment):
+            session.payment_id, session.receipt_id = record_payment(
+                session.session_id,
+                payment_method,
+                pricing.total_fee,
+                "OVERRIDE_WAIVED" if is_waived else "PAID",
+                now,
+            )
 
         # Free the slot
         slot = self.parking_repo.get_slot(session.slot_id)

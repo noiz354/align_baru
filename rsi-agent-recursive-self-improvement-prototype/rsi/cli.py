@@ -10,13 +10,16 @@
     python -m rsi.cli status       # one-screen state of the last run
 
 Everything is offline and stdlib-only unless a real backend is explicitly
-requested (`--backend openai`, `--jev typesafe`), in which case the corresponding
-API key must come from the environment -- never from a flag.
+requested (`--backend openai` or RSI_PROVIDER=openai-compatible), in which case the
+corresponding API key must come from the environment -- never from a flag.
+RSI_PROVIDER wins over --backend. Mock is the default offline provider.
+Real provider requires human approval (auto-approve is disabled).
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -28,19 +31,64 @@ from .memory import PersistentMemory
 from .orchestrator import RSIOrchestrator
 from .planners import mock_planner_factory, openai_planner_factory
 
+try:
+    from .providers import get_provider
+except Exception:
+    get_provider = None  # type: ignore
+
 
 # ---------------------------------------------------------------------------
 # Shared wiring
 # ---------------------------------------------------------------------------
-def _planner_factory(backend: str):
-    return openai_planner_factory() if backend == "openai" else mock_planner_factory
+def _resolve_provider_name(backend: str, provider_flag: str | None = None) -> str:
+    # precedence: --provider flag > RSI_PROVIDER env > --backend legacy
+    if provider_flag:
+        return provider_flag
+    env = os.environ.get("RSI_PROVIDER", "").strip()
+    if env:
+        return env
+    return "openai-compatible" if backend == "openai" else "mock"
+
+
+def _planner_factory(backend: str, provider_flag: str | None = None):
+    name = _resolve_provider_name(backend, provider_flag)
+    low = name.strip().lower()
+    if low in ("", "mock", "mock-provider"):
+        return mock_planner_factory
+    if low in ("openai", "openai-compatible", "real", "vllm", "ollama"):
+        return openai_planner_factory()
+    # unknown: fall back to mock but audit will record config error
+    return mock_planner_factory
+
+
+def _resolve_provider(backend: str, provider_flag: str | None = None):
+    if get_provider is None:
+        return None
+    name = _resolve_provider_name(backend, provider_flag)
+    try:
+        return get_provider(name)
+    except Exception as exc:
+        # Fail-closed for real without key: return None and let improve() audit it
+        if name.strip().lower() not in ("mock", "", "mock-provider"):
+            print(f"provider misconfigured: {exc}", file=sys.stderr)
+        return None
 
 
 def _orchestrator(args: Any, *, seed: int = 0) -> RSIOrchestrator:
+    backend = getattr(args, "backend", "mock")
+    provider_flag = getattr(args, "provider", None)
+    # Log provider boundary
+    try:
+        prov = _resolve_provider(backend, provider_flag)
+        prov_id = getattr(prov, "provider_id", provider_flag or backend)
+        prov_model = getattr(prov, "model", os.environ.get("RSI_MODEL") or os.environ.get("OPENAI_MODEL") or "mock-model")
+        print(f"PROVIDER: {prov_id} model={prov_model} (backend={backend}, RSI_PROVIDER={os.environ.get('RSI_PROVIDER','') or 'mock'})")
+    except Exception:
+        pass
     return RSIOrchestrator(
         runs_dir=args.runs_dir,
         jev=get_jev(getattr(args, "jev", "mock")),
-        planner_factory=_planner_factory(getattr(args, "backend", "mock")),
+        planner_factory=_planner_factory(backend, provider_flag),
         seed=seed,
         resume=getattr(args, "resume", False),
         log=print,
@@ -62,10 +110,16 @@ def _improvement_limits(args: Any):
     )
 
 
-def _approval(args: Any):
+def _approval(args: Any, provider=None):
     from .improvement import ApprovalPolicy
 
-    return ApprovalPolicy(auto_approve=bool(getattr(args, "auto_approve", False)))
+    # Resolve provider for mandatory human gate
+    if provider is None:
+        provider = _resolve_provider(getattr(args, "backend", "mock"), getattr(args, "provider", None))
+    policy = ApprovalPolicy(auto_approve=bool(getattr(args, "auto_approve", False)), provider=provider)
+    if provider and getattr(provider, "provider_id", "") != "mock" and getattr(args, "auto_approve", False):
+        print("note: --auto-approve is ignored for real provider (human gate mandatory)", file=sys.stderr)
+    return policy
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +130,8 @@ def cmd_run(args: Any) -> int:
     print("=" * 72)
     print("RSI AGENT -- exploration (Curriculum -> Actor -> Verifier)")
     print("=" * 72)
+    # Approval preview for between-wave improvement
+    approval = _approval(args) if args.improve else None
     orchestrator.explore(
         waves=args.waves,
         tasks_per_wave=args.tasks_per_wave,
@@ -83,16 +139,18 @@ def cmd_run(args: Any) -> int:
         drs_tasks=args.drs_tasks,
         improve_between_waves=args.improve,
         improvement_limits=_improvement_limits(args) if args.improve else None,
-        approval=_approval(args) if args.improve else None,
+        approval=approval,
     )
     if args.improve:
         print("-" * 72)
         print("RSI AGENT -- improvement loop (propose -> isolate -> evaluate -> apply)")
         print("-" * 72)
+        provider = _resolve_provider(getattr(args, "backend", "mock"), getattr(args, "provider", None))
         orchestrator.improve(
             max_cycles=args.max_cycles,
             limits=_improvement_limits(args),
-            approval=_approval(args),
+            approval=_approval(args, provider=provider),
+            provider=provider,
         )
     print("-" * 72)
     orchestrator.freeze()
@@ -139,10 +197,12 @@ def cmd_improve(args: Any) -> int:
         Attempt(**{k: v for k, v in record.items() if k in Attempt.__dataclass_fields__})
         for record in _read_jsonl(Path(args.runs_dir) / "attempts.jsonl")
     ]
+    provider = _resolve_provider(getattr(args, "backend", "mock"), getattr(args, "provider", None))
     cycles = orchestrator.improve(
         max_cycles=args.max_cycles,
         limits=_improvement_limits(args),
-        approval=_approval(args),
+        approval=_approval(args, provider=provider),
+        provider=provider,
     )
     orchestrator.report()
     if not cycles:
@@ -180,7 +240,7 @@ def cmd_benchmark(args: Any) -> int:
 
 
 def cmd_dashboard(args: Any) -> int:
-    from .dashboard import build_dashboard
+    from rsi.dashboard import build_dashboard
 
     path = build_dashboard(args.runs_dir, args.out)
     print(f"dashboard written to {path}")
@@ -264,6 +324,13 @@ def cmd_status(args: Any) -> int:
     print(f"audit events      : {len(data.audit_events)} "
           f"(chain {'intact' if ok else 'BROKEN'})")
     print(f"stop reason       : {data.cycles.get('stop_reason') or 'none'}")
+    # Provider line
+    try:
+        prov = data.cycles.get("provider") or (data.audit_events[-1].get("details", {}).get("provider") if data.audit_events else None)
+        if prov:
+            print(f"provider          : {prov}")
+    except Exception:
+        pass
     return 0
 
 
@@ -288,13 +355,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rsi",
         description="Bounded, auditable, reversible recursive self-improvement "
-                    "prototype for coding agents.",
+                    "prototype for coding agents (with provider boundary).",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_common(p: argparse.ArgumentParser) -> None:
         p.add_argument("--runs-dir", default="runs")
-        p.add_argument("--backend", choices=["mock", "openai"], default="mock")
+        p.add_argument("--backend", choices=["mock", "openai"], default="mock",
+                       help="legacy backend (RSI_PROVIDER wins)")
+        p.add_argument("--provider", choices=["mock", "openai-compatible", "openai"], default=None,
+                       help="explicit provider (overrides RSI_PROVIDER env)")
         p.add_argument("--jev", choices=["mock", "typesafe"], default="mock")
         p.add_argument("--resume", action="store_true")
 
@@ -308,7 +378,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--min-delta", type=float, default=0.10)
         p.add_argument("--stagnation-window", type=int, default=2)
         p.add_argument("--auto-approve", action="store_true",
-                       help="waive the human gate for LOW/MEDIUM risk only")
+                       help="waive the human gate for LOW/MEDIUM risk only (ignored for real provider)")
 
     run = sub.add_parser("run", help="full offline run")
     add_common(run)

@@ -206,7 +206,14 @@ export const manga = pgTable(
       .on(t.updatedAt)
       .where(sql`${t.deletedAt} is null and ${t.published} = true`),
     // §19 pg_trgm: title search covers prefix AND contains with one mechanism.
-    index('ix_manga_title_trgm').using('gin', sql`${t.title} gin_trgm_ops`),
+    // PGlite dev fallback has no `pg_trgm` extension; use plain btree there.
+    ...((process.env['DATABASE_URL']?.startsWith('pglite://') ||
+    process.env['DATABASE_URL']?.startsWith('file:') ||
+    process.env['DATABASE_URL']?.startsWith('/tmp/') ||
+    process.env['DATABASE_URL']?.startsWith('./') ||
+    process.env['DATABASE_URL']?.endsWith('.db')
+      ? [index('ix_manga_title_trgm').on(t.title)]
+      : [index('ix_manga_title_trgm').using('gin', sql`${t.title} gin_trgm_ops`)] as any)),
     check('manga_status', sql`${t.status} in ('ongoing', 'completed', 'hiatus')`),
     check('manga_reading_direction', sql`${t.readingDirection} in ('rtl', 'ltr')`),
   ],
@@ -227,8 +234,14 @@ export const mangaAlias = pgTable(
   },
   (t) => [
     uniqueIndex('ix_manga_alias_manga_id_alias').on(t.mangaId, t.alias),
-    // §19: the alias half of title+alias search.
-    index('ix_manga_alias_alias').using('gin', sql`${t.alias} gin_trgm_ops`),
+    // §19: the alias half of title+alias search. PGlite fallback → btree.
+    ...((process.env['DATABASE_URL']?.startsWith('pglite://') ||
+    process.env['DATABASE_URL']?.startsWith('file:') ||
+    process.env['DATABASE_URL']?.startsWith('/tmp/') ||
+    process.env['DATABASE_URL']?.startsWith('./') ||
+    process.env['DATABASE_URL']?.endsWith('.db')
+      ? [index('ix_manga_alias_alias').on(t.alias)]
+      : [index('ix_manga_alias_alias').using('gin', sql`${t.alias} gin_trgm_ops`)] as any)),
   ],
 );
 

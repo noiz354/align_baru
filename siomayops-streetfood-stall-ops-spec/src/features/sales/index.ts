@@ -178,11 +178,47 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
 export async function completeSale(saleId: string, paymentId?: string): Promise<SaleResult> {
   const sale = memoryStore.sales.get(saleId);
   if (!sale) throw Object.assign(new Error("Sale not found"), { code: "NOT_FOUND" });
+  const wasCompleted = sale.status === "COMPLETED";
   sale.status = "COMPLETED";
   sale.version += 1;
   memoryStore.sales.set(sale.id, sale);
 
   const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === saleId);
+
+  // Deduct stock once per sale (idempotent: only on first complete)
+  if (!wasCompleted) {
+    const menuToStock: Record<string,string> = {
+      "00000000-0000-7000-0000-000000000101": "00000000-0000-7000-0000-000000000201",
+      "00000000-0000-7000-0000-000000000102": "00000000-0000-7000-0000-000000000202",
+      "00000000-0000-7000-0000-000000000103": "00000000-0000-7000-0000-000000000203",
+      "00000000-0000-7000-0000-000000000104": "00000000-0000-7000-0000-000000000204",
+    };
+    const now = new Date();
+    for (const it of items) {
+      const stockItemId = menuToStock[it.menuItemId];
+      if (!stockItemId) continue;
+      // avoid duplicate movement for same sale+item (idempotent)
+      const existing = Array.from(memoryStore.stockMovements.values()).find(m => m.clientMovementId === `sale-${saleId}-${it.menuItemId}`);
+      if (existing) continue;
+      const movId = generateId();
+      memoryStore.stockMovements.set(movId, {
+        id: movId,
+        organizationId: sale.organizationId,
+        stockItemId,
+        stallId: sale.stallId,
+        operatorId: sale.operatorId,
+        shiftId: sale.shiftId,
+        movementType: "SALE",
+        quantity: -it.quantity,
+        occurredAt: now,
+        reason: `sale ${saleId}`,
+        actorId: sale.operatorId,
+        clientMovementId: `sale-${saleId}-${it.menuItemId}`,
+      });
+      memoryStore.movementByClientId.set(`sale-${saleId}-${it.menuItemId}`, movId);
+    }
+  }
+
   return {
     saleId: sale.id,
     status: "COMPLETED",

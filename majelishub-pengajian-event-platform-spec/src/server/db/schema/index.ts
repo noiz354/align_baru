@@ -11,12 +11,16 @@
 export * from "./audit";
 export * from "./identity";
 export * from "./tenancy";
+export * from "./events";
+export * from "./registrations";
 
 import * as audit from "./audit";
 import * as identity from "./identity";
 import * as tenancy from "./tenancy";
+import * as events from "./events";
+import * as registrations from "./registrations";
 
 /** Passed to `drizzle(pool, { schema })` so relational queries are typed. */
-export const schema = { ...audit, ...identity, ...tenancy };
+export const schema = { ...audit, ...identity, ...tenancy, ...events, ...registrations };
 
 export type Schema = typeof schema;

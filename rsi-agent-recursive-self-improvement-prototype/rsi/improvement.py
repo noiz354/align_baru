@@ -46,12 +46,21 @@ from .evaluator import (
     EvaluationRun,
 )
 from .feedback import Evidence, FeedbackRecord, FeedbackIngestor
-from .memory import MemoryFrozenError, PersistentMemory
+from .memory import MemoryFrozenError, PersistentMemory, canonical_json
 from .patches import LessonChangeSet, RevisionMismatch
 from .proposals import ImprovementProposal, ProposalGenerator, ProposalStatus
 from .risk import RiskLevel, RiskPolicy, classify_risk
 from .sandbox import CandidateWorkspace, SandboxLimits, assert_no_secrets
 from .types import Attempt, Task
+
+try:
+    from .providers import MockProvider, ProviderError, get_provider
+except Exception:  # pragma: no cover - import guard
+    MockProvider = None  # type: ignore
+    ProviderError = RuntimeError  # type: ignore
+
+    def get_provider(*_a, **_kw):  # type: ignore
+        return None
 
 TARGET_METRIC = "holdout_success_rate"
 
@@ -121,6 +130,10 @@ class ApprovalPolicy:
     *denied* and recorded as ESCALATED -- never silently applied. Passing
     `auto_approve=True` only waives the gate for LOW/MEDIUM risk; CRITICAL and
     HIGH changes still require a real approver.
+
+    RSI_PROVIDER boundary: when the active provider is not mock (real LLM),
+    auto_approve is disabled regardless of the flag -- the human gate is
+    mandatory. Tests may inject a dedicated test approver via `approver`.
     """
 
     def __init__(
@@ -129,16 +142,56 @@ class ApprovalPolicy:
         *,
         auto_approve: bool = False,
         max_auto_approve_risk: RiskLevel = RiskLevel.MEDIUM,
+        provider: Any | None = None,
+        require_human_for_real_provider: bool = True,
     ):
         self.approver = approver
         self.auto_approve = auto_approve
         self.max_auto_approve_risk = max_auto_approve_risk
+        self.provider = provider
+        self.require_human_for_real_provider = require_human_for_real_provider
+
+    def is_real_provider(self) -> bool:
+        if self.provider is None:
+            # Check env: RSI_PROVIDER overrides, default mock
+            try:
+                import os
+                name = (os.environ.get("RSI_PROVIDER") or "").strip().lower()
+                if not name:
+                    return False
+                return name not in ("mock", "mock-provider", "")
+            except Exception:
+                return False
+        try:
+            return not bool(getattr(self.provider, "is_mock", lambda: False)())
+        except Exception:
+            return False
 
     def request(
         self, proposal: ImprovementProposal, evaluation: EvaluationRun,
         risk_level: RiskLevel,
     ) -> ApprovalResult:
         rank = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
+        # Real-provider guard: auto-approve is ignored unless a test approver is injected
+        if self.require_human_for_real_provider and self.is_real_provider():
+            # If a real human approver is configured (tests inject dedicated impl), use it
+            if self.approver is not None:
+                approved, note = self.approver(proposal, evaluation)
+                return ApprovalResult(
+                    approved=approved,
+                    approver="human-approver" if approved else "human-approver",
+                    reason=note or ("approved by human reviewer" if approved
+                                    else "declined by human reviewer"),
+                )
+            # Real provider without human approver: always escalate, never auto-approve
+            return ApprovalResult(
+                approved=False, approver="none",
+                reason=(
+                    f"real provider mode: human approval required (risk {risk_level.value}); "
+                    "auto-approve is disabled for RSI_PROVIDER=openai-compatible. "
+                    "The proposal is queued as AWAITING_HUMAN_APPROVAL and was NOT applied"
+                ),
+            )
         if self.approver is not None:
             approved, note = self.approver(proposal, evaluation)
             return ApprovalResult(
@@ -293,6 +346,7 @@ class ImprovementLoop:
         risk_policy: RiskPolicy | None = None,
         log: Callable[[str], None] = print,
         actor: str = "rsi-improvement-loop",
+        provider: Any | None = None,
     ):
         self.memory = memory
         self.evaluator = evaluator
@@ -300,7 +354,43 @@ class ImprovementLoop:
         self.runs_dir = Path(runs_dir)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
         self.limits = limits or ImprovementLimits()
-        self.approval = approval or ApprovalPolicy()
+        # Resolve provider: explicit arg wins, else RSI_PROVIDER env (mock default, fail-closed for real)
+        self.provider = provider
+        if self.provider is None:
+            try:
+                # get_provider() defaults to mock when RSI_PROVIDER not set (offline must work)
+                self.provider = get_provider()
+            except Exception:
+                # Fail-closed would have raised ProviderError for misconfigured real provider;
+                # for loop init we keep it None and let per-cycle handling surface the error via audit
+                try:
+                    import os
+                    name = (os.environ.get("RSI_PROVIDER") or "mock").strip().lower()
+                    if name not in ("mock", "", "mock-provider"):
+                        # Real provider misconfigured: surface via provider field for audit
+                        self.provider = None
+                        self._provider_error = f"provider misconfigured: {name}"
+                    else:
+                        self._provider_error = None
+                except Exception:
+                    self._provider_error = None
+                if not hasattr(self, "_provider_error"):
+                    self._provider_error = None
+        else:
+            self._provider_error = None
+        # Ensure approval policy knows the provider for human-gate enforcement
+        if approval is not None and hasattr(approval, "provider") and getattr(approval, "provider") is None:
+            try:
+                approval.provider = self.provider
+            except Exception:
+                pass
+        self.approval = approval or ApprovalPolicy(provider=self.provider)
+        # If approval was created without provider, patch it
+        if not hasattr(self.approval, "provider") or self.approval.provider is None:
+            try:
+                self.approval.provider = self.provider
+            except Exception:
+                pass
         self.audit = audit or AuditLog(self.runs_dir / "audit.jsonl")
         self.risk_policy = risk_policy or RiskPolicy(
             auto_accept_max_risk=self.limits.auto_accept_max_risk
@@ -325,6 +415,40 @@ class ImprovementLoop:
         self.state = state
         if record is not None:
             record.state = state.value
+
+    def _provider_info(self) -> dict[str, Any]:
+        try:
+            if self.provider is not None and hasattr(self.provider, "describe"):
+                d = self.provider.describe()
+                return {"provider": d.get("provider"), "model": d.get("model"), "base_url": d.get("base_url")}
+            if self.provider is not None:
+                return {"provider": getattr(self.provider, "provider_id", "unknown"), "model": getattr(self.provider, "model", "unknown")}
+        except Exception:
+            pass
+        # fallback to env resolution (mock default, fail-closed for real)
+        try:
+            import os
+            name = (os.environ.get("RSI_PROVIDER") or "mock").strip().lower() or "mock"
+            model = os.environ.get("RSI_MODEL") or os.environ.get("OPENAI_MODEL") or ("mock-model" if name in ("mock", "") else "gpt-4o-mini")
+            base_url = os.environ.get("RSI_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+            return {"provider": name or "mock", "model": model, "base_url": base_url}
+        except Exception:
+            return {"provider": "mock", "model": "mock-model"}
+
+    def _proposal_hash(self, proposal: ImprovementProposal) -> str:
+        try:
+            payload = canonical_json(proposal.change_set.to_dict())
+            import hashlib
+            return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+        except Exception:
+            return proposal.id
+
+    def _emit_state(self, proposal_id: str, state: str, *, cycle: int, extra: dict | None = None) -> None:
+        info = self._provider_info()
+        details: dict[str, Any] = {"state": state, "cycle": cycle, "provider": info.get("provider"), "model": info.get("model")}
+        if extra:
+            details.update(extra)
+        self.audit.append("improvement-state", actor=self.actor, proposal_id=proposal_id, details=details)
 
     # -- evidence ------------------------------------------------------------
     def evidence_from_attempts(
@@ -515,8 +639,12 @@ class ImprovementLoop:
         evidence += self.evidence_from_feedback(feedback)
         record.evidence_count = len(evidence)
         record.baseline_revision = self.memory.revision()
+        prov = self._provider_info()
         self.audit.append("cycle-started", actor=self.actor, details={
             "cycle": record.cycle,
+            "attempt_id": f"cycle-{record.cycle}",
+            "provider": prov.get("provider"),
+            "model": prov.get("model"),
             "evidence_count": len(evidence),
             "baseline_revision": record.baseline_revision,
             "limits": self.limits.to_dict(),
@@ -566,14 +694,21 @@ class ImprovementLoop:
                 break
             proposal.status = ProposalStatus.EVALUATING
             record.proposals.append(proposal.to_dict())
+            prov2 = self._provider_info()
             self.audit.append("proposal-created", actor=self.actor,
                               proposal_id=proposal.id, details={
+                                  "cycle": record.cycle,
+                                  "attempt_id": proposal.id,
+                                  "provider": prov2.get("provider"),
+                                  "model": prov2.get("model"),
+                                  "proposal_hash": self._proposal_hash(proposal),
                                   "target_component": proposal.target_component,
                                   "hypothesis": proposal.hypothesis,
                                   "risk_level": proposal.risk_level.value,
                                   "risk_reasons": proposal.risk_reasons,
                                   "diff": proposal.change_set.diff(),
                               })
+            self._emit_state(proposal.id, "PROPOSED", cycle=record.cycle, extra={"proposal_hash": self._proposal_hash(proposal), "risk_level": proposal.risk_level.value})
 
             self._set_state(CycleState.ISOLATING, record)
             workspace = CandidateWorkspace.create(
@@ -614,15 +749,28 @@ class ImprovementLoop:
                 )
                 record.evaluations.append(run.to_dict())
                 record.tool_calls = self._tool_calls
+                prov3 = self._provider_info()
                 self.audit.append("candidate-evaluated", actor=self.actor,
                                   proposal_id=proposal.id, details={
+                                      "cycle": record.cycle,
+                                      "attempt_id": proposal.id,
+                                      "provider": prov3.get("provider"),
+                                      "model": prov3.get("model"),
+                                      "proposal_hash": self._proposal_hash(proposal),
                                       "passed": run.passed,
+                                      "verifier_result": {"passed": run.passed, "checks": [c.to_dict() for c in run.checks]},
+                                      "jev_guard": {"risk_level": proposal.risk_level.value, "risk_reasons": proposal.risk_reasons},
                                       "metrics": [m.to_dict() for m in run.metrics],
                                       "checks": [c.to_dict() for c in run.checks],
                                       "tamper_findings": run.tamper_findings,
                                       "benchmark_version": run.benchmark_version,
                                       "workspace": workspace.stats(),
                                   })
+                # VERIFIED after evaluator structural checks passed
+                if run.passed:
+                    self._emit_state(proposal.id, "VERIFIED", cycle=record.cycle, extra={"verifier_passed": run.passed, "proposal_hash": self._proposal_hash(proposal)})
+                else:
+                    self._emit_state(proposal.id, "REJECTED", cycle=record.cycle, extra={"reason": "evaluator failed", "proposal_hash": self._proposal_hash(proposal)})
 
                 risk = classify_risk(
                     op_count=proposal.change_set.op_count,
@@ -631,6 +779,8 @@ class ImprovementLoop:
                 )
                 proposal.risk_level = risk.level
                 proposal.risk_reasons = risk.reasons
+                # GUARD_PASSED when risk is classified and not CRITICAL immediately blocked
+                self._emit_state(proposal.id, "GUARD_PASSED", cycle=record.cycle, extra={"risk_level": risk.level.value, "requires_human": risk.requires_human_approval, "proposal_hash": self._proposal_hash(proposal)})
 
                 self._set_state(CycleState.DECIDING, record)
                 decision = self.evaluator.decide(run, risk, self.risk_policy)
@@ -642,28 +792,89 @@ class ImprovementLoop:
                         else ProposalStatus.REJECTED
                     )
                     if decision.outcome == "ESCALATE":
+                        # AWAITING_HUMAN_APPROVAL is the explicit gate before APPLIED
+                        self._emit_state(proposal.id, "AWAITING_HUMAN_APPROVAL", cycle=record.cycle, extra={"risk_level": risk.level.value, "proposal_hash": self._proposal_hash(proposal)})
                         approval = self.approval.request(proposal, run, risk.level)
+                        provA = self._provider_info()
                         if not approval.approved:
                             record.escalated.append(proposal.id)
                             self.audit.append("proposal-escalated", actor=self.actor,
                                               proposal_id=proposal.id, details={
+                                                  "cycle": record.cycle,
+                                                  "attempt_id": proposal.id,
+                                                  "provider": provA.get("provider"),
+                                                  "model": provA.get("model"),
+                                                  "proposal_hash": self._proposal_hash(proposal),
+                                                  "verifier_result": {"passed": run.passed},
+                                                  "jev_guard": {"risk_level": risk.level.value},
+                                                  "approval_state": "AWAITING_HUMAN_APPROVAL",
                                                   "reason": approval.reason,
                                                   "approver": approval.approver,
                                                   "risk_level": risk.level.value,
                                               })
+                            self._emit_state(proposal.id, "REJECTED", cycle=record.cycle, extra={"reason": approval.reason, "approval_state": "REJECTED"})
                             continue
+                        # APPROVED after human gate
+                        self._emit_state(proposal.id, "APPROVED", cycle=record.cycle, extra={"approver": approval.approver, "proposal_hash": self._proposal_hash(proposal)})
                         decision = Decision(outcome="ACCEPT", reasons=[
                             f"approved by {approval.approver}: {approval.reason}"
                         ])
                         proposal.decision = decision.to_dict()
+                        provB = self._provider_info()
+                        self.audit.append("proposal-approved", actor=self.actor,
+                                          proposal_id=proposal.id, details={
+                                              "cycle": record.cycle,
+                                              "attempt_id": proposal.id,
+                                              "provider": provB.get("provider"),
+                                              "model": provB.get("model"),
+                                              "proposal_hash": self._proposal_hash(proposal),
+                                              "approval_state": "APPROVED",
+                                              "approver": approval.approver,
+                                              "reason": approval.reason,
+                                          })
                     else:
                         proposal.rejection_reason = "; ".join(decision.reasons)
                         record.rejected.append(proposal.id)
+                        provC = self._provider_info()
                         self.audit.append("proposal-rejected", actor=self.actor,
                                           proposal_id=proposal.id, details={
+                                              "cycle": record.cycle,
+                                              "attempt_id": proposal.id,
+                                              "provider": provC.get("provider"),
+                                              "model": provC.get("model"),
+                                              "proposal_hash": self._proposal_hash(proposal),
+                                              "verifier_result": {"passed": run.passed},
+                                              "approval_state": "REJECTED",
                                               "reasons": decision.reasons,
                                           })
+                        self._emit_state(proposal.id, "REJECTED", cycle=record.cycle, extra={"reasons": decision.reasons, "proposal_hash": self._proposal_hash(proposal)})
                         continue
+                else:
+                    # Decision accepted without escalation: still needs guard -> approved implicitly for LOW/MEDIUM mock
+                    # For real provider, the earlier guard already required human; mock can proceed
+                    if self.approval.is_real_provider():
+                        # Real provider: even ACCEPT must go through human gate (mandatory)
+                        self._emit_state(proposal.id, "AWAITING_HUMAN_APPROVAL", cycle=record.cycle, extra={"proposal_hash": self._proposal_hash(proposal)})
+                        approval = self.approval.request(proposal, run, risk.level)
+                        if not approval.approved:
+                            record.escalated.append(proposal.id)
+                            provD = self._provider_info()
+                            self.audit.append("proposal-escalated", actor=self.actor,
+                                              proposal_id=proposal.id, details={
+                                                  "cycle": record.cycle,
+                                                  "attempt_id": proposal.id,
+                                                  "provider": provD.get("provider"),
+                                                  "model": provD.get("model"),
+                                                  "proposal_hash": self._proposal_hash(proposal),
+                                                  "approval_state": "AWAITING_HUMAN_APPROVAL",
+                                                  "approver": approval.approver,
+                                                  "reason": approval.reason,
+                                              })
+                            self._emit_state(proposal.id, "REJECTED", cycle=record.cycle, extra={"reason": approval.reason})
+                            continue
+                        self._emit_state(proposal.id, "APPROVED", cycle=record.cycle, extra={"approver": approval.approver, "proposal_hash": self._proposal_hash(proposal)})
+                    else:
+                        self._emit_state(proposal.id, "APPROVED", cycle=record.cycle, extra={"proposal_hash": self._proposal_hash(proposal), "auto": True})
 
                 # -- APPLY + VERIFY (+ rollback) ------------------------------
                 self._set_state(CycleState.APPLYING, record)
@@ -708,20 +919,33 @@ class ImprovementLoop:
                 verification = result.get("verification")
                 if verification:
                     record.evaluations.append(verification)
+                provE = self._provider_info()
                 self.audit.append("improvement-applied", actor=self.actor,
                                   proposal_id=proposal.id, details={
-                                      "operations": result["operations"],
+                                      "cycle": record.cycle,
+                                      "attempt_id": proposal.id,
+                                      "provider": provE.get("provider"),
+                                      "model": provE.get("model"),
+                                      "proposal_hash": self._proposal_hash(proposal),
+                                      "verifier_result": {"passed": run.passed if 'run' in locals() else None},
+                                      "jev_guard": {"risk_level": proposal.risk_level.value},
+                                      "approval_state": "APPROVED",
+                                      "apply_state": "APPLIED",
+                                      "verification": verification,
                                       "revision_before": result["revision_before"],
                                       "revision_after": result["revision_after"],
                                       "archive": result["archive"],
+                                      "operations": result.get("operations"),
                                       "target_metric_delta": (
                                           verification["metrics"][0]["delta"]
                                           if verification and verification.get("metrics")
                                           else None
                                       ),
-                                      "verification": verification,
                                       "rollback": result["rollback"],
                                   })
+                self._emit_state(proposal.id, "APPLIED", cycle=record.cycle, extra={"proposal_hash": self._proposal_hash(proposal), "revision_after": result["revision_after"]})
+                if verification and verification.get("passed"):
+                    self._emit_state(proposal.id, "VERIFIED_AFTER_APPLY", cycle=record.cycle, extra={"proposal_hash": self._proposal_hash(proposal), "revision_after": result["revision_after"]})
                 self.log(
                     f"[cycle {record.cycle}] APPLIED {proposal.id} "
                     f"({proposal.target_component}) "

@@ -1,15 +1,19 @@
 import Link from "next/link";
+import { db } from "@/server/db/store";
 
 export default function DiscoverPage() {
-  const mangaList = [
-    {
-      id: "sample-manga",
-      title: "The Licensed Adventure",
-      author: "Spec Team",
-      chapters: 1,
-      direction: "RTL",
-    },
-  ];
+  const mangaList = db.getPublishedMangaList().map((m) => {
+    const chapters = db.getPublishedChaptersByMangaId(m.id);
+    return {
+      id: m.slug,
+      mangaId: m.id,
+      title: m.title,
+      author: m.author ?? "Spec Team",
+      chapters: chapters.length,
+      direction: m.readingDirection.toUpperCase(),
+      firstChapter: chapters[0]?.chapterNumber ?? 1,
+    };
+  });
 
   return (
     <div
@@ -65,9 +69,10 @@ export default function DiscoverPage() {
               <div style={{ fontSize: "12px", color: "#71717a" }}>Direction: {manga.direction}</div>
             </div>
 
-            <div style={{ marginTop: "16px" }}>
+            <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ fontSize: "11px", color: "#71717a" }}>{manga.chapters} chapter{manga.chapters !== 1 ? "s" : ""} • {manga.firstChapter === 1 ? "Start at 1" : `Start ${manga.firstChapter}`}</div>
               <Link
-                href={`/manga/${manga.id}/chapter/1`}
+                href={`/manga/${manga.id}/chapter/${manga.firstChapter}`}
                 style={{
                   display: "block",
                   textAlign: "center",

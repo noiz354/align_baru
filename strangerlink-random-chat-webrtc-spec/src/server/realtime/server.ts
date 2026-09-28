@@ -230,6 +230,8 @@ transport.onEvent(async (event) => {
               payload: {
                 category: payload.category,
                 note: null,
+                reportId: ack.reportId,
+                received: true,
               },
             } as any);
 

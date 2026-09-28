@@ -1,4 +1,5 @@
 import unittest
+import json
 import os
 import tempfile
 from datetime import datetime, timezone, timedelta
@@ -25,6 +26,19 @@ class TestAuditLedger(unittest.TestCase):
         self.assertEqual(len(entries), 2)
         self.assertEqual(entries[0]["action"], "CHECK_IN")
         self.assertGreater(entries[1]["seq"], entries[0]["seq"])
+        self.assertTrue(self.logger.verify_chain()[0])
+
+    def test_hash_chain_survives_logger_restart_and_detects_tampering(self):
+        self.logger.record_audit("CHECK_OUT", "SESSION", "ses_2", "att1", {"fee": 3000})
+        reloaded = JsonAuditLogger(self.path)
+        reloaded.record_audit("PAYMENT_REPLAY", "SESSION", "ses_2", "att1", {"deduped": True})
+        self.assertTrue(reloaded.verify_chain()[0])
+        entries = reloaded.read_entries()
+        entries[0]["details"]["fee"] = 999999
+        with open(self.path, "w", encoding="utf-8") as fh:
+            for entry in entries:
+                fh.write(json.dumps(entry) + "\n")
+        self.assertFalse(reloaded.verify_chain()[0])
 
 
 class TestRetention(unittest.TestCase):
@@ -75,6 +89,7 @@ class TestRetention(unittest.TestCase):
         self.assertEqual(result["audit_plates_masked"], 1)
         entries = self.audit.read_entries()
         self.assertEqual(entries[0]["details"]["plate"], "B 1*** ABC")
+        self.assertTrue(self.audit.verify_chain()[0], self.audit.verify_chain()[1])
 
 
 class TestPlateMasking(unittest.TestCase):

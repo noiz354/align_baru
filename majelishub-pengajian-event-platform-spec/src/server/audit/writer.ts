@@ -30,7 +30,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { auditEvents } from "@/server/db/schema";
-import { getDb, type DbHandle } from "@/server/db/client";
+import { getDb, isPGliteDb, type DbHandle } from "@/server/db/client";
 import type { AuditEntry } from "@/shared/contracts/audit";
 
 /** Version tag inside the hashed payload: a chain must stay verifiable if the layout ever changes. */
@@ -63,7 +63,14 @@ export async function writeAuditEntry(input: AuditWriteInput, handle?: DbHandle)
   // Serialise appends per organization for the lifetime of this transaction. Without it two concurrent
   // requests would read the same head and one INSERT would fail on the unique index - correct, but it
   // turns a normal race into an error; the lock makes it a queue.
-  await db.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`);
+  // PGlite dev fallback: hashtextextended / advisory lock not available, skip (single process).
+  if (!isPGliteDb()) {
+    try {
+      await db.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`);
+    } catch {
+      // best-effort on PGlite or minimal PG
+    }
+  }
 
   const head = await db
     .select({ position: auditEvents.chainPosition, hash: auditEvents.hash })
