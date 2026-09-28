@@ -19,6 +19,9 @@ Scope: narrow evidence-backed changes across all eight projects. Runtime data is
 
 - MajelisHub: after the final route/audit identity changes, `npm test` reported **125 passed, 281 todo** (20 files passed, 77 skipped); `npm run typecheck` passed. The fresh PGlite unauthenticated regression returned HTTP 401 for organization list, mosque list, check-in summary and check-in validation, including spoofed identity header/query values. This is not a logged-in route proof.
 - StrangerLink: `npm run typecheck` passed; `npm test` reported **85 passed**. The Wave3 native harness additionally proved connected peers/remote audio tracks, report acknowledgement, block termination/peer notification, and negative signaling/media-permission paths against the live signaling server.
+- Parking: `python3 -m unittest discover -s tests` — **66 passed**.
+- RSI: `python3 -m unittest discover -s tests` — **147 passed, 1 skipped**.
+- Minimal reader: `npm test` — **15 passed**.
 - Project-specific tests/runtime commands and exact evidence are recorded in `MVP_AUDIT/wave3/<project>/`.
 
 **Current readiness totals:** 1 `MVP_READY`, 7 `MVP_PARTIAL`, 0 `RUNNABLE_DEMO`.

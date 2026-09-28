@@ -21,5 +21,8 @@ This records the narrow Wave3 proof per project. It is not a blanket production-
 
 - MajelisHub: `npm test` — **125 passed, 281 todo** (20 files passed, 77 skipped); `npm run typecheck` passed. A clean npm install exposed an out-of-sync lockfile, which was refreshed before rerunning tests/typecheck.
 - StrangerLink: `npm run test:wave3-audio` against the live realtime server — audio offer/answer/ICE and remote tracks connected; report acknowledged; block ended the session and notified its peer; malformed/unknown signaling and microphone permission denial were rejected. `npm run typecheck` passed; `npm test` — **85 passed**.
+- Parking: `python3 -m unittest discover -s tests` — **66 passed**.
+- RSI: `python3 -m unittest discover -s tests` — **147 passed, 1 skipped**.
+- Minimal reader: `npm test` — **15 passed**.
 
 The project READINESS/RUNTIME_PROOF files contain earlier per-project test and runtime results; those are not represented here as rerun in this final PR pass unless listed above.
