@@ -40,12 +40,63 @@
  */
 import { acquireDb, releaseDb, type Db } from '../db/client';
 import { loadEnv } from '../../shared/validation/env';
+import type { CallerContext } from '../../shared/contracts';
+import type { UserId } from '../../shared/types';
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
   role: string;
   status: string;
+}
+
+/**
+ * Narrow a verified row to the authority this application will act on — the ONE
+ * place that decision is made.
+ *
+ * This rule was written out twice, once in each of the two API seams' resolvers.
+ * Two copies of a security rule is one too many: fixing one and forgetting the
+ * other leaves a silent privilege difference between `/api` and `/api/v1`. That is
+ * not hypothetical — `/api/v1` had drifted to answering `null` unconditionally
+ * (F-009-S1), which cost every signed-in reader their "continue reading" button.
+ * A drift that under-grants is a bug; the next one might not.
+ *
+ * The narrowing is not a detail. It is the boundary between a role the
+ * `users_role` CHECK column permits and a role the code is willing to use. A
+ * database CHECK is a promise; this is the place that either honours it or
+ * admits it was wrong.
+ *
+ * An UNRECOGNISED role answers `null` — anonymous — never a guess, never a throw.
+ * Throwing would turn a data problem into a 500 on every request for that user;
+ * guessing would widen authority on the way in. Anonymous is the only answer that
+ * cannot be more powerful than the session actually is.
+ *
+ * Narrowed, not cast: the role arrives as a `string` from the row and the
+ * services require the `UserRole` union.
+ *
+ * @param user the row the session verified, or `null` when there is no session
+ * @returns the caller's authority, or `null` when there is none to grant
+ */
+export function toCallerContext(user: AuthenticatedUser | null): CallerContext {
+  if (user === null) return null;
+  if (user.role === 'reader' || user.role === 'admin') {
+    return { userId: user.id as UserId, role: user.role };
+  }
+  return null;
+}
+
+/**
+ * Resolve a request to the authority it may act with, in one call.
+ *
+ * This is the whole of a caller resolver: verify the session, then narrow it.
+ * Both API seams use it, so neither can grant less than the other.
+ *
+ * @param request the incoming request
+ * @param db an existing handle to use; omit to share the process-wide one
+ * @returns the caller, or `null` for anonymous / unusable / unrecognised
+ */
+export async function resolveCallerContext(request: Request, db?: Db): Promise<CallerContext> {
+  return toCallerContext(await getSessionUser(request, db));
 }
 
 function parseCookies(cookieHeader: string | null): Record<string, string> {

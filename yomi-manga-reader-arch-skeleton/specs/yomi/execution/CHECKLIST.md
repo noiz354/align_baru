@@ -837,19 +837,19 @@ Completion evidence:
 
 ### F-009-S1 — A real caller resolver on the `/api/v1` seam
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `src/app/api/v1/_runtime.ts:33` no longer returns `null` unconditionally
@@ -863,10 +863,32 @@ Completion evidence:
 **Files:** `src/app/api/v1/_runtime.ts`, `src/features/catalog/catalog.service.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-009-S1
+- Tests: 638 → **656 passed (656)**, 18 new, 0 removed.
+- Commands: 7 mutations, all caught · full regression gates · `next build`
+  · **browser-verified** on `:3199` with a seeded account
+- Notes: the button works — `Continue Chapter 2 — page 7` for a signed-in
+  mid-chapter reader, `Read Chapter 1` for anonymous. The defect had **two
+  halves**, and the first fix exposed the second. `app/api/v1/_runtime.ts`
+  answered `null` to every request and `CatalogService.detail` reads that as "no
+  position"; the seam's type already accepted the stub, because a zero-argument
+  `Promise<null>` satisfies `(request) => Promise<CallerContext>`, and every
+  catalog test injected its own `async () => null` so the production resolver was
+  never called. With that fixed and the suite green, the page still said "Read
+  Chapter 1" — because `readMangaDetail` is a **loopback fetch**, and a React
+  Server Component's `fetch` does not forward cookies. Every read in
+  `catalog-data.ts` reached `/api/v1` anonymously, so the API genuinely never
+  received a session. `_members/member-api.ts` documents that replay as "not
+  optional" and does it; this module was called "the same arrangement for the
+  catalog lane" and was not doing it. A route-level integration test could not
+  have caught that half — it builds its own `Request` — so the header is now
+  pinned by a unit test. The narrowing rule was written out in both seams and had
+  **drifted**; it now lives once in the guard. Three claims in the code's own
+  comments turned out false and the tests corrected all three: the `users_role` and
+  `users_status` CHECKs are stricter than documented, and `openCatalogDatabase`
+  names a database at `/${name}` so leaving `process.env.DATABASE_URL` on the base
+  URL made every negative test — and a `null === null` parity test — pass while
+  the resolver was reading an empty database.
 
 ---
 

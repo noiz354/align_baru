@@ -12,26 +12,43 @@
  * Tasks: T-CATALOG-002, T-CATALOG-006, T-CATALOG-007.
  */
 import { createCatalogComposition } from '../../../server/composition';
+import { resolveCallerContext } from '../../../server/auth/guard';
 import { apiV1DepsWith, type ApiV1Deps } from './_deps';
+import type { CallerContext } from '../../../shared/contracts';
 
 /**
- * The caller resolver, for as long as auth is T-AUTH-007's to land.
+ * The caller resolver for `/api/v1`.
  *
- * It answers `null` — anonymous — which is the contract's answer for every
- * endpoint wired so far (`/api/v1/catalog`, `/api/v1/catalog/facets`,
- * `/api/v1/manga/{slug}`, `/api/v1/manga/{slug}/chapters` are all public,
- * API_CONTRACT §2.1) and the safe default the seam documents.
+ * REAL, and it was not. This function used to answer `null` unconditionally, on
+ * the reasoning that every `/api/v1` endpoint wired so far is public
+ * (`/api/v1/catalog`, `/api/v1/catalog/facets`, `/api/v1/manga/{slug}`,
+ * `/api/v1/manga/{slug}/chapters` are all anonymous-allowed per API_CONTRACT
+ * §2.1). That reasoning was half right, and the half that was wrong was expensive:
+ * `CatalogService.detail` treats a null caller as "no position to offer" and
+ * omits `continueReading` (FR-CATALOG-008), so the "Continue Ch.12 p.45" button
+ * on every manga detail page was dead code that always rendered "Read Chapter 1".
+ * A signed-in reader with real saved progress was told they had read nothing.
  *
- * This is NOT a stand-in for a session: it reads no cookie and trusts no
- * header, so it cannot be talked into a role. When T-AUTH-007 lands it
- * replaces this function and nothing else changes — the routes already take the
- * caller from here and from nowhere else (THREAT T-04).
+ * It was invisible to the suite because every catalog test injects
+ * `resolveCaller: async () => null` — the injected resolver satisfied the seam's
+ * type, and the production one was never called. The seam declares
+ * `(request: Request) => Promise<CallerContext>`; the stub was a zero-argument
+ * `Promise<null>`, which TypeScript accepts, because a function that ignores all
+ * its parameters is assignable to any function type.
  *
- * Requirements: API_CONTRACT §1 (input identity rule), THREAT T-04.
- * Task: T-AUTH-007 (owner of the real implementation).
+ * It delegates to `resolveCallerContext` rather than re-reading the session, so
+ * `/api` and `/api/v1` cannot drift into granting different authority from the
+ * same cookie — see `server/auth/guard.ts` for why that rule lives in one place.
+ *
+ * It reads the session cookie and nothing else. There is no path here by which a
+ * header, a query parameter or a body field names the acting user
+ * (API_CONTRACT §1 input identity rule, THREAT T-04).
+ *
+ * Requirements: API_CONTRACT §1/§2.1, FR-CATALOG-008, THREAT T-04.
+ * Task: T-AUTH-007, T-CATALOG-009 (owner of the full session authority, F-002).
  */
-export function resolveCaller(): Promise<null> {
-  return Promise.resolve(null);
+export function resolveCaller(request: Request): Promise<CallerContext> {
+  return resolveCallerContext(request);
 }
 
 /**

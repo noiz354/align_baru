@@ -47,11 +47,7 @@ import 'server-only';
 
 import { cache } from 'react';
 import { headers } from 'next/headers';
-import type {
-  ChapterSummary,
-  MangaDetail,
-  MangaSummary,
-} from '../../shared/contracts';
+import type { ChapterSummary, MangaDetail, MangaSummary } from '../../shared/contracts';
 import {
   catalogPageSchema,
   chapterListSchema,
@@ -90,6 +86,41 @@ async function apiOrigin(): Promise<string | null> {
   }
 }
 
+/**
+ * The caller's own `cookie` header, for replay onto the loopback read.
+ *
+ * A React Server Component's `fetch` does NOT forward the browser's cookies, so
+ * every read in this file reached `/api/v1` as an ANONYMOUS request no matter who
+ * was browsing. For the public catalog that was harmless and invisible. For
+ * `GET /api/v1/manga/{slug}` it was not: `CatalogService.detail` omits
+ * `continueReading` for a null caller (FR-CATALOG-008), so "Continue Ch. 2 · p. 15"
+ * never appeared for a reader who was signed in and mid-chapter. F-009-S1 fixed
+ * the resolver; this is the other half — without the replay the API genuinely
+ * never receives a session, and a correct resolver has nothing to work with.
+ *
+ * This is the arrangement `_members/member-api.ts` already had, and its header
+ * calls this module "the same arrangement for the catalog lane" — which was true
+ * of the origin reconstruction and not of the cookie.
+ *
+ * Only the session cookie is replayed, not the whole header bag: a loopback call
+ * does not need `accept-language`, `user-agent` or a tracing header, and copying
+ * them all would forward request metadata to a route for no reason.
+ *
+ * @returns the header pair, or an empty object when there is no request scope
+ */
+async function cookieReplay(): Promise<Record<string, string>> {
+  try {
+    const cookie = (await headers()).get('cookie');
+    // An empty string is not the same as absent: a `cookie: ''` header would be
+    // sent and the guard would look for a session named "".
+    return cookie === null || cookie === '' ? {} : { cookie };
+  } catch {
+    // `headers()` throws outside a request scope (a script, a build-time read).
+    // No caller, so no cookie — which is the correct answer, not a failure.
+    return {};
+  }
+}
+
 async function readJson(
   origin: string,
   path: string,
@@ -112,7 +143,7 @@ async function readJson(
       // `private, max-age=60` header is the browser's, not this read's.
       cache: 'no-store',
       signal: AbortSignal.timeout(READ_TIMEOUT_MS),
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...(await cookieReplay()) },
     });
     if (response.status === 404 && notFoundIsAnswer) {
       return { ok: false, failure: 'not-found' };
@@ -128,7 +159,10 @@ async function readJson(
 
 /** One page of the catalog, in the view's filters and sort. */
 export const readCatalogPage = cache(
-  async (view: CatalogView, limit: number = CATALOG_PAGE_SIZE): Promise<ReadResult<CatalogPage>> => {
+  async (
+    view: CatalogView,
+    limit: number = CATALOG_PAGE_SIZE,
+  ): Promise<ReadResult<CatalogPage>> => {
     const origin = await apiOrigin();
     if (origin === null) return { ok: false, failure: 'unavailable' };
     const result = await readJson(origin, catalogApiQuery(view, { limit }), false);
