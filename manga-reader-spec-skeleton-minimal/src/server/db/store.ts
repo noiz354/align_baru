@@ -7,15 +7,32 @@ import type {
   BookmarkRecord,
   ReaderPreferenceRecord,
   UserRecord,
+  SessionRecord,
 } from "./schema";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 /**
  * File-backed unified repository store preserving invariants from DATA_MODEL.md.
  * Enables durable progress while strictly respecting architecture boundaries.
  * Persistence: ./data/db.json (JSON, file-backed, survives restart). No Postgres required for minimal.
+ * Wave3: adds user-owned progress with authenticated sessions (reader.a/b).
  */
+function hashPassword(password: string): string {
+  // deterministic scrypt for demo (salt is static for seeded users, but per-user random would be better)
+  return crypto.scryptSync(password, "minimal-static-salt-wave3", 64).toString("hex");
+}
+function verifyPassword(password: string, hash?: string): boolean {
+  if (!hash) return false;
+  const h = hashPassword(password);
+  // timingSafeEqual
+  const a = Buffer.from(h, "hex");
+  const b = Buffer.from(hash, "hex");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 class MemoryDatabase {
   users: Map<string, UserRecord> = new Map();
   manga: Map<string, MangaRecord> = new Map();
@@ -25,6 +42,7 @@ class MemoryDatabase {
   library: Map<string, LibraryEntryRecord> = new Map();
   bookmarks: Map<string, BookmarkRecord> = new Map();
   preferences: Map<string, ReaderPreferenceRecord> = new Map();
+  sessions: Map<string, SessionRecord> = new Map();
 
   private dbPath: string;
 
@@ -37,6 +55,7 @@ class MemoryDatabase {
     } else {
       // ensure seed data exists even after load (idempotent)
       this.ensureSeed();
+      this.ensureAuthSeed();
       this.persist();
     }
   }
@@ -57,6 +76,14 @@ class MemoryDatabase {
       this.library = new Map(data.library || []);
       this.bookmarks = new Map(data.bookmarks || []);
       this.preferences = new Map(data.preferences || []);
+      this.sessions = new Map(data.sessions || []);
+      // migrate old users without passwordHash
+      for (const [id, u] of this.users) {
+        if (!(u as any).passwordHash && u.email === "reader@domain.local") {
+          (u as any).passwordHash = hashPassword("guest123");
+          this.users.set(id, u as UserRecord);
+        }
+      }
       return true;
     } catch {
       return false;
@@ -76,6 +103,7 @@ class MemoryDatabase {
         library: Array.from(this.library.entries()),
         bookmarks: Array.from(this.bookmarks.entries()),
         preferences: Array.from(this.preferences.entries()),
+        sessions: Array.from(this.sessions.entries()),
       };
       // atomic write via temp file
       const tmp = this.dbPath + ".tmp";
@@ -150,16 +178,45 @@ class MemoryDatabase {
     }
   }
 
+  private ensureAuthSeed() {
+    // ensure reader.a and reader.b exist with password hashes
+    const needed = [
+      { id: "usr-reader-a", email: "reader.a@example.test", name: "Reader A", password: "PasswordA123!" },
+      { id: "usr-reader-b", email: "reader.b@example.test", name: "Reader B", password: "PasswordB123!" },
+    ];
+    for (const u of needed) {
+      const existing = Array.from(this.users.values()).find((x) => x.email.toLowerCase() === u.email.toLowerCase());
+      if (!existing) {
+        const rec: UserRecord = {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: "reader",
+          passwordHash: hashPassword(u.password),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        this.users.set(rec.id, rec);
+      } else if (!existing.passwordHash) {
+        existing.passwordHash = hashPassword(u.password);
+        this.users.set(existing.id, existing);
+      }
+    }
+  }
+
   private seedDefaults() {
     const defaultUser: UserRecord = {
       id: "usr-guest-001",
       email: "reader@domain.local",
       name: "Standard Reader",
       role: "reader",
+      passwordHash: hashPassword("guest123"),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     this.users.set(defaultUser.id, defaultUser);
+    // wave3 seeded readers
+    this.ensureAuthSeed();
 
     const manga01: MangaRecord = {
       id: "manga-sample-01",
@@ -263,6 +320,46 @@ class MemoryDatabase {
     return this.pages.get(chapterId) ?? [];
   }
 
+  // --- Auth helpers ---
+  findUserByEmail(email: string): UserRecord | null {
+    const lower = email.toLowerCase();
+    for (const u of this.users.values()) if (u.email.toLowerCase() === lower) return u;
+    return null;
+  }
+  verifyUserPassword(user: UserRecord, password: string): boolean {
+    return verifyPassword(password, user.passwordHash);
+  }
+  createSession(userId: string): SessionRecord {
+    const token = crypto.randomUUID();
+    const rec: SessionRecord = {
+      id: `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId,
+      token,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    this.sessions.set(token, rec);
+    this.persist();
+    return rec;
+  }
+  getSessionByToken(token: string): SessionRecord | null {
+    const s = this.sessions.get(token) ?? null;
+    if (!s) return null;
+    if (new Date(s.expiresAt).getTime() < Date.now()) {
+      this.sessions.delete(token);
+      this.persist();
+      return null;
+    }
+    return s;
+  }
+  deleteSession(token: string): void {
+    this.sessions.delete(token);
+    this.persist();
+  }
+  getUserById(id: string): UserRecord | null {
+    return this.users.get(id) ?? null;
+  }
+
   // --- Progress Operations (FR-READER-014) ---
   saveProgress(userId: string, chapterId: string, pageNumber: number): ProgressRecord {
     const key = `${userId}:${chapterId}`;
@@ -305,3 +402,4 @@ class MemoryDatabase {
 }
 
 export const db = new MemoryDatabase();
+export { hashPassword };
