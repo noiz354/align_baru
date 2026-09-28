@@ -1,3 +1,31 @@
+/**
+ * POST /api/auth/login — exchange credentials for a session cookie.
+ *
+ * Real and working, which is why the absence of registration is so easy to miss:
+ * this endpoint and the session guard it feeds are complete, and the product is
+ * still unusable, because nothing anywhere can create the `users` row this reads.
+ * `grep "insert(users)" src/` returns zero hits. → F-003 (deferred with auth)
+ *
+ * Enumeration defences already in place, worth not breaking:
+ * - An unknown email is verified against a DUMMY hash, so response time does not
+ *   distinguish "no such user" from "wrong password".
+ * - The failure message is uniform for both.
+ * - A disabled account is 403, which is a deliberate, separate answer: it tells a
+ *   legitimate user something an attacker cannot use, because reaching it
+ *   requires the right password.
+ *
+ * Known debt, recorded not hidden:
+ * - `argon2` is imported here directly rather than through a `PasswordHasher`
+ *   port, so the parameters are not in one reviewable place. → F-002
+ * - Session storage is reached through `queries/reader-state.ts`, bypassing the
+ *   `SessionRepository` port entirely, and the port's own implementation throws
+ *   `T-AUTH-006`. Three code paths answer "is this user signed in". → F-002
+ * - `createDb`/`closeDb` per request: a third connection per members' request
+ *   alongside the two composition roots. → F-001
+ *
+ * Requirements: FR-AUTH-001, FR-AUTH-002, NFR-SEC-016
+ * Tasks: T-AUTH-003; debt F-001, F-002, F-003
+ */
 import * as argon2 from 'argon2';
 import { createDb, closeDb } from '../../../../server/db/client';
 import { loadEnv } from '../../../../shared/validation/env';

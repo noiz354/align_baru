@@ -203,19 +203,19 @@ Completion evidence:
 
 ### F-024-S1 — Traceability headers on the reader and auth routes
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete / N/A
-- [ ] negative-path verification / N/A
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete / N/A
+- [x] negative-path verification / N/A
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `src/app/manga/[slug]/chapter/[chapter]/page.tsx` carries requirement + task IDs
@@ -233,10 +233,23 @@ Completion evidence:
 **Files:** 5 files, comments only
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-024-S1
+- Tests: 605 passed / 0 failed; `next build` compiles. 6 files, 138 insertions /
+  6 deletions, **0 logic lines** — proven by filtering `git diff -U0` to
+  non-comment lines, which produces nothing.
+- Commands: `grep -L -E "^ \* Tasks?: T-"` over the 5 files → empty
+  · `git diff -U0` filtered · full regression gates · `next build`
+- Notes: All five files now carry requirement + task ids. "Minimal wave2
+  implementation" is gone from the pages route, replaced by a header that says
+  plainly it bypasses the architecture and that F-006-S2 removes it. The false
+  `continueReading` comment on manga detail is corrected and cites its own former
+  claim. Headers state gaps rather than omitting them, each with a `→ F-XXX`
+  marker so a gap cannot quietly become false. **Two corrections to the plan:**
+  the route is `chapters/[chapterId]/pages`, not `[id]`; and the traceability gate
+  must accept both `Task:` and `Tasks:` — the tree uses them 48 and 95 times, and
+  the first version of the check failed four correct headers. Only the one file
+  this change made prettier-dirty was formatted; four already-dirty files were
+  left as found so the diff stays comments-only.
 
 ---
 
@@ -914,4 +927,5 @@ Completion evidence:
 | 2026-09-28 | plan authored | `36b36ee` | 24 features, 35 slices, auth deferred |
 | 2026-09-28 | F-022-S1 | `425ac7d` | baseline now 605/605/0 under any shell; production rule proven intact |
 | 2026-09-28 | F-023-S1 | `65ba386` | stub inventory covers 23 throws; 13 skipped suites now counted; docs no longer count as evidence |
-| 2026-09-28 | F-020-S1 | *this commit* | 10 false status matrices archived + annotated; one status source remains |
+| 2026-09-28 | F-020-S1 | `ad2dcff` | 10 false status matrices archived + annotated; one status source remains |
+| 2026-09-28 | F-024-S1 | *this commit* | 5 files gained traceability headers; 1 false comment corrected; Wave 0 complete |

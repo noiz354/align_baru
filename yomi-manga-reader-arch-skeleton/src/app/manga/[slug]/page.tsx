@@ -38,10 +38,14 @@
  * `<ol>`'s own marker contradict the numbers on screen.
  *
  * ── Two-phase state, implemented honestly ──────────────────────────────────
- *   - The continue-reading entry (FR-CATALOG-008, T-CATALOG-009) is ABSENT:
- *     the data does not exist and `MangaDetail.continueReading` is not in the
- *     parsed contract yet. So the primary action says what it does — read
- *     chapter 1 — rather than promising a resume it cannot offer.
+ *   - The continue-reading entry (FR-CATALOG-008, T-CATALOG-009) is present in
+ *     the PARSED contract and is consumed below, but it is always null at
+ *     runtime: `CatalogService.detail` short-circuits on a caller resolver that
+ *     returns null unconditionally (`app/api/v1/_runtime.ts`). The button logic is
+ *     real; the value never arrives. → F-009-S1
+ *     (This comment used to say the field "is not in the parsed contract yet".
+ *     That was false: `catalog-schema.ts` parses it and this file reads it. The
+ *     contract was never the missing link — the resolver is.)
  *   - The read/unread indicator on chapter rows is ABSENT: T-LIB-006 (VS-5)
  *     owns the data and the payload has no such field.
  *   Both are named TODO markers so the next agent inherits the decision.

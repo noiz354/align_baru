@@ -1,3 +1,37 @@
+/**
+ * The reader itself — every fetch, the page image, and the two navigation
+ * controls that exist.
+ *
+ * Data sources, in the order it asks for them:
+ *   GET  /api/v1/manga/{slug}/chapters   resolve the chapter number to an id
+ *   GET  /api/v1/chapters/{id}/pages     the page list
+ *   GET  /api/chapters/{id}/progress     restore position (401 when anonymous)
+ *   POST /api/chapters/{id}/progress     save position (401 when anonymous)
+ *   GET  /media/{assetKey}.jpeg          the image
+ *
+ * What exists: real page images with an honest "image missing" state, and
+ * next/previous PAGE disabled at the bounds.
+ *
+ * What does not, and is not pretending to:
+ * - Previous/next CHAPTER. The chapter list is fetched ONLY to resolve the
+ *   current id and is then discarded. The neighbours are already available from
+ *   `ChapterRepository.pageList`. → F-007-S1
+ * - `?page=N`. The server shell reads no search params. → F-007-S2
+ * - `readingDirection` is fetched and shown as TEXT but never applied to layout.
+ *   Harmless for a single page, and still a lie in the response.
+ * - The save `fetch` has no `.catch`, so a 401 discards the position silently.
+ *   That is invisible in development because a seeded account can sign in; in
+ *   production no account can be created at all.
+ * - The save goes through `queries/reader-state.ts:248`, which overwrites
+ *   `completed` with `false`. Reading past the end of a finished chapter
+ *   silently un-finishes it. This is the worst bug in the product: no error, and
+ *   the reader's own record is wrong. → F-006-S1
+ *
+ * Requirements: FR-READER-011, FR-READER-012, FR-READER-014, FR-READER-015,
+ * NFR-PERF-014
+ * Tasks: T-READER-001, T-READER-014, T-UPLOAD-004 (image-missing state);
+ * gaps F-006-S1, F-007-S1, F-007-S2
+ */
 'use client';
 import { useEffect, useState } from 'react';
 

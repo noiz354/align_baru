@@ -1,6 +1,28 @@
 /**
- * GET /api/v1/chapters/{chapterId}/pages — chapter pages for reader.
- * Minimal wave2 implementation: public read, uses DB directly, no auth.
+ * GET /api/v1/chapters/{chapterId}/pages — the page list the reader renders.
+ *
+ * Public read: no session, by design (PRODUCT.md commitment 2 — anonymous
+ * visitors are first-class). A chapter is readable only when its PARENT manga is
+ * published and undeleted, so visibility is resolved through the parent row rather
+ * than assumed from the chapter existing; that is the same rule `/media` enforces
+ * per image, and it is why the S3 bucket can stay private.
+ *
+ * It bypasses the architecture, and that is a KNOWN defect, not a design:
+ * `createDb` is called per request and `queries/reader-state.ts` is read
+ * directly, with no composition root, no service and no port. It previously
+ * described itself as a "Minimal wave2 implementation" with no requirement or
+ * task id, which made an unreviewed path look like an intentional one. F-006-S2
+ * moves `listChapterPages` behind `ChapterRepository.pageList` and deletes the
+ * file this reads. Until then, treat every line below as unreviewed by the
+ * architecture and covered only by the route's own tests.
+ *
+ * Note the response is `private, max-age=60` rather than `no-store`: the list is
+ * not per-user, but it is not public either, because a soft-deleted manga must
+ * stop being served promptly.
+ *
+ * Requirements: FR-READER-012 (page list), FR-READER-015 (read direction),
+ * NFR-SEC-015 (parameterised queries)
+ * Tasks: T-CATALOG-001, T-READER-001; remediation F-006-S2
  */
 import { loadEnv } from '../../../../../../shared/validation/env';
 import { createDb, closeDb } from '../../../../../../server/db/client';
