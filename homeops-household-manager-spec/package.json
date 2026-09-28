@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "HomeOps \u2014 household manager (chores, rooms, trash, resources, maintenance, issues, alerts).",
+  "description": "HomeOps — household manager (chores, rooms, trash, resources, maintenance, issues, alerts).",
   "engines": {
     "node": ">=24"
   },
@@ -36,6 +36,7 @@
     "verify:all": "npm run verify:docs && npm run verify:contrast && npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run build && npm run verify:bundle"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "better-auth": "1.7.6",
     "drizzle-orm": "0.45.3",
     "next": "16.3.6",
@@ -56,8 +57,8 @@
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vitest": "4.1.11",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.70.1",
+    "vitest": "4.1.11"
   },
   "allowScripts": {
     "esbuild@0.18.20": true,

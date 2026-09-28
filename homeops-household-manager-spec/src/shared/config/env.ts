@@ -35,9 +35,19 @@ const envSchema = z
       .string()
       .trim()
       .min(1, 'DATABASE_URL is required')
-      .refine((value) => value.startsWith('postgres://') || value.startsWith('postgresql://'), {
-        message: 'DATABASE_URL must be a postgres:// connection string',
-      }),
+      .refine(
+        (value) =>
+          value.startsWith('postgres://') ||
+          value.startsWith('postgresql://') ||
+          value.startsWith('pglite://') ||
+          value.startsWith('pglite:') ||
+          value.startsWith('file:') ||
+          value.includes('/tmp/') ||
+          value.endsWith('.db'),
+        {
+          message: 'DATABASE_URL must be a postgres:// connection string (or pglite:// for dev)',
+        },
+      ),
     APP_URL: z.string().trim().url('APP_URL must be an absolute URL'),
     // No default secret is ever substituted: a placeholder that boots is a breach waiting to happen.
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
