@@ -56,6 +56,15 @@ export async function completeOccurrence(
   return row ?? null;
 }
 
+export async function findDefinitionById(db: DbOrTx, householdId: string, id: string) {
+  const rows = await db
+    .select()
+    .from(choreDefinition)
+    .where(and(eq(choreDefinition.id, id as never), eq(choreDefinition.householdId, householdId as never)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createOccurrence(
   db: DbOrTx,
   householdId: string,
@@ -67,6 +76,7 @@ export async function createOccurrence(
     dueOn: string;
     status?: string;
     assigneeMemberId?: string | null;
+    definitionId?: string | null;
   },
 ) {
   const [row] = await db
@@ -74,6 +84,7 @@ export async function createOccurrence(
     .values({
       id: input.id as never,
       householdId: householdId as never,
+      definitionId: (input.definitionId ?? null) as never,
       occurrenceKey: input.occurrenceKey,
       titleSnapshot: input.titleSnapshot,
       roomIdSnapshot: (input.roomIdSnapshot ?? null) as never,
@@ -81,14 +92,22 @@ export async function createOccurrence(
       status: (input.status ?? 'OPEN') as never,
       assigneeMemberId: (input.assigneeMemberId ?? null) as never,
     })
+    .onConflictDoNothing({ target: [choreOccurrence.householdId, choreOccurrence.occurrenceKey] })
     .returning();
-  return row;
+  // onConflictDoNothing returns no row if duplicate; fetch existing
+  if (row) return row;
+  const existing = await db
+    .select()
+    .from(choreOccurrence)
+    .where(and(eq(choreOccurrence.householdId, householdId as never), eq(choreOccurrence.occurrenceKey, input.occurrenceKey)))
+    .limit(1);
+  return existing[0] ?? null;
 }
 
 export async function createDefinition(
   db: DbOrTx,
   householdId: string,
-  input: { id: string; title: string; roomId?: string | null; assigneeMemberId?: string | null; createdByMemberId: string },
+  input: { id: string; title: string; roomId?: string | null; assigneeMemberId?: string | null; createdByMemberId: string; recurrenceKind?: string },
 ) {
   const [row] = await db
     .insert(choreDefinition)
@@ -99,6 +118,7 @@ export async function createDefinition(
       roomId: (input.roomId ?? null) as never,
       assigneeMemberId: (input.assigneeMemberId ?? null) as never,
       createdByMemberId: input.createdByMemberId as never,
+      recurrenceKind: (input.recurrenceKind ?? 'NONE') as never,
     })
     .returning();
   return row;
