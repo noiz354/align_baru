@@ -4,6 +4,7 @@
  */
 import { loadEnv } from '../../../../../../shared/validation/env';
 import { createDb, closeDb } from '../../../../../../server/db/client';
+import { findChapterById, findMangaById, listChapterPages } from '../../../../../../server/db/queries/reader-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,29 +17,20 @@ export async function GET(_request: Request, context: RouteContext) {
   const env = loadEnv();
   const db = await createDb(env);
   try {
-    const chapter = await db.query.chapter.findFirst({
-      where: (f, { eq }) => eq(f.id, chapterId),
-      columns: { id: true, mangaId: true, number: true, title: true, status: true, pageCount: true, readingOrder: true },
-    });
+    const chapter = await findChapterById(db, chapterId);
     if (!chapter) {
       return Response.json({ error: { code: 'CHAPTER_NOT_FOUND', message: 'Chapter not found' } }, { status: 404 });
     }
-    // verify manga visible
-    const manga = await db.query.manga.findFirst({
-      where: (f, { eq }) => eq(f.id, chapter.mangaId),
-      columns: { id: true, slug: true, title: true, readingDirection: true, published: true, deletedAt: true },
-    });
+    // A chapter of an unpublished or deleted manga is not readable, so visibility is
+    // resolved through the parent row rather than assumed from the chapter existing.
+    const manga = await findMangaById(db, chapter.mangaId);
     if (!manga || !manga.published || manga.deletedAt) {
       return Response.json({ error: { code: 'MANGA_NOT_FOUND', message: 'Manga not found' } }, { status: 404 });
     }
     if (chapter.status !== 'published') {
       return Response.json({ error: { code: 'CHAPTER_NOT_READY', message: 'Chapter not ready' } }, { status: 409 });
     }
-    const pages = await db.query.chapterPage.findMany({
-      where: (f, { eq }) => eq(f.chapterId, chapterId),
-      orderBy: (f, { asc }) => asc(f.pageNumber),
-      columns: { pageNumber: true, assetKey: true, width: true, height: true },
-    });
+    const pages = await listChapterPages(db, chapterId);
     const pageAssets = pages.map(p => ({
       pageNumber: p.pageNumber,
       urlAvif: `/media/${p.assetKey}.avif`,

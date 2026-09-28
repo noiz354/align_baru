@@ -1,8 +1,7 @@
 import { createDb, closeDb } from '../../../../server/db/client';
 import { loadEnv } from '../../../../shared/validation/env';
-import * as schema from '../../../../server/db/schema';
 import { getSessionUser } from '../../../../server/auth/guard';
-import { eq, and } from 'drizzle-orm';
+import { deleteLibraryEntry } from '../../../../server/db/queries/reader-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +9,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ m
   const user = await getSessionUser(request);
   if (!user) return Response.json({ error: { code: 'AUTH_REQUIRED' } }, { status: 401 });
   const { mangaId } = await params;
-  const env = loadEnv();
-  const db = await createDb(env);
+  const db = await createDb(loadEnv());
   try {
-    await db.delete(schema.libraryEntry).where(and(eq(schema.libraryEntry.userId, user.id), eq(schema.libraryEntry.mangaId, mangaId)));
+    await deleteLibraryEntry(db, user.id, mangaId);
     return Response.json({ ok: true }, { status: 200 });
-  } finally { await closeDb(db); }
+  } finally {
+    await closeDb(db);
+  }
 }

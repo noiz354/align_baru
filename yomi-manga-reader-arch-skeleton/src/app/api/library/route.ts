@@ -1,47 +1,68 @@
 import { createDb, closeDb } from '../../../server/db/client';
 import { loadEnv } from '../../../shared/validation/env';
-import * as schema from '../../../server/db/schema';
 import { getSessionUser } from '../../../server/auth/guard';
+import { readJsonBody } from '../../../shared/http/request-body';
+import {
+  findMangaById,
+  findMangaBySlug,
+  insertLibraryEntry,
+  listLibraryEntries,
+} from '../../../server/db/queries/reader-state';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/library → list for authenticated user
+type AddToLibraryBody = { mangaId?: unknown; slug?: unknown };
+
+/** GET /api/library → the signed-in user's shelf. */
 export async function GET(request: Request) {
   const user = await getSessionUser(request);
   if (!user) return Response.json({ error: { code: 'AUTH_REQUIRED' } }, { status: 401 });
-  const env = loadEnv();
-  const db = await createDb(env);
+  const db = await createDb(loadEnv());
   try {
-    const rows = await db.query.libraryEntry.findMany({ where: (f,{eq})=>eq(f.userId, user.id) });
+    const rows = await listLibraryEntries(db, user.id);
     return Response.json({ items: rows, count: rows.length }, { status: 200 });
-  } finally { await closeDb(db); }
+  } finally {
+    await closeDb(db);
+  }
 }
 
-// POST /api/library { mangaId or slug } → add idempotent
+/** POST /api/library `{ mangaId }` or `{ slug }` → add, idempotently. */
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
   if (!user) return Response.json({ error: { code: 'AUTH_REQUIRED' } }, { status: 401 });
-  // Untrusted input: typed by the fields read here, then coerced explicitly.
-  let body: { mangaId?: unknown; slug?: unknown };
-  try { body = await request.json(); } catch { return Response.json({ error: { code: 'VALIDATION_BAD_QUERY' } }, { status: 422 }); }
-  let mangaId = body?.mangaId as string | undefined;
-  const slug = body?.slug as string | undefined;
-  const env = loadEnv();
-  const db = await createDb(env);
+
+  const body = await readJsonBody<AddToLibraryBody>(request).catch(() => undefined);
+  if (!body) return Response.json({ error: { code: 'VALIDATION_BAD_QUERY' } }, { status: 422 });
+
+  const db = await createDb(loadEnv());
   try {
-    if (!mangaId && slug) {
-      const m = await db.query.manga.findFirst({ where: (f,{eq})=>eq(f.slug, slug) });
-      if (!m) return Response.json({ error: { code: 'MANGA_NOT_FOUND' } }, { status: 404 });
-      mangaId = m.id;
+    // A slug is a convenience for a caller that only has the URL; the row is identified by id
+    // either way, and the second lookup below is what proves the manga actually exists.
+    let mangaId = typeof body.mangaId === 'string' ? body.mangaId : undefined;
+    if (!mangaId && typeof body.slug === 'string') {
+      const bySlug = await findMangaBySlug(db, body.slug);
+      if (!bySlug) return Response.json({ error: { code: 'MANGA_NOT_FOUND' } }, { status: 404 });
+      mangaId = bySlug.id;
     }
-    if (!mangaId) return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'mangaId or slug required' } }, { status: 422 });
-    const manga = await db.query.manga.findFirst({ where: (f,{eq})=>eq(f.id, mangaId!) });
+    if (!mangaId) {
+      return Response.json(
+        { error: { code: 'VALIDATION_BAD_QUERY', message: 'mangaId or slug required' } },
+        { status: 422 },
+      );
+    }
+
+    const manga = await findMangaById(db, mangaId);
     if (!manga) return Response.json({ error: { code: 'MANGA_NOT_FOUND' } }, { status: 404 });
-    await db.insert(schema.libraryEntry).values({
+
+    await insertLibraryEntry(db, {
+      id: crypto.randomUUID(),
       userId: user.id,
-      mangaId: mangaId,
+      mangaId,
+      status: 'reading',
       addedAt: new Date(),
-    }).onConflictDoNothing();
+    });
     return Response.json({ ok: true, mangaId }, { status: 200 });
-  } finally { await closeDb(db); }
+  } finally {
+    await closeDb(db);
+  }
 }

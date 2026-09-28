@@ -32,6 +32,8 @@
  * developer should point this suite at its own `yomi_int_db`).
  * Nothing in this file uses product data.
  */
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -578,8 +580,15 @@ describeDb('T-FOUND-006 — migration is idempotent per revision', () => {
     const rows = await sql<{ hash: string; created_at: string }[]>`
       select hash, created_at from public.__drizzle_migrations order by created_at
     `;
-    expect(rows).toHaveLength(1);
-    expect((rows[0]?.hash ?? '').length).toBe(64);
+    // Counted from the migration folder rather than pinned to a number: a new migration is
+    // supposed to make this assertion grow, and a hardcoded count is what let 0000 ship
+    // with the dev-fallback schema without anything here noticing.
+    // Same resolution order the migrator uses: the MIGRATIONS_DIR override, else ./drizzle.
+    const migrationsDir = process.env['MIGRATIONS_DIR'] ?? join(process.cwd(), 'drizzle');
+    const migrationFiles = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
+    expect(rows).toHaveLength(migrationFiles.length);
+    expect(migrationFiles.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.hash).toHaveLength(64);
   });
 });
 

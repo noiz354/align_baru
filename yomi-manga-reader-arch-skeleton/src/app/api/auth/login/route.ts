@@ -1,8 +1,8 @@
 import * as argon2 from 'argon2';
 import { createDb, closeDb } from '../../../../server/db/client';
 import { loadEnv } from '../../../../shared/validation/env';
-import * as schema from '../../../../server/db/schema';
-import { eq } from 'drizzle-orm';
+import { readJsonBody } from '../../../../shared/http/request-body';
+import { findUserByEmail, insertSession, touchLastLogin } from '../../../../server/db/queries/reader-state';
 
 /**
  * Request bodies are untrusted, so a field is only treated as a string when it really is one.
@@ -15,54 +15,69 @@ function asString(value: unknown): string {
 
 export const dynamic = 'force-dynamic';
 
+const SESSION_LIFETIME_MS = 30 * 24 * 3600 * 1000;
+
 export async function POST(request: Request): Promise<Response> {
   // Untrusted credentials input: typed by the fields read here, then coerced explicitly.
-  let body: { email?: unknown; password?: unknown };
-  try { body = await request.json(); } catch { return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } }, { status: 422 }); }
-  const email = asString(body?.email).trim();
-  const password = asString(body?.password);
+  const body = await readJsonBody<{ email?: unknown; password?: unknown }>(request).catch(() => undefined);
+  if (!body) {
+    return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } }, { status: 422 });
+  }
+  const email = asString(body.email).trim();
+  const password = asString(body.password);
   if (!email || !password) {
     return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
   }
-  const env = loadEnv();
-  const db = await createDb(env);
+
+  const db = await createDb(loadEnv());
   try {
-    const user = await db.query.users.findFirst({ where: (f,{eq})=>eq(f.email, email) });
-    // uniform timing: dummy verify on unknown
+    const user = await findUserByEmail(db, email);
+
+    // An unknown email still pays for one argon2 verification, so response time does not
+    // reveal whether an account exists.
     if (!user) {
-      try { await argon2.verify('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy', password); } catch {}
+      try {
+        await argon2.verify('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy', password);
+      } catch {
+        /* the dummy hash never verifies; the cost was the point */
+      }
       return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
     }
     if (user.status === 'disabled') {
       return Response.json({ error: { code: 'AUTH_DISABLED', message: 'Account disabled' } }, { status: 403 });
     }
-    let ok = false;
-    try { ok = await argon2.verify(user.passwordHash, password); } catch { ok = false; }
-    if (!ok) {
+
+    let verified = false;
+    try {
+      verified = await argon2.verify(user.passwordHash, password);
+    } catch {
+      verified = false;
+    }
+    if (!verified) {
       return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
     }
-    // create session
+
     const token = crypto.randomUUID();
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30*24*3600*1000);
-    const absoluteExpiresAt = new Date(now.getTime() + 30*24*3600*1000);
-    await db.insert(schema.sessions).values({
+    const expiresAt = new Date(now.getTime() + SESSION_LIFETIME_MS);
+    await insertSession(db, {
       id: crypto.randomUUID(),
       userId: user.id,
       sessionToken: token,
       createdAt: now,
       expiresAt,
-      absoluteExpiresAt,
+      absoluteExpiresAt: expiresAt,
       lastSeenAt: now,
     });
-    // touch lastLogin
-    await db.update(schema.users).set({ lastLoginAt: now }).where(eq(schema.users.id, user.id));
-    const cookie = `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30*24*3600}`;
-    // also set secure false for dev (pglite)
-    return new Response(JSON.stringify({ ok: true, user: { id: user.id, email: user.email, displayName: user.displayName } }), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'set-cookie': cookie }
-    });
+    await touchLastLogin(db, user.id, now);
+
+    // `secure` is omitted on purpose: the PGlite dev fallback is served over plain http on
+    // loopback, and a secure cookie there would never be stored by the browser.
+    const cookie = `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}`;
+    return new Response(
+      JSON.stringify({ ok: true, user: { id: user.id, email: user.email, displayName: user.displayName } }),
+      { status: 200, headers: { 'content-type': 'application/json', 'set-cookie': cookie } },
+    );
   } finally {
     await closeDb(db);
   }
