@@ -84,6 +84,7 @@
  *   upload_job(§16), reset_token(§17), audit_event(§18)
  */
 import { sql } from 'drizzle-orm';
+import { isPgliteDsn } from './dialect';
 import {
   bigint,
   bigserial,
@@ -196,27 +197,28 @@ export const manga = pgTable(
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),
   },
-  (t) => [
-    // URL identity; slugs are immutable after publish (DATA_MODEL §21.5).
-    uniqueIndex('ix_manga_slug').on(t.slug),
-    index('ix_manga_title').on(t.title),
-    index('ix_manga_updated_at').on(t.updatedAt),
-    index('ix_manga_created_at').on(t.createdAt),
-    index('ix_manga_visible')
-      .on(t.updatedAt)
-      .where(sql`${t.deletedAt} is null and ${t.published} = true`),
-    // §19 pg_trgm: title search covers prefix AND contains with one mechanism.
-    // PGlite dev fallback has no `pg_trgm` extension; use plain btree there.
-    ...((process.env['DATABASE_URL']?.startsWith('pglite://') ||
-    process.env['DATABASE_URL']?.startsWith('file:') ||
-    process.env['DATABASE_URL']?.startsWith('/tmp/') ||
-    process.env['DATABASE_URL']?.startsWith('./') ||
-    process.env['DATABASE_URL']?.endsWith('.db')
-      ? [index('ix_manga_title_trgm').on(t.title)]
-      : [index('ix_manga_title_trgm').using('gin', sql`${t.title} gin_trgm_ops`)] as any)),
-    check('manga_status', sql`${t.status} in ('ongoing', 'completed', 'hiatus')`),
-    check('manga_reading_direction', sql`${t.readingDirection} in ('rtl', 'ltr')`),
-  ],
+  (t) => {
+    // §19 pg_trgm: title search covers prefix AND contains with one mechanism. The PGlite
+    // fallback has no `pg_trgm`, so it gets a plain btree. One helper decides the dialect
+    // for the driver, the migrator and these indexes alike.
+    const titleTrgm = isPgliteDsn(process.env['DATABASE_URL'])
+      ? index('ix_manga_title_trgm').on(t.title)
+      : index('ix_manga_title_trgm').using('gin', sql`${t.title} gin_trgm_ops`);
+
+    return [
+      // URL identity; slugs are immutable after publish (DATA_MODEL §21.5).
+      uniqueIndex('ix_manga_slug').on(t.slug),
+      index('ix_manga_title').on(t.title),
+      index('ix_manga_updated_at').on(t.updatedAt),
+      index('ix_manga_created_at').on(t.createdAt),
+      index('ix_manga_visible')
+        .on(t.updatedAt)
+        .where(sql`${t.deletedAt} is null and ${t.published} = true`),
+      titleTrgm,
+      check('manga_status', sql`${t.status} in ('ongoing', 'completed', 'hiatus')`),
+      check('manga_reading_direction', sql`${t.readingDirection} in ('rtl', 'ltr')`),
+    ];
+  },
 );
 
 /* ── §4 MangaAlias ───────────────────────────────────────────────────────── */
@@ -232,17 +234,15 @@ export const mangaAlias = pgTable(
     alias: text('alias').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [
-    uniqueIndex('ix_manga_alias_manga_id_alias').on(t.mangaId, t.alias),
-    // §19: the alias half of title+alias search. PGlite fallback → btree.
-    ...((process.env['DATABASE_URL']?.startsWith('pglite://') ||
-    process.env['DATABASE_URL']?.startsWith('file:') ||
-    process.env['DATABASE_URL']?.startsWith('/tmp/') ||
-    process.env['DATABASE_URL']?.startsWith('./') ||
-    process.env['DATABASE_URL']?.endsWith('.db')
-      ? [index('ix_manga_alias_alias').on(t.alias)]
-      : [index('ix_manga_alias_alias').using('gin', sql`${t.alias} gin_trgm_ops`)] as any)),
-  ],
+  (t) => {
+    // §19: the alias half of title+alias search. PGlite fallback → btree, same reason as
+    // the title index above.
+    const aliasTrgm = isPgliteDsn(process.env['DATABASE_URL'])
+      ? index('ix_manga_alias_alias').on(t.alias)
+      : index('ix_manga_alias_alias').using('gin', sql`${t.alias} gin_trgm_ops`);
+
+    return [uniqueIndex('ix_manga_alias_manga_id_alias').on(t.mangaId, t.alias), aliasTrgm];
+  },
 );
 
 /* ── §5 Creator ──────────────────────────────────────────────────────────── */

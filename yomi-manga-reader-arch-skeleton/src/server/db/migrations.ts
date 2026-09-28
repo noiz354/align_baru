@@ -212,9 +212,9 @@ export async function runMigrations(options: MigrationOptions): Promise<Migratio
     else if (t.startsWith('memory:') || t === ':memory:') dataDir = undefined;
     else dataDir = t;
     if (dataDir === '' || dataDir === 'memory') dataDir = undefined;
-    const pglite: any = new PGlite(dataDir);
+    const pglite = new PGlite(dataDir);
     try {
-      const db: any = drizzlePglite(pglite);
+      const db = drizzlePglite(pglite);
       const before = await readJournalPglite(pglite);
       await migratePglite(db, {
         migrationsFolder,
@@ -222,11 +222,11 @@ export async function runMigrations(options: MigrationOptions): Promise<Migratio
         migrationsSchema: MIGRATION_JOURNAL_SCHEMA,
       });
       const after = await readJournalPglite(pglite);
-      const applied = after.filter((row: any) => !before.some((old: any) => old.hash === row.hash));
+      const applied = after.filter(row => !before.some(old => old.hash === row.hash));
       for (const migration of applied) options.onApplied?.(migration);
       return { applied, journal: after, lockId, durationMs: Date.now() - startedAt };
     } finally {
-      await (pglite as any).close();
+      await (pglite).close();
     }
   }
   // max: 1 ⇒ the advisory lock and the DDL share one backend (invariant 1).
@@ -287,19 +287,26 @@ async function readJournal(client: postgres.Sql): Promise<AppliedMigration[]> {
   }));
 }
 
-async function readJournalPglite(pglite: any): Promise<AppliedMigration[]> {
+/** A row of the drizzle migration journal, as returned by the raw PGlite query. */
+type JournalRow = { id: number | string; hash: string; created_at: number | string };
+type JournalPresenceRow = { present: boolean };
+
+async function readJournalPglite(pglite: PGlite): Promise<AppliedMigration[]> {
   const probe = await pglite.query(
     `select to_regclass('${MIGRATION_JOURNAL_SCHEMA}.${MIGRATION_JOURNAL_TABLE}') is not null as present`,
   );
-  if (probe.rows[0]?.present !== true) return [];
+  if ((probe.rows[0] as JournalPresenceRow | undefined)?.present !== true) return [];
   const res = await pglite.query(
     `select id, hash, created_at from "${MIGRATION_JOURNAL_SCHEMA}"."${MIGRATION_JOURNAL_TABLE}" order by created_at asc, id asc`,
   );
-  return res.rows.map((row: any) => ({
-    id: Number(row.id),
-    hash: row.hash,
-    version: Number(row.created_at),
-  }));
+  return res.rows.map((raw: unknown) => {
+    const row = raw as JournalRow;
+    return {
+      id: Number(row.id),
+      hash: row.hash,
+      version: Number(row.created_at),
+    };
+  });
 }
 
 /**

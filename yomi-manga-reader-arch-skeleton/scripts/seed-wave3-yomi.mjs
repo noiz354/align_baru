@@ -4,7 +4,6 @@ import * as argon2 from 'argon2';
 import { loadEnv } from '../src/shared/validation/env.js';
 import { createDb, closeDb } from '../src/server/db/client.js';
 import * as schema from '../src/server/db/schema.js';
-import { eq } from 'drizzle-orm';
 
 const SEED_UUID_PREFIX = '594f4d49';
 function deterministicUuid(kind, key) {

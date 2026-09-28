@@ -1,6 +1,39 @@
 'use client';
 import { useEffect, useState } from 'react';
 
+/** `Response.json()` is typed `any`; reading it as `unknown` keeps that out of the call sites. */
+async function readJson(res: Response): Promise<unknown> {
+  const raw: unknown = await res.json();
+  return raw;
+}
+
+type ChapterListItem = { id: string; number: string | number; title: string };
+
+/**
+ * The chapters endpoint has been served under several envelope keys over time, so the reader
+ * accepts any of them. Each is checked rather than trusted, and an unrecognised shape yields
+ * no chapters instead of an arbitrary object.
+ */
+function readChapterList(raw: unknown): ChapterListItem[] {
+  if (typeof raw !== 'object' || raw === null) return [];
+  const record = raw as Record<string, unknown>;
+  const candidate = [record['chapters'], record['items'], record['data']].find(Array.isArray);
+  if (!Array.isArray(candidate)) return [];
+  return candidate.filter(
+    (entry): entry is ChapterListItem =>
+      typeof entry === 'object' && entry !== null && typeof (entry as ChapterListItem).id === 'string',
+  );
+}
+
+/** The stored page number, or undefined when the response carries no usable progress. */
+function readProgressPageNumber(raw: unknown): number | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const progress = (raw as Record<string, unknown>)['progress'];
+  if (typeof progress !== 'object' || progress === null) return undefined;
+  const pageNumber = (progress as Record<string, unknown>)['pageNumber'];
+  return typeof pageNumber === 'number' ? pageNumber : undefined;
+}
+
 interface PageAsset {
   pageNumber: number;
   urlAvif: string;
@@ -35,8 +68,8 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         // Fetch chapters list for this manga
         const chRes = await fetch(`/api/v1/manga/${slug}/chapters`);
         if (!chRes.ok) throw new Error(`chapters ${chRes.status}`);
-        const chData = await chRes.json();
-        const chapters: Array<{ id: string; number: string | number; title: string }> = chData.chapters ?? chData.items ?? chData.data ?? [];
+        const chData = await readJson(chRes);
+        const chapters = readChapterList(chData);
         // Find by number
         const target = chapters.find(c => String(c.number) === String(chapterNumber));
         if (!target) throw new Error(`Chapter ${chapterNumber} not found for ${slug}`);
@@ -45,7 +78,7 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         // Fetch pages
         const pRes = await fetch(`/api/v1/chapters/${target.id}/pages`);
         if (!pRes.ok) throw new Error(`pages ${pRes.status}`);
-        const pData: ChapterPagesResponse = await pRes.json();
+        const pData = (await readJson(pRes)) as ChapterPagesResponse;
         if (cancelled) return;
         setPages(pData.pages);
         setMangaTitle(pData.chapter.mangaTitle);
@@ -53,26 +86,27 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         // Fetch progress
         const progRes = await fetch(`/api/chapters/${target.id}/progress`);
         if (progRes.ok) {
-          const prog = await progRes.json();
-          const pn = prog?.progress?.pageNumber;
-          if (Number.isInteger(pn) && pn >= 1 && pn <= pData.pages.length) {
+          const prog = await readJson(progRes);
+          const pn = readProgressPageNumber(prog);
+          if (pn !== undefined && Number.isInteger(pn) && pn >= 1 && pn <= pData.pages.length) {
             setPage(pn);
           }
         }
-      } catch (e: any) {
-        if (!cancelled) setError(String(e?.message ?? e));
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [slug, chapterNumber]);
 
   // Save progress on page change
   useEffect(() => {
     if (!chapterId) return;
-    const t = setTimeout(async () => {
+    const t = setTimeout(() => {
+      void (async () => {
       setSaving(true);
       try {
         await fetch(`/api/chapters/${chapterId}/progress`, {
@@ -83,15 +117,20 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
       } finally {
         setSaving(false);
       }
+      })();
     }, 300);
     return () => clearTimeout(t);
   }, [page, chapterId]);
 
   if (loading) return <div style={{ padding: 24 }}>Loading reader…</div>;
   if (error) return <div style={{ padding: 24 }}><h2>Reader error</h2><pre>{error}</pre></div>;
-  if (pages.length === 0) return <div style={{ padding: 24 }}>No pages</div>;
 
-  const current = pages.find(p => p.pageNumber === page) ?? pages[0];
+  // Binding the first page and testing the binding is what proves it exists:
+  // `pages.length === 0` does not narrow `pages[0]` under noUncheckedIndexedAccess.
+  const firstPage = pages[0];
+  if (!firstPage) return <div style={{ padding: 24 }}>No pages</div>;
+
+  const current = pages.find(p => p.pageNumber === page) ?? firstPage;
   const maxPage = pages.length;
   const prev = () => setPage(p => Math.max(1, p - 1));
   const next = () => setPage(p => Math.min(maxPage, p + 1));
@@ -106,8 +145,7 @@ export function ReaderClient({ slug, chapterNumber }: { slug: string; chapterNum
         <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{chapterId?.slice(0, 8)} • {slug} ch{chapterNumber}</span>
       </div>
       <div style={{ border: '1px solid #ddd', background: '#fafafa', minHeight: 720, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Use <picture> for AVIF→WebP→JPEG as per contract, but simple <img> with jpeg fallback also works */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* JPEG is the universally supported variant; AVIF/WebP delivery is T-UPLOAD-* scope. */}
         <img
           src={current.urlJpeg}
           alt={`Page ${page}`}

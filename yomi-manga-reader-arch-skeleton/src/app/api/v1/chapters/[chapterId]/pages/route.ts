@@ -4,8 +4,6 @@
  */
 import { loadEnv } from '../../../../../../shared/validation/env';
 import { createDb, closeDb } from '../../../../../../server/db/client';
-import * as schema from '../../../../../../server/db/schema';
-import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/server/db/client';
-import { listOccurrences, createDefinition, createOccurrence, findDefinitionById } from '@/server/db/repositories/chores';
+import { listOccurrences, createDefinition, createOccurrence } from '@/server/db/repositories/chores';
 import { randomUUID } from 'node:crypto';
 
 export async function GET(req: Request) {

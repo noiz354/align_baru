@@ -11,16 +11,14 @@
  * Task: dev fallback for YOMI wave 2 when no S3/MinIO is available.
  */
 
-import { mkdir, rm, stat, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, rm, stat } from 'node:fs/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { tmpdir } from 'node:os';
-import { mkdtemp } from 'node:fs/promises';
 import { AppError } from '../../shared/contracts/errors';
 import type { AssetKey } from '../../shared/types';
-import type { DeliveryFormat, ObjectStoragePort } from '../../shared/contracts/ports';
+import type { ObjectStoragePort } from '../../shared/contracts/ports';
 import { ObjectNotFoundError } from './object-storage';
 
 /** Root directory for filesystem storage. Overridable via STORAGE_DIR. */
@@ -43,6 +41,14 @@ function contentTypeForKey(key: string): string {
   return 'application/octet-stream';
 }
 
+/**
+ * Node's filesystem errors carry a `code` such as ENOENT. A `catch` binding is `unknown`,
+ * so it is narrowed here before the code is read, instead of typing the binding as `any`.
+ */
+function isErrnoException(value: unknown): value is NodeJS.ErrnoException {
+  return typeof value === 'object' && value !== null && 'code' in value;
+}
+
 function storageFailure(op: string, cause: unknown): AppError {
   return new AppError('STORAGE_ERROR', { cause: new Error(`filesystem storage ${op} failed`, { cause }) });
 }
@@ -55,7 +61,7 @@ export function createFilesystemStorage(): ObjectStoragePort & { client?: unknow
       // stream is AsyncIterable<Uint8Array> or ReadableStream
       try {
         if (isReadableStream(stream)) {
-          const readable = Readable.fromWeb(stream as any);
+          const readable = Readable.fromWeb(stream as import('node:stream/web').ReadableStream);
           await pipeline(readable, createWriteStream(path));
         } else {
           // AsyncIterable
@@ -74,7 +80,7 @@ export function createFilesystemStorage(): ObjectStoragePort & { client?: unknow
       }
     },
 
-    async getStream(key, _options) {
+    async getStream(key: AssetKey) {
       const path = keyToPath(key);
       try {
         const st = await stat(path);
@@ -84,8 +90,8 @@ export function createFilesystemStorage(): ObjectStoragePort & { client?: unknow
           contentType: contentTypeForKey(key),
           byteLength: st.size,
         };
-      } catch (cause: any) {
-        if (cause?.code === 'ENOENT') throw new ObjectNotFoundError('getStream', { cause });
+      } catch (cause: unknown) {
+        if (isErrnoException(cause) && cause.code === 'ENOENT') throw new ObjectNotFoundError('getStream', { cause });
         throw storageFailure('get', cause);
       }
     },
@@ -95,8 +101,8 @@ export function createFilesystemStorage(): ObjectStoragePort & { client?: unknow
       try {
         const st = await stat(path);
         return { contentType: contentTypeForKey(key), byteLength: st.size };
-      } catch (cause: any) {
-        if (cause?.code === 'ENOENT') return null;
+      } catch (cause: unknown) {
+        if (isErrnoException(cause) && cause.code === 'ENOENT') return null;
         throw storageFailure('head', cause);
       }
     },
@@ -127,5 +133,5 @@ export function createFilesystemStorage(): ObjectStoragePort & { client?: unknow
 }
 
 function isReadableStream(s: unknown): boolean {
-  return typeof (s as any)?.getReader === 'function';
+  return typeof (s as { getReader?: unknown })?.getReader === 'function';
 }

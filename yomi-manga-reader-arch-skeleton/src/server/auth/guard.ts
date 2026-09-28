@@ -1,7 +1,5 @@
 import { createDb, closeDb } from '../db/client';
 import { loadEnv } from '../../shared/validation/env';
-import { sessions, users } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
 
 export interface AuthenticatedUser {
   id: string;
@@ -45,10 +43,7 @@ export async function getSessionUser(request: Request): Promise<AuthenticatedUse
 export async function requireUser(request: Request): Promise<AuthenticatedUser> {
   const u = await getSessionUser(request);
   if (!u) {
-    const err: any = new Error('AUTH_REQUIRED');
-    err.code = 'AUTH_REQUIRED';
-    err.status = 401;
-    throw err;
+    throw Object.assign(new Error('AUTH_REQUIRED'), { code: 'AUTH_REQUIRED', status: 401 });
   }
   return u;
 }

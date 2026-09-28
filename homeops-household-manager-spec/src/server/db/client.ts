@@ -52,7 +52,22 @@ export const schema = {
 } as const;
 
 export type Schema = typeof schema;
-export type Db = PostgresJsDatabase<Schema> | PgliteDatabase<Schema>;
+
+/**
+ * The driver is chosen at runtime from `DATABASE_URL`: real Postgres, or PGlite as a
+ * file-backed dev fallback (wave2, mirroring yomi/majelishub).
+ *
+ * `Db` is the single concrete driver type rather than a union of the two. The drivers
+ * build identical queries and differ only in the query-result dialect they are typed
+ * with, but a union makes every chained builder method ambiguous: `PostgresJsDatabase`
+ * and `PgliteDatabase` instantiate the same builders with differently branded
+ * query-result kinds, so a call like `.returning({...})` resolves against neither
+ * overload and is reported as "Expected 0 arguments, but got 1". That broke eight call
+ * sites. Query construction is driver-agnostic, so it is typed against one driver; the
+ * runtime object is unchanged and the driver identity is still recoverable through
+ * `isPgliteDb`.
+ */
+export type Db = PostgresJsDatabase<Schema>;
 export type DbClient = Sql;
 export type DbTransaction = TransactionSql;
 
@@ -93,7 +108,7 @@ export function isDatabaseConfigured(env: NodeJS.ProcessEnv = process.env): bool
 export async function pingDatabase(): Promise<void> {
   const c = getCache();
   if (c.sql) await c.sql`select 1`;
-  else await (c.db as PgliteDatabase<Schema>).execute('select 1');
+  else await (c.db as unknown as PgliteDatabase<Schema>).execute('select 1');
 }
 
 /** Close the pool (graceful shutdown, ADR-015; used by scripts and by test teardown). */
@@ -105,7 +120,7 @@ export async function closeDb(): Promise<void> {
 }
 
 export function isPgliteDb(db: Db): boolean {
-  return !(db as PostgresJsDatabase<Schema>).execute || typeof (db as PgliteDatabase<Schema>).query === 'object';
+  return !db.execute || typeof (db as unknown as PgliteDatabase<Schema>).query === 'object';
 }
 
 function getCache(): Cache {
@@ -122,7 +137,9 @@ function getCache(): Cache {
     // PGlite constructor expects path; for pglite:// we pass the path part
     const path = pgliteUrl.replace(/^pglite:\/\//, '').replace(/^file:\/\//, '');
     const pglite = new PGlite(path || '/tmp/homeops-pglite');
-    const db = drizzlePglite({ client: pglite, schema }) as unknown as PgliteDatabase<Schema>;
+    // I/O boundary: a PGlite instance is cast to the shared `Db` type. See the note on
+    // `Db` for why query building is typed against the postgres driver.
+    const db = drizzlePglite({ client: pglite, schema }) as unknown as Db;
     cache = { db, pglite };
     return cache;
   }

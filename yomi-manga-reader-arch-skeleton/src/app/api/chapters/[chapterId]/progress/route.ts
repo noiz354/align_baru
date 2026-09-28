@@ -40,7 +40,8 @@ export async function POST(request: Request, context: RouteContext) {
     return Response.json({ error: { code: 'AUTH_REQUIRED', message: 'Authentication required' } }, { status: 401 });
   }
   const { chapterId } = await context.params;
-  let body: any;
+  // Untrusted input: typed by the fields read here, then coerced explicitly.
+  let body: { pageNumber?: unknown; scrollPosition?: unknown; completed?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } }, { status: 422 }); }
   const pageNumber = Number(body?.pageNumber);
   const scrollPosition = Number(body?.scrollPosition ?? 0);

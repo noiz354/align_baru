@@ -17,20 +17,41 @@ import { createDb, closeDb } from '../src/server/db/client.js';
 import { runMigrations } from '../src/server/db/migrations.js';
 import * as schema from '../src/server/db/schema.js';
 import { createFilesystemStorage } from '../src/server/storage/filesystem.js';
-import { eq } from 'drizzle-orm';
+
+/**
+ * Asset keys are branded so an arbitrary string cannot reach the storage port. Every key in
+ * this script is built from validated columns, so the brand is applied once here rather than
+ * asserted at each call site.
+ * @param {string} key
+ * @returns {import('../src/shared/types/ids.js').AssetKey}
+ */
+function brandedAssetKey(key) {
+  return /** @type {import('../src/shared/types/ids.js').AssetKey} */ (key);
+}
 
 const SEED_UUID_PREFIX = '594f4d49';
+/**
+ * @param {string} kind
+ * @param {string} key
+ * @returns {string}
+ */
 function deterministicUuid(kind, key) {
   const hash = createHash('sha256').update(`${kind}:${key}`).digest('hex');
   // v7-shaped: set version 7 and variant 8
   const raw = SEED_UUID_PREFIX + hash.slice(8, 32);
   const chars = raw.split('');
   chars[12] = '7';
-  const v = parseInt(chars[19], 16);
+  const v = parseInt(chars[19] ?? '0', 16);
   chars[19] = ((v & 0x3) | 0x8).toString(16);
   return `${chars.slice(0,8).join('')}-${chars.slice(8,12).join('')}-${chars.slice(12,16).join('')}-${chars.slice(16,20).join('')}-${chars.slice(20,32).join('')}`;
 }
 
+/**
+ * @param {string} slug
+ * @param {string} chapterNumber
+ * @param {number} pageNumber
+ * @returns {string}
+ */
 function assetKeyFor(slug, chapterNumber, pageNumber) {
   return createHash('sha256').update(`${slug}|${chapterNumber}|${pageNumber}`).digest('hex').slice(0, 32);
 }
@@ -44,6 +65,9 @@ const MANGA_SPECS = [
 const CHAPTERS_PER_MANGA = 2;
 const PAGES_PER_CHAPTER = 6;
 
+/**
+ * @param {{ title: string, chapterNumber: string, pageNumber: number, width?: number, height?: number }} options
+ */
 async function renderPage({ title, chapterNumber, pageNumber, width = 480, height = 720 }) {
   const bg = pageNumber % 2 === 0 ? '#e6f0ff' : '#fff4e6';
   const accent = title === 'Ame no Machi' ? '#3b82f6' : title === 'Kuroi Hoshi' ? '#1f2937' : '#f59e0b';
@@ -87,7 +111,6 @@ async function main() {
   const userEmail = 'reader.demo@example.test';
   const userId = deterministicUuid('user', userEmail);
   const existingUser = await db.query.users.findFirst({ where: (f, { eq }) => eq(f.email, userEmail) });
-  let targetUserId = existingUser?.id ?? userId;
   if (!existingUser) {
     const hash = await argon2.hash('demo-password-123', { type: argon2.argon2id });
     await db.insert(schema.users).values({
@@ -99,10 +122,8 @@ async function main() {
       status: 'active',
     }).onConflictDoNothing();
     console.log(`[seed-wave2] user created ${userEmail} ${userId}`);
-    targetUserId = userId;
   } else {
     console.log(`[seed-wave2] user exists ${userEmail} ${existingUser.id}`);
-    targetUserId = existingUser.id;
   }
 
   // Also ensure genres/tags exist for FK
@@ -124,8 +145,10 @@ async function main() {
   // 2. Create manga + chapters + pages
   for (const spec of MANGA_SPECS) {
     const mangaId = deterministicUuid('manga', spec.slug);
-    let existingManga = await db.query.manga.findFirst({ where: (f, { eq }) => eq(f.slug, spec.slug) });
-    if (!existingManga) {
+    const existingManga = await db.query.manga.findFirst({ where: (f, { eq }) => eq(f.slug, spec.slug) });
+    if (existingManga) {
+      console.log(`[seed-wave2] manga exists ${spec.title} ${existingManga.id}`);
+    } else {
       const coverKey = assetKeyFor(spec.slug, 'cover', 1);
       await db.insert(schema.manga).values({
         id: mangaId,
@@ -137,33 +160,32 @@ async function main() {
         published: true,
         coverAssetKey: coverKey,
       }).onConflictDoNothing();
-      // cover image
+      // Cover variants follow the ADR-004 layout: covers/{mangaId}.{ext}.
       const coverImg = await renderPage({ title: spec.title, chapterNumber: 'Cover', pageNumber: 1, width: 400, height: 600 });
-      // store cover variants as pages/{mangaId}.ext? Actually layout is covers/{mangaId}.{ext}
-      // For filesystem we store under covers/
-      const coverBase = coverKey;
       for (const fmt of ['avif', 'webp', 'jpeg']) {
         const buf = fmt === 'avif' ? coverImg.avif : fmt === 'webp' ? coverImg.webp : coverImg.jpeg;
-        const key = `covers/${mangaId}.${fmt}`;
+        const key = brandedAssetKey(`covers/${mangaId}.${fmt}`);
         await storage.putStream(key, ReadableStreamFrom(buf), fmt === 'avif' ? 'image/avif' : fmt === 'webp' ? 'image/webp' : 'image/jpeg');
       }
       console.log(`[seed-wave2] manga created ${spec.title} ${mangaId}`);
-      existingManga = { id: mangaId, slug: spec.slug };
-    } else {
-      console.log(`[seed-wave2] manga exists ${spec.title} ${existingManga.id}`);
     }
-    const mid = existingManga.id;
+    // The id is deterministic in the slug, so a rerun either finds the row a previous run
+    // inserted or inserts that same id. Reading it from the lookup with a fallback avoids
+    // inventing a second, partial "manga row" value just to carry the id.
+    const mid = existingManga?.id ?? mangaId;
 
     // link genre/tag (first of each)
-    const gid = genreMap.get(genreNames[0]);
-    const tid = tagMap.get(tagNames[0]);
+    const [firstGenre] = genreNames;
+    const [firstTag] = tagNames;
+    const gid = firstGenre ? genreMap.get(firstGenre) : undefined;
+    const tid = firstTag ? tagMap.get(firstTag) : undefined;
     if (gid) await db.insert(schema.mangaGenre).values({ mangaId: mid, genreId: gid }).onConflictDoNothing();
     if (tid) await db.insert(schema.mangaTag).values({ mangaId: mid, tagId: tid }).onConflictDoNothing();
 
     for (let c = 1; c <= CHAPTERS_PER_MANGA; c++) {
       const chapterNumber = String(c);
       const chapterId = deterministicUuid('chapter', `${mid}#${chapterNumber}`);
-      let existingChapter = await db.query.chapter.findFirst({ where: (f, { eq }) => eq(f.id, chapterId) });
+      const existingChapter = await db.query.chapter.findFirst({ where: (f, { eq }) => eq(f.id, chapterId) });
       if (!existingChapter) {
         await db.insert(schema.chapter).values({
           id: chapterId,
@@ -177,7 +199,6 @@ async function main() {
           readingOrder: c,
         }).onConflictDoNothing();
         console.log(`[seed-wave2] chapter created ${spec.slug} #${c} ${chapterId}`);
-        existingChapter = { id: chapterId };
       }
       // Check pages exist
       const existingPages = await db.query.chapterPage.findMany({ where: (f, { eq }) => eq(f.chapterId, chapterId) });
@@ -195,7 +216,7 @@ async function main() {
         // store variants
         for (const fmt of ['avif', 'webp', 'jpeg']) {
           const buf = fmt === 'avif' ? rendered.avif : fmt === 'webp' ? rendered.webp : rendered.jpeg;
-          const s3Key = `pages/${chapterId}/${assetKey}.${fmt}`;
+          const s3Key = brandedAssetKey(`pages/${chapterId}/${assetKey}.${fmt}`);
           await storage.putStream(s3Key, ReadableStreamFrom(buf), fmt === 'avif' ? 'image/avif' : fmt === 'webp' ? 'image/webp' : 'image/jpeg');
         }
         await db.insert(schema.chapterPage).values({
@@ -225,6 +246,10 @@ async function main() {
   console.log('[seed-wave2] done');
 }
 
+/**
+ * @param {Buffer} buf
+ * @returns {ReadableStream<Uint8Array>}
+ */
 function ReadableStreamFrom(buf) {
   return new ReadableStream({
     start(controller) {

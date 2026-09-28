@@ -52,26 +52,15 @@
  */
 
 import postgres from 'postgres';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzlePg, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { PGlite } from '@electric-sql/pglite';
 import type { Notice, Sql } from 'postgres';
 import type { Env } from '../../shared/validation';
 import * as schema from './schema';
+import { isPgliteDsn } from './dialect';
 
 /** True when DATABASE_URL selects the embedded PGlite engine (dev fallback when no PG 18 is available). */
-function isPGliteUrl(url: string): boolean {
-  const trimmed = url.trim();
-  return (
-    trimmed.startsWith('pglite://') ||
-    trimmed.startsWith('file:') ||
-    trimmed.startsWith('memory:') ||
-    trimmed === ':memory:' ||
-    trimmed.startsWith('/tmp/') ||
-    trimmed.startsWith('./') ||
-    trimmed.endsWith('.db')
-  );
-}
 
 /**
  * Pool ceiling per process — DEPLOYMENT.md §1 ("app pool 10" against server
@@ -162,13 +151,23 @@ export function createPostgresClient(
   });
 }
 
-/** The Drizzle handle repositories are written against. */
-export type Db = ReturnType<typeof createDbCore>['db'];
+/**
+ * The Drizzle handle repositories are written against.
+ *
+ * Typed as the postgres driver rather than as a union of the two supported drivers
+ * (T-FOUND-005 pins the dialect; PGlite is the wave2 dev fallback). Both drivers build
+ * identical queries and differ only in the branded query-result kind they carry, but a
+ * union instantiates the same query builders with two different result kinds, so every
+ * chained method becomes ambiguous and a call such as `.returning({ ... })` is rejected
+ * with "Expected 0 arguments, but got 1" at twenty sites. The driver is still chosen at
+ * runtime in `createDbCore`; only the static type is unified.
+ */
+export type Db = PostgresJsDatabase<typeof schema> & { close(): Promise<void> };
 
 /** Internal: builds the driver client and its Drizzle wrapper together. */
 function createDbCore(env: Env, options: PostgresClientOptions = {}) {
   // PGlite dev fallback: DATABASE_URL like `pglite://...`, `file:...`, `/tmp/...` or `./data.db`
-  if (isPGliteUrl(env.databaseUrl)) {
+  if (isPgliteDsn(env.databaseUrl)) {
     // Map `pglite://` + path or plain file path to PGlite dataDir
     let dataDir: string | undefined;
     const url = env.databaseUrl.trim();
@@ -183,16 +182,20 @@ function createDbCore(env: Env, options: PostgresClientOptions = {}) {
       dataDir = url; // e.g. /tmp/yomi-pglite, ./data/pglite
     }
     const pglite = new PGlite(dataDir);
-    // drizzle-orm/pglite expects a PGlite instance
-    const database: any = drizzlePglite(pglite as any, { schema });
+    // Typed, not `any`: annotating the instance as `any` here made the whole
+    // `createDbCore` return type collapse to `any` (one union member being `any`
+    // absorbs the other), which silently untyped every `db.query.*` callback in the
+    // codebase — the callbacks stopped reporting a `db` type and every parameter
+    // became an implicit `any` under `strict`.
+    const database = drizzlePglite(pglite, { schema });
     const db = Object.assign(database, {
       close(): Promise<void> {
-        return (pglite as any).close();
+        return pglite.close();
       },
       // expose underlying for migrations
       __pglite: pglite,
     });
-    return { db, client: pglite as unknown as Sql };
+    return { db: db as unknown as Db, client: pglite as unknown as Sql };
   }
   const client = createPostgresClient(env.databaseUrl, options);
   const database = drizzlePg(client, { schema });
@@ -224,13 +227,14 @@ function createDbCore(env: Env, options: PostgresClientOptions = {}) {
  */
 export async function createDb(env: Env, options: PostgresClientOptions = {}): Promise<Db> {
   const { db, client } = createDbCore(env, options);
-  const isPglite = isPGliteUrl(env.databaseUrl);
+  const isPglite = isPgliteDsn(env.databaseUrl);
   try {
     if (isPglite) {
-      // PGlite: use Drizzle's execute for round-trip
-      await (db as any).execute('select 1');
+      // PGlite round-trip. `execute` is declared on the PGlite driver, not on the shared
+      // `Db` type, so the handle is narrowed to the shape this call actually needs.
+      await (db as unknown as { execute(query: string): Promise<unknown> }).execute('select 1');
     } else {
-      await (client as Sql)`select 1`;
+      await (client)`select 1`;
     }
   } catch (cause) {
     await db.close();

@@ -2,7 +2,6 @@ import { createDb, closeDb } from '../../../server/db/client';
 import { loadEnv } from '../../../shared/validation/env';
 import * as schema from '../../../server/db/schema';
 import { getSessionUser } from '../../../server/auth/guard';
-import { eq, and } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +21,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getSessionUser(request);
   if (!user) return Response.json({ error: { code: 'AUTH_REQUIRED' } }, { status: 401 });
-  let body: any;
+  // Untrusted input: typed by the fields read here, then coerced explicitly.
+  let body: { mangaId?: unknown; slug?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: { code: 'VALIDATION_BAD_QUERY' } }, { status: 422 }); }
   let mangaId = body?.mangaId as string | undefined;
   const slug = body?.slug as string | undefined;
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (!manga) return Response.json({ error: { code: 'MANGA_NOT_FOUND' } }, { status: 404 });
     await db.insert(schema.libraryEntry).values({
       userId: user.id,
-      mangaId: mangaId!,
+      mangaId: mangaId,
       addedAt: new Date(),
     }).onConflictDoNothing();
     return Response.json({ ok: true, mangaId }, { status: 200 });

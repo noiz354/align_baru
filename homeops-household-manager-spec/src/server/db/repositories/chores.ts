@@ -1,6 +1,6 @@
 // HomeOps — chores repository (T-CHORE-001..004). Wave2 narrow vertical: Today + complete.
 
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import { choreOccurrence, choreDefinition } from '../schema/chores';
 import type { DbOrTx } from '../unit-of-work';
 

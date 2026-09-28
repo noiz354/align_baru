@@ -4,13 +4,23 @@ import { loadEnv } from '../../../../shared/validation/env';
 import * as schema from '../../../../server/db/schema';
 import { eq } from 'drizzle-orm';
 
+/**
+ * Request bodies are untrusted, so a field is only treated as a string when it really is one.
+ * `String(value)` would accept anything and stringify objects into "[object Object]", which
+ * then reads as a valid id.
+ */
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request): Promise<Response> {
-  let body: any;
+  // Untrusted credentials input: typed by the fields read here, then coerced explicitly.
+  let body: { email?: unknown; password?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: { code: 'VALIDATION_BAD_QUERY', message: 'Invalid JSON' } }, { status: 422 }); }
-  const email = String(body?.email ?? '').trim();
-  const password = String(body?.password ?? '');
+  const email = asString(body?.email).trim();
+  const password = asString(body?.password);
   if (!email || !password) {
     return Response.json({ error: { code: 'AUTH_INVALID', message: 'Invalid credentials' } }, { status: 401 });
   }
