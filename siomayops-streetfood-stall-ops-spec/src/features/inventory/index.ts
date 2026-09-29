@@ -2,6 +2,7 @@ import { memoryStore, generateId } from "../../server/db/memory-store";
 import { deriveStockPosition, computeStockVariance } from "../../domain/inventory/variance";
 import { writeAuditEvent } from "../audit";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export async function createStockItem(input: {

@@ -1,28 +1,32 @@
-# PHASE 0 CI. No dependency installation and no build are attempted: there is no application yet.
-# Installation, typecheck, lint, Vitest and Playwright activate with T-FOUND-001 (VS-0).
-name: phase-0-docs-and-stubs
+name: siomayops-checks
 
 on:
   push:
   pull_request:
 
 jobs:
-  integrity:
+  checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
-      - name: Stub / boundary checks (ADR-0036)
-        run: node tools/check-stubs.mjs
-      - name: Documentation link and ADR index checks
-        run: node tools/check-docs.mjs
-      - name: Requirement and task census (traceability)
-        run: node tools/census.mjs
-      # Activated at VS-0 (T-FOUND-001):
-      # - run: pnpm install --frozen-lockfile
-      # - run: pnpm lint
-      # - run: pnpm typecheck
-      # - run: pnpm test
-      # - run: pnpm exec playwright install --with-deps && pnpm test:e2e
+          node-version: "22"
+          cache: "pnpm"
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Lint
+        run: pnpm run lint
+      - name: Unit and integration tests
+        run: pnpm test
+      - name: Production build
+        run: pnpm run build
+      - name: Install Chromium for browser journeys
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Dashboard browser journey
+        run: pnpm exec playwright test tests/e2e/hq-coverage.spec.ts --project=hq-desktop

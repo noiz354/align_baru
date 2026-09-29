@@ -43,6 +43,7 @@ export interface PaymentProvider {
  * Fake provider for development and tests.
  * Deterministic, no external calls.
  */
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 class FakePaymentProvider implements PaymentProvider {
   readonly providerId = "FAKE";
   private payments = new Map<string, ProviderPayment>();

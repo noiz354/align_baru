@@ -40,6 +40,7 @@ export interface AuthPort {
 const DEFAULT_ORG_ID = "00000000-0000-7000-0000-000000000001";
 
 export function createAuthPort(): AuthPort {
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   return {
     async resolveSession(): Promise<SessionContext | null> {
       // This repository has no real session adapter yet. Never turn the development actor

@@ -5,6 +5,7 @@ import { writeAuditEvent } from "../audit";
 
 export type { LoyaltyAccountId, RewardInstanceId };
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 const DEFAULT_RULES = {
@@ -30,6 +31,7 @@ export async function identifyCustomer(input: {
   // Find existing by phone hash or token value
   for (const acc of memoryStore.loyaltyAccounts.values()) {
     if (acc.organizationId !== orgId) continue;
+    // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
     // Simplified: match by value stored as phoneE164
     if (acc.phoneE164 === input.value) {
       return { loyaltyAccountId: acc.id, consentRecorded: acc.consentGiven, rulesVersion: DEFAULT_RULES.rulesVersion };
@@ -63,6 +65,7 @@ export async function earnOnSale(input: {
 }): Promise<{ readonly loyaltyTransactionId: string; readonly pointsDelta: number }> {
   const sale = memoryStore.sales.get(input.saleId);
   if (!sale) throw Object.assign(new Error("Sale not found"), { code: "NOT_FOUND" });
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   // No self-award: if operatorId equals loyalty account's operator? Simplified: prevent if sale operator is same as account's linked operator (not implemented)
   // For pilot, allow all
   const points = computeEarn(DEFAULT_RULES, sale.totalMinor);

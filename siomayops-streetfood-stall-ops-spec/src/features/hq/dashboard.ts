@@ -1,4 +1,11 @@
 import { memoryStore, type StoredSale } from "@/server/db/memory-store";
+import type {
+  DashboardActivity,
+  DashboardAlert,
+  DashboardReadModel,
+  DashboardStatus,
+  DashboardOutletSummary,
+} from "@/shared/contracts/dashboard";
 import { DEFAULT_BUSINESS_DAY_CONFIG, toBusinessDay, type BusinessDay } from "@/shared/time/business-day";
 import type { Scope } from "@/shared/types/scope";
 
@@ -10,73 +17,13 @@ export class HqDashboardNotFoundError extends Error {
   }
 }
 
-export type OutletStatus = "OPERATING" | "ATTENTION" | "REVIEW" | "NOT_STARTED" | "CLOSED";
-export type DashboardAlertKind = "SHIFT_LOCATION_MISSING" | "FLAGGED_EXPENSE" | "INCIDENT" | "RECORDED_ALERT";
-
-export interface OutletSummary {
-  readonly id: string;
-  readonly name: string;
-  readonly areaId: string;
-  readonly operatorName: string | null;
-  readonly operatorId: string | null;
-  readonly activeShiftId: string | null;
-  readonly startedAt: string | null;
-  readonly salesMinor: number;
-  readonly transactionCount: number;
-  readonly expensesMinor: number;
-  readonly status: OutletStatus;
-  readonly statusReason: string | null;
-}
-
-export interface HqDashboardAlert {
-  readonly id: string;
-  readonly outletId: string | null;
-  readonly outletName: string | null;
-  readonly kind: DashboardAlertKind;
-  readonly severity: "INFO" | "WARNING" | "CRITICAL";
-  readonly title: string;
-  readonly description: string;
-  readonly createdAt: string;
-  readonly href: string | null;
-}
-
-export interface HqDashboardActivity {
-  readonly id: string;
-  readonly occurredAt: string;
-  readonly outletId: string | null;
-  readonly outletName: string | null;
-  readonly kind: "SALE" | "EXPENSE" | "SHIFT" | "PRODUCT" | "OTHER";
-  readonly description: string;
-  readonly amountMinor: number | null;
-  readonly secondary: string | null;
-}
-
-export interface HqDashboardReadModel {
-  readonly generatedAt: string;
-  readonly sourceWatermark: string | null;
-  readonly scope: { readonly businessDay: BusinessDay; readonly outletId: string | null };
-  readonly kpis: {
-    readonly salesMinor: number;
-    readonly previousDaySalesMinor: number;
-    readonly salesChangeBps: number | null;
-    readonly transactionCount: number;
-    readonly averageTransactionMinor: number;
-    readonly cashSalesMinor: number;
-    readonly digitalVerifiedMinor: number;
-    readonly digitalUnverifiedMinor: number;
-    readonly expensesMinor: number;
-    readonly expenseRatioBps: number;
-    readonly activeOutlets: number;
-    readonly totalOutlets: number;
-    readonly notStartedOutlets: number;
-  };
-  readonly salesTrend: readonly { readonly label: string; readonly cumulativeMinor: number }[];
-  readonly alerts: readonly HqDashboardAlert[];
-  readonly activity: readonly HqDashboardActivity[];
-  readonly outletOptions: readonly { readonly id: string; readonly name: string; readonly areaId: string }[];
-  readonly outlets: readonly OutletSummary[];
-  readonly pagination: { readonly limit: number; readonly nextCursor: string | null; readonly total: number };
-}
+// Keep the feature exports compatible while the shared contract remains the integration boundary.
+export type OutletStatus = Exclude<DashboardStatus, "ALL">;
+export type DashboardAlertKind = DashboardAlert["kind"];
+export type OutletSummary = DashboardOutletSummary;
+export type HqDashboardAlert = DashboardAlert;
+export type HqDashboardActivity = DashboardActivity;
+export type HqDashboardReadModel = DashboardReadModel;
 
 export interface DashboardQuery {
   readonly scope: Scope;
@@ -84,7 +31,7 @@ export interface DashboardQuery {
   readonly outletId?: string;
   readonly areaId?: string;
   readonly search?: string;
-  readonly status?: "ALL" | OutletStatus;
+  readonly status?: DashboardStatus;
   readonly cursor?: string;
   readonly limit?: number;
 }
@@ -432,7 +379,9 @@ export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
   const now = new Date();
   const locations = scopedLocations(input.scope, input.outletId, input.areaId);
   const allVisibleLocations = scopedLocations(input.scope, undefined, input.areaId);
+  const allAuthorizedLocations = scopedLocations(input.scope);
   const allVisible = new Map(allVisibleLocations.map((location) => [location.id, { id: location.id, name: location.name }]));
+  const areaOptions = Array.from(new Map(allAuthorizedLocations.map((location) => [location.areaId, { id: location.areaId }])).values()).sort((a, b) => a.id.localeCompare(b.id, "id-ID"));
   const { sales, completed } = salesForScopeDay(input.scope, input.businessDay, input.outletId, input.areaId);
   const salesMinor = completed.reduce((sum, sale) => sum + sale.totalMinor, 0);
   const saleIds = new Set(sales.map((sale) => sale.id));
@@ -466,7 +415,7 @@ export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
   return {
     generatedAt: now.toISOString(),
     sourceWatermark,
-    scope: { businessDay: input.businessDay, outletId: input.outletId ?? null },
+    scope: { businessDay: input.businessDay, outletId: input.outletId ?? null, areaId: input.areaId ?? null },
     kpis: {
       salesMinor,
       previousDaySalesMinor: previousSales,
@@ -485,6 +434,7 @@ export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
     salesTrend: trend,
     alerts,
     activity: getActivity(input.scope, input.businessDay, allVisible, input.outletId),
+    areaOptions,
     outletOptions: allVisibleLocations.map(({ id, name, areaId }) => ({ id, name, areaId })).sort((a, b) => a.name.localeCompare(b.name, "id-ID")),
     outlets: outletPage.rows,
     pagination: { limit: input.limit ?? 6, nextCursor: outletPage.nextCursor, total: outletPage.total },

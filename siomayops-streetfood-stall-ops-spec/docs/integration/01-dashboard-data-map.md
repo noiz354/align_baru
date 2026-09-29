@@ -1,4 +1,6 @@
-# Dashboard Data Map
+# Dashboard Data Map (Design Baseline)
+
+> This is the original contract/design baseline. Implementation status and source/runtime evidence are maintained in `01-dashboard-ground-truth.md`, `01-dashboard-architecture.md`, and `01-dashboard-gap-report.md`.
 
 **Document ID:** DOC-INT-DASHBOARD-DATA-MAP-01  
 **Target Surface:** Redesigned HQ Dashboard (`src/app/hq/page.tsx` & `/` HQ summary entrypoint)  

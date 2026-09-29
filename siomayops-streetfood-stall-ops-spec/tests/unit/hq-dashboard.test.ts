@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { memoryStore } from "@/server/db/memory-store";
 import { getHqDashboard, getHqOutletDetail, HqDashboardNotFoundError } from "@/features/hq/dashboard";
+import { dashboardResponseSchema } from "@/shared/contracts/dashboard";
 import type { Scope } from "@/shared/types/scope";
 
 const org = "org-dashboard-test";
@@ -48,6 +49,11 @@ describe("HQ dashboard read model", () => {
     expect(model.outlets.find((outlet) => outlet.id === locationId)?.salesMinor).toBe(20000);
     expect(model.salesTrend.at(-1)?.cumulativeMinor).toBe(20000);
     expect(model.activity[0]?.kind).toBe("EXPENSE");
+    const contract = dashboardResponseSchema.safeParse({
+      data: model,
+      meta: { requestId: "request-dashboard-test", freshnessBand: "current" },
+    });
+    expect(contract.success).toBe(true);
   });
 
   it("enforces area scope and hides another area's outlet even when its id is requested", () => {
@@ -73,7 +79,11 @@ describe("HQ dashboard read model", () => {
     expect(() => getHqOutletDetail({ scope: areaScope, businessDay: day, outletId: locationId })).toThrow(HqDashboardNotFoundError);
   });
 
-  it("applies search and cursor pagination after server-side scoping", () => {
+  it("applies area, search and cursor pagination after server-side scoping", () => {
+    const all = getHqDashboard({ scope: orgScope, businessDay: day, limit: 10 });
+    expect(all.areaOptions.map((option) => option.id)).toEqual([area, "area-other"]);
+    expect(getHqDashboard({ scope: orgScope, businessDay: day, areaId: area, limit: 10 }).outletOptions.map((outlet) => outlet.id)).toEqual([locationId]);
+
     const first = getHqDashboard({ scope: orgScope, businessDay: day, search: "Manggarai", limit: 1 });
     expect(first.outlets).toHaveLength(1);
     expect(first.outlets[0]?.name).toBe("Manggarai");

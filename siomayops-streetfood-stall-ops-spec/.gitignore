@@ -16,4 +16,5 @@ build/
 # evidence and exports must never be committed
 evidence/
 exports/
+data/
 *.pem

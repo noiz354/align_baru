@@ -5,6 +5,7 @@ import { computeSaleTotalFromSnapshots } from "../../domain/sale/totals";
 import { resolvePriceForSale } from "../pricing";
 import { writeAuditEvent } from "../audit";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export interface CreateSaleInput {

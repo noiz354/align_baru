@@ -4,6 +4,7 @@
  * Every table includes organization_id for scoping (INV-11, ARC-08).
  * Persistence: file-backed via data/db.json (survives restart), atomic write.
  */
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 
 import fs from "node:fs";
 import path from "node:path";
@@ -582,6 +583,7 @@ function toJakartanBusinessDay(now: Date): string {
   return `${y}-${pad2(m)}-${pad2(dd)}`;
 }
 
+// MOCK ONLY — UI DEVELOPMENT DATA — NOT PRODUCTION DATA
 function ensureSeed() {
   const ORG = "00000000-0000-7000-0000-000000000001";
   const AREA = "00000000-0000-7000-0000-000000000003";
@@ -685,6 +687,7 @@ function ensureSeed() {
     seeded = true;
   }
 
+  // MOCK ONLY — UI DEVELOPMENT DATA — NOT PRODUCTION DATA
   // Menu items — 4 items matching MOCK_MENU prices
   const menuSeed: { id: string; name: string; cat: string; price: number; sort: number }[] = [
     { id: "00000000-0000-7000-0000-000000000101", name: "Siomay Ayam", cat: CAT1, price: 15000, sort: 1 },

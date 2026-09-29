@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authorize } from "@/server/auth/port";
+import { dashboardResponseSchema, dashboardStatusSchema } from "@/shared/contracts/dashboard";
+import { logger, metrics } from "@/server/telemetry";
 import { errorResponse, getRequestId, resolveSession } from "../../_helpers";
 import { getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError, type OutletStatus } from "@/features/hq/dashboard";
 
@@ -12,10 +14,11 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }, "Expected a real calendar date");
-const statusSchema = z.enum(["ALL", "OPERATING", "ATTENTION", "REVIEW", "NOT_STARTED", "CLOSED"]);
+const statusSchema = dashboardStatusSchema;
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId();
+  const startedAt = performance.now();
   try {
     const session = await resolveSession();
     if (!session) return errorResponse("UNAUTHENTICATED", "Sign in is required", 401, requestId);
@@ -45,12 +48,29 @@ export async function GET(request: NextRequest) {
       cursor: params.get("cursor") || undefined,
       limit: limitRaw,
     });
-    return NextResponse.json({ data: model, meta: { requestId, freshnessBand: "current" } }, {
+    const response = { data: model, meta: { requestId, freshnessBand: "current" as const } };
+    const contractResult = dashboardResponseSchema.safeParse(response);
+    if (!contractResult.success) {
+      logger.error("Dashboard read model failed its page contract", contractResult.error, {
+        organizationId: session.organizationId,
+        actorId: session.userId,
+        correlationId: requestId,
+        route: "/api/v1/hq/dashboard",
+      });
+      metrics.increment("dashboard.read_model.contract_failure");
+      return errorResponse("INTERNAL", "Dashboard data is unavailable", 500, requestId);
+    }
+    metrics.observeDuration("dashboard.read_model.latency", (performance.now() - startedAt) / 1000);
+    return NextResponse.json(contractResult.data, {
       headers: { "X-Request-Id": requestId, "Cache-Control": "private, no-store" },
     });
   } catch (error) {
     if (error instanceof HqDashboardNotFoundError) return errorResponse("NOT_FOUND", error.message, 404, requestId);
     const status = (error as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
+    if (status === 500) {
+      logger.error("Dashboard read failed", error, { route: "/api/v1/hq/dashboard", correlationId: requestId });
+      metrics.increment("dashboard.read.failure");
+    }
     return errorResponse(status === 403 ? "FORBIDDEN" : "INTERNAL", status === 403 ? "Dashboard access denied" : "Unable to load dashboard data", status, requestId);
   }
 }

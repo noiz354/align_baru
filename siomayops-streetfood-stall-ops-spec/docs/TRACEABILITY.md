@@ -69,6 +69,12 @@ Enforced by tooling:
 | `COMP` | 4 | PRIVACY.md, SECURITY.md | T-FOUND-006 | integration/audit-append-only | QA-A |
 | `UX` | 6 | DESIGN.md | T-CLOSE-002, T-FOUND-002 | browser/tap-budget, browser/offline-states | QA-K |
 
+## Dashboard vertical-slice evidence (2026-09-29)
+
+| Surface | Contract | Server boundary | Read model | Tests | Status |
+| --- | --- | --- | --- | --- | --- |
+| `/` HQ dashboard | `src/shared/contracts/dashboard.ts` | `GET /api/v1/hq/dashboard` | `src/features/hq/dashboard.ts` | `tests/unit/hq-dashboard.test.ts`, `tests/integration/dashboard-boundary.test.ts`, `tests/e2e/hq-coverage.spec.ts` | `PARTIALLY_INTEGRATED`; see `docs/integration/01-dashboard-gap-report.md` |
+
 ## 4. Task detail for the pilot slices (VS-0 … VS-9)
 
 Only the slices needed for pilot readiness are expanded; later slices are expanded when their tasks start, so this

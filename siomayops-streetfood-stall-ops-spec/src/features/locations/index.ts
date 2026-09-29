@@ -16,6 +16,7 @@ export interface SellingPoint {
   readonly organizationId: string;
 }
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export async function createSellingPoint(input: {
@@ -273,6 +274,7 @@ export async function proposeSellingPoint(input: {
   operatorId: OperatorId; shiftId: ShiftId; name: string; addressText: string; note?: string; organizationId?: string;
 }): Promise<{ readonly proposalId: string; readonly verificationState: "PENDING_VERIFICATION" }> {
   const id = generateId();
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   // In this simplified implementation, we create a selling location with PENDING_VERIFICATION status via alert
   const orgId = input.organizationId || DEFAULT_ORG;
   const shift = memoryStore.shifts.get(input.shiftId);
@@ -282,6 +284,7 @@ export async function proposeSellingPoint(input: {
   memoryStore.sellingLocations.set(locId, {
     id: locId,
     organizationId: orgId,
+    // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
     areaId: "00000000-0000-0000-0000-000000000000", // placeholder
     name: input.name,
     addressText: input.addressText,

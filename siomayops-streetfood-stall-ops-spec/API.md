@@ -1,8 +1,8 @@
 # API — Contract Catalogue
 
 **Document ID:** DOC-API
-**Status:** Phase 0 — contracts only (**no handlers implemented**)
-**Base path:** `/api/v1` · **Format:** JSON over HTTPS · **Auth:** session cookie (planned)
+**Status:** Contract catalogue; the dashboard read boundary is implemented against the pilot adapter, while production auth/persistence remain open (see `docs/integration/01-dashboard-gap-report.md`).
+**Base path:** `/api/v1` · **Format:** JSON over HTTPS · **Auth:** session boundary (development adapter only for the dashboard slice)
 **Related:** `ARCHITECTURE.md` §6, `OFFLINE.md`, `EVENTS.md`, ADR-0013, ADR-0014, ADR-0034
 
 ---
@@ -34,6 +34,22 @@
 `STALE_DATA` · `PAYMENT_NOT_VERIFIED` · `PROVIDER_UNAVAILABLE` · `INTERNAL`
 
 ---
+
+## Dashboard read boundary — `GET /hq/dashboard`
+
+| Field | Value |
+| --- | --- |
+| **Page contract** | `src/shared/contracts/dashboard.ts` (`DashboardReadModel`, `dashboardResponseSchema`) |
+| **Authentication** | Required; session is resolved server-side |
+| **Authorization** | `hq:view`; organization, area, stall, self, and selected-outlet scope is rechecked server-side |
+| **Query** | `date?`, `outletId?`, `areaId?`, `search?`, `status?`, `cursor?`, `limit?` |
+| **Output** | `{ data: DashboardReadModel, meta: { requestId, freshnessBand } }` |
+| **Money** | Integer IDR minor units; verified and unverified digital totals are separate fields |
+| **Empty/error behavior** | `200` with empty arrays for valid empty scope; `400` invalid filters; `401` unauthenticated; `403` unauthorized role; `404` invisible outlet; `500` read/contract failure |
+| **Caching** | `Cache-Control: private, no-store` |
+| **Current adapter** | File-backed pilot `memoryStore`; not production PostgreSQL. See the page gap report. |
+
+The browser must validate the response with the same shared schema before rendering. No dashboard write or fake local mutation is part of this endpoint.
 
 ## 1. `POST /shifts` — Start Shift
 

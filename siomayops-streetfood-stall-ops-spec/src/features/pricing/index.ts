@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 
 export type { PriceResolution, OverrideMode };
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export async function publishPricePolicy(input: {

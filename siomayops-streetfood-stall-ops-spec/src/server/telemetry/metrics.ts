@@ -1,7 +1,8 @@
 export type MetricName =
   | "shifts.started" | "shifts.closed" | "sync.records.outcome" | "payments.state.age"
   | "payments.verification.backlog" | "cash.variance.amount" | "stock.variance.count"
-  | "incidents.open" | "expenses.review.latency" | "notifications.attempt.outcome";
+  | "incidents.open" | "expenses.review.latency" | "notifications.attempt.outcome"
+  | "dashboard.read_model.contract_failure" | "dashboard.read_model.latency" | "dashboard.read.failure";
 
 export interface Metrics {
   increment(name: MetricName, labels?: Readonly<Record<string, string>>): void;
@@ -9,6 +10,7 @@ export interface Metrics {
   setGauge(name: MetricName, value: number, labels?: Readonly<Record<string, string>>): void;
 }
 
+// MOCK ONLY — ANALYTICS NOT CONNECTED TO REAL TELEMETRY
 class InMemoryMetrics implements Metrics {
   private counters = new Map<string, number>();
   private gauges = new Map<string, number>();

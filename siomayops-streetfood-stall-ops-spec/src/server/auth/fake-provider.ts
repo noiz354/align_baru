@@ -1,5 +1,6 @@
 import type { AuthPort, SessionContext } from "./port";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 export const FAKE_AUTH_IS_DISABLED = false;
 
 export function createFakeAuthPortForTests(): AuthPort {

@@ -6,6 +6,7 @@ import { computeChangeForCash } from "../../domain/sale/totals";
 import { writeAuditEvent } from "../audit";
 import { completeSale } from "../sales";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export async function createCashPayment(input: {
@@ -16,6 +17,8 @@ export async function createCashPayment(input: {
   if (existingId) {
     const existing = memoryStore.payments.get(existingId);
     if (existing) {
+      // MOCK ONLY — DOES NOT PERSIST — DO NOT CLAIM END-TO-END
+      // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
       const change = computeChangeForCash(money(existing.amountMinor, "IDR"), money(existing.amountMinor, "IDR")); // placeholder, will compute actual
       // Recompute change from stored? We need cashReceived stored; we don't store it, so recompute from input if same sale
       // For replay, return original

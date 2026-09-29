@@ -1,4 +1,6 @@
-# Dashboard Ground Truth
+# Dashboard Ground Truth (Historical Discovery)
+
+> This is the pre-implementation discovery snapshot. The current page-specific truth is `docs/integration/01-dashboard-ground-truth.md`; the current architecture, gaps, and runtime evidence are in the adjacent `01-dashboard-*` documents.
 
 ## 1. Current State
 

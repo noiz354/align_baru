@@ -118,6 +118,7 @@ export async function computeRecognitionPeriod(input: {
   for (const shift of memoryStore.shifts.values()) {
     if (shift.organizationId !== input.organizationId) continue;
     // Count shifts per operator in period
+    // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
     // Simplified: businessDay prefix match
     if (!shift.businessDay.startsWith(input.periodKey.slice(0, 7))) continue; // month match
   }
@@ -133,6 +134,7 @@ export async function computeRecognitionPeriod(input: {
       candidates.push({ operatorId: opId, sampleSize: count });
     }
   }
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   // Sort by sales count not revenue alone, multi-factor placeholder
   candidates.sort((a, b) => b.sampleSize - a.sampleSize);
   return { candidates, reviewRequired: true };

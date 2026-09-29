@@ -212,7 +212,7 @@ export async function getIncidentBoardCard(input: { organizationId: string }): P
 
 export async function getStockPositionCard(input: { organizationId: string }): Promise<ReadModelEnvelope<{ lowStock: number; outOfStock: number }>> {
   const now = new Date();
-  // Simplified
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   return {
     computedAt: now,
     freshnessBand: freshnessBand(now),
@@ -256,6 +256,7 @@ export async function getLocationUsageCard(input: { organizationId: string }): P
 export async function getExceptionsCard(input: { organizationId: string }): Promise<ReadModelEnvelope<{ exceptions: string[] }>> {
   const now = new Date();
   const exceptions: string[] = [];
+  // MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
   // Collect from various sources
   for (const exp of memoryStore.expenses.values()) {
     if (exp.organizationId !== input.organizationId) continue;

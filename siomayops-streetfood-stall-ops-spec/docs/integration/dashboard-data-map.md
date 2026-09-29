@@ -1,5 +1,7 @@
 # Dashboard data map and T-HQ-003 acceptance checklist
 
+> Historical investigation retained for traceability. See `01-dashboard-ground-truth.md` and `01-dashboard-gap-report.md` for the current page status.
+
 Status: implementation investigation. This document does **not** mark a task complete.
 
 ## Canonical T-HQ-003 definition

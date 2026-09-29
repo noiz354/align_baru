@@ -10,7 +10,7 @@ export default function ClosingPage() {
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("");
 
-  // Mock expected cash for demo
+  // MOCK ONLY — UI DEVELOPMENT DATA — NOT PRODUCTION DATA
   const expectedCash = money(250000, "IDR");
 
   const handleSubmit = async () => {
@@ -50,6 +50,7 @@ export default function ClosingPage() {
       </header>
 
       <section style={{ padding: 16, display: "grid", gap: 16 }}>
+        {/* MOCK ONLY — UI DEVELOPMENT DATA — NOT PRODUCTION DATA */}
         <div style={{ padding: 16, background: "#f9fafb", borderRadius: 12, border: "1px solid #e5e7eb", display: "grid", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: 14, color: "#6b7280" }}>Kas awal</span>

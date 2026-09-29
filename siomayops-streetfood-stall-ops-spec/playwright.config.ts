@@ -8,6 +8,12 @@ export default defineConfig({
   testDir: "./tests/e2e",
   retries: 0,
   use: { trace: "on-first-retry", baseURL: "http://localhost:3000" },
+  webServer: {
+    command: "corepack pnpm dev --hostname 0.0.0.0",
+    url: "http://127.0.0.1:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
   projects: [
     { name: "operator-android", use: { ...devices["Pixel 7"] } },
     { name: "hq-desktop", use: { ...devices["Desktop Chrome"] } }

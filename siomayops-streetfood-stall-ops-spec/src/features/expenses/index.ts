@@ -4,6 +4,7 @@ import { writeAuditEvent } from "../audit";
 import { nextReviewState, matchesFlagPattern, type ExpenseRecord } from "../../domain/expense/review";
 import { money } from "../../shared/money/money";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export interface SubmitExpenseInput {

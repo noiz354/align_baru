@@ -14,6 +14,7 @@ export interface EvidenceStore {
 
 import { generateId } from "../db/memory-store";
 
+// MOCK ONLY — TEMPORARY SERVER ADAPTER — REPLACE WITH REAL DOMAIN/PERSISTENCE
 class InMemoryEvidenceStore implements EvidenceStore {
   private assets = new Map<string, { organizationId: string; contentType: string; createdAt: Date }>();
 
