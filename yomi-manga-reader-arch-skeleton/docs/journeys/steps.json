@@ -1,0 +1,198 @@
+[
+  {
+    "folder": "01-discovery",
+    "file": "01-discovery-lands-on-the-home-page.png",
+    "url": "http://localhost:3199/",
+    "story": "Lands on the home page",
+    "note": "Placeholder, and it says so, with a way out."
+  },
+  {
+    "folder": "01-discovery",
+    "file": "02-discovery-clicks-browse-the-catalog.png",
+    "url": "http://localhost:3199/discover",
+    "story": "Clicks Browse the catalog",
+    "note": "Real catalog: 22 titles, filters, sort."
+  },
+  {
+    "folder": "01-discovery",
+    "file": "03-discovery-filters-by-genre-fantasy.png",
+    "url": "http://localhost:3199/discover?genre=fantasy",
+    "story": "Filters by genre Fantasy",
+    "note": "Chip pressed state proves hydration."
+  },
+  {
+    "folder": "01-discovery",
+    "file": "04-discovery-opens-a-title.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001",
+    "story": "Opens a title",
+    "note": "Metadata, synopsis, chapter list."
+  },
+  {
+    "folder": "01-discovery",
+    "file": "05-discovery-sorts-and-filters-by-status.png",
+    "url": "http://localhost:3199/discover?status=completed",
+    "story": "Sorts and filters by status",
+    "note": "Completed only."
+  },
+  {
+    "folder": "02-reading",
+    "file": "01-reading-picks-chapter-1-to-read.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001",
+    "story": "Picks chapter 1 to read",
+    "note": "From the chapter list."
+  },
+  {
+    "folder": "02-reading",
+    "file": "02-reading-reader-opens-on-page-1.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1",
+    "story": "Reader opens on page 1",
+    "note": "Client fetches pages after mount."
+  },
+  {
+    "folder": "02-reading",
+    "file": "03-reading-taps-next-page.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1",
+    "story": "Taps Next page (button, aria-label 'Next page')",
+    "note": "Advances to Page 2/8 and records progress."
+  },
+  {
+    "folder": "02-reading",
+    "file": "04-reading-jumps-to-the-last-page.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1?page=8",
+    "story": "Jumps to the last page",
+    "note": "Auto-next should turn Next into the next chapter."
+  },
+  {
+    "folder": "03-deep-link",
+    "file": "01-deep-link-opens-page-4-directly.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1?page=4",
+    "story": "Opens ?page=4 directly",
+    "note": "Deep link wins over saved progress."
+  },
+  {
+    "folder": "03-deep-link",
+    "file": "02-deep-link-opens-page-999.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1?page=999",
+    "story": "Opens ?page=999",
+    "note": "Out of range, so it clamps instead of blanking."
+  },
+  {
+    "folder": "03-deep-link",
+    "file": "03-deep-link-opens-page-0.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1?page=0",
+    "story": "Opens ?page=0",
+    "note": "Below range, so it clamps up to the first page."
+  },
+  {
+    "folder": "04-search",
+    "file": "01-search-opens-search-with-an-empty-box.png",
+    "url": "http://localhost:3199/search",
+    "story": "Opens search with an empty box",
+    "note": "Query lives in the URL, not just in state."
+  },
+  {
+    "folder": "04-search",
+    "file": "02-search-types-resume.png",
+    "url": "http://localhost:3199/search?q=resume",
+    "story": "Types \"resume\"",
+    "note": "Debounced search, URL updates."
+  },
+  {
+    "folder": "04-search",
+    "file": "03-search-types-nonsense.png",
+    "url": "http://localhost:3199/search?q=zzzznotathing",
+    "story": "Types nonsense",
+    "note": "Empty state, not an error page."
+  },
+  {
+    "folder": "04-search",
+    "file": "04-search-reopens-a-shared-search-link.png",
+    "url": "http://localhost:3199/search?q=seed",
+    "story": "Reopens a shared search link",
+    "note": "Deep link restores the same results."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": "01-member-shelf-anonymous-opens-library.png",
+    "url": "http://localhost:3199/library",
+    "story": "Anonymous opens Library",
+    "note": "Shows the signed-out state, not a crash."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": null,
+    "url": "/api/auth/login",
+    "story": "Signs in as the seeded reader (200)",
+    "note": "Set up step, no screenshot."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": "02-member-shelf-signed-in-library.png",
+    "url": "http://localhost:3199/library",
+    "story": "Signed-in Library",
+    "note": "Shelf shows the title just kept, with unread count, last position, and dates."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": "03-member-shelf-history.png",
+    "url": "http://localhost:3199/history",
+    "story": "History",
+    "note": "What was read, and how far."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": "04-member-shelf-bookmarks.png",
+    "url": "http://localhost:3199/bookmarks",
+    "story": "Bookmarks",
+    "note": "Saved titles."
+  },
+  {
+    "folder": "05-member-shelf",
+    "file": "05-member-shelf-continue-reading.png",
+    "url": "http://localhost:3199/manga/resume-a",
+    "story": "Returns to a title they were reading",
+    "note": "The button is now 'Continue Chapter 1 \u2014 page 3' \u2014 the F-009 resume seam working."
+  },
+  {
+    "folder": "06-honesty",
+    "file": "01-honesty-visits-auth-signin.png",
+    "url": "http://localhost:3199/auth/signin",
+    "story": "Visits /auth/signin",
+    "note": "sign-in"
+  },
+  {
+    "folder": "06-honesty",
+    "file": "02-honesty-visits-settings.png",
+    "url": "http://localhost:3199/settings",
+    "story": "Visits /settings",
+    "note": "settings"
+  },
+  {
+    "folder": "06-honesty",
+    "file": "03-honesty-visits-admin.png",
+    "url": "http://localhost:3199/admin",
+    "story": "Visits /admin",
+    "note": "admin"
+  },
+  {
+    "folder": "06-honesty",
+    "file": "04-honesty-visits-does-not-exist.png",
+    "url": "http://localhost:3199/does-not-exist",
+    "story": "Visits /does-not-exist",
+    "note": "404"
+  },
+  {
+    "folder": "07-mobile",
+    "file": "01-mobile-reads-on-a-phone.png",
+    "url": "http://localhost:3199/manga/seed-manga-0001/chapter/1",
+    "story": "Reads on a phone",
+    "note": "The 320px floor the reader promises."
+  },
+  {
+    "folder": "07-mobile",
+    "file": "02-mobile-browses-the-catalog-on-a-phone.png",
+    "url": "http://localhost:3199/discover",
+    "story": "Browses the catalog on a phone",
+    "note": "Same catalog, narrow layout."
+  }
+]
