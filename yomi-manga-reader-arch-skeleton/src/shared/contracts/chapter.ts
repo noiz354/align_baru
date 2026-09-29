@@ -12,7 +12,8 @@
  * - Page lists are returned in ascending pageNumber; the READER applies
  *   direction (RTL reads the same list reversed — reader-behavior.md §4).
  * - `assetKey` values are unguessable and layout-free (FR-MEDIA-003);
- *   variant URLs are app-relative `/media/{assetKey}` paths.
+ *   variant URLs are app-relative `/media/{assetKey}.{variant}` paths, one
+ *   per variant (T-CATALOG-010, SQ-CAT-4: no server-side negotiation).
  */
 import type { AssetKey, ChapterId, MangaSlug } from '../types';
 

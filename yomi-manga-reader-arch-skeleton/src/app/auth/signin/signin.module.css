@@ -1,0 +1,31 @@
+/**
+ * Sign-in styles (`/auth/signin`).
+ *
+ * Requirements: FR-AUTH-002, NFR-A11Y-001/010. Task: T-AUTH-012.
+ *
+ * ── No colour is written here ─────────────────────────────────────────────
+ * Every colour is a `var(--token)` from `src/shared/ui/tokens.css`, which is the
+ * only file in `src/` where a colour literal may appear (T-FOUND-004).
+ *
+ * The form is one column: two fields, a reveal toggle, the submit button.
+ * The reveal checkbox and the button meet the 44 px target (NFR-A11Y-010);
+ * the error is text in the danger ink, never colour alone.
+ */
+.form {
+  display: grid;
+  gap: var(--sp-4);
+  max-width: 28rem;
+}
+
+.reveal {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.75rem;
+}
+
+.error {
+  color: var(--danger-ink);
+  font-weight: 600;
+  margin: 0;
+}

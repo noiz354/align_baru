@@ -21,7 +21,7 @@
  *
  * DSN: `DATABASE_URL`; SKIPS without it.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { acquireDb, closeDb, createDb, releaseDb, type Db } from '../../src/server/db/client';
 import { getSessionUser } from '../../src/server/auth/guard';
 import { createCatalogComposition, createLibraryComposition } from '../../src/server/composition';
@@ -224,6 +224,32 @@ describeDb('the process-wide database handle (INT-DB-SINGLETON, F-001-S1)', () =
 });
 
 describeDb('the session guard shares the pool (INT-DB-GUARD, F-001-S2)', () => {
+  // The no-handle leg calls `loadEnv()` on the real process environment (that
+  // IS the behaviour under test — a guard that needs smuggled config is a
+  // guard that cannot run). Same convention as the media suites: set the
+  // app-level literals only when the runner did not provide them, restore in
+  // `afterAll`.
+  const APP_ENV_DEFAULTS: Record<string, string> = {
+    APP_ORIGIN: 'http://localhost:3000',
+    SESSION_SECRET: '0'.repeat(64),
+    NEXT_TELEMETRY_DISABLED: '1',
+  };
+  const savedEnv: Record<string, string | undefined> = {};
+  beforeAll(() => {
+    for (const [name, value] of Object.entries(APP_ENV_DEFAULTS)) {
+      if (process.env[name] === undefined) {
+        savedEnv[name] = undefined;
+        process.env[name] = value;
+      }
+    }
+  });
+  afterAll(() => {
+    for (const [name, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
   it('opens no connection of its own, and takes an injected handle when given one', async () => {
     // The guard used to `createDb` and `closeDb` on every call, so a members'
     // request with a session cost THREE pools: catalog root, library root, guard.

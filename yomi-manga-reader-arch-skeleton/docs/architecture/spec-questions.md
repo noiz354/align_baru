@@ -306,3 +306,66 @@ the divergence is recorded here instead.
   than S3, that is a real change of DEPLOYMENT.md §3 and ADR-004, raised
   under T-FOUND-002 — not a schema addition.
 
+---
+
+## SQ-CAT-4 — Do delivery URLs carry the variant, or does the route negotiate it?
+
+**Status: RESOLVED (code changed; two contract rows amended)**
+**Tags: spec-question, spec-fix**
+
+### The contradiction
+
+| Source | Says |
+|---|---|
+| `docs/adr/ADR-005-image-pipeline.md:63` | "Format ladder (FR-MEDIA-002) handled by `<picture>` on the client — **no runtime negotiation server-side**." |
+| `src/server/media/page-delivery.ts:24-42` | "ADR-005 settled (a) out": the delivery key is the opaque key **plus the stored extension**; grammar `^([A-Za-z0-9_-]{22,64})\.(avif\|webp\|jpeg)$`, checked before any I/O. |
+| `src/server/db/repositories/chapter.repository.ts` (pre-fix) | "`/media/{key}` negotiates the stored format by `Accept` (API_CONTRACT §2.1, ADR-005)" — all three variant URLs the same extensionless path. |
+| `API_CONTRACT.md` §2.1 (pre-fix) | Pages row: "urlAvif, urlWebp, urlJpeg (each `/media/{assetKey}`)"; media row: "key format (22–64 base64url chars)". |
+| `tests/integration/chapter-pages-route.test.ts` (pre-fix) | "The extension is NOT in the URL, and that is deliberate" — the bug encoded as intent, citing the same two authorities. |
+
+The repository comment and the test cited ADR-005 for the exact behaviour
+ADR-005 rules out. The delivery layer read the ADR correctly; the read path
+that feeds it did not.
+
+### The decision
+
+**ADR-005 is the authority (ADR > module comment, AGENTS.md §6): the variant
+travels in the key.** `mediaUrlFor` in `src/shared/storage-keys.ts`
+(T-CATALOG-010) is now the only place a delivery URL is built; the three
+page URLs are distinct (`/media/{key}.avif|webp|jpeg`), covers use the JPEG
+variant. API_CONTRACT §2.1's pages and media rows state the suffix, which
+also closes the delivery module's open spec-question on the validation row.
+
+### What follows
+
+- `MEDIA_NOT_FOUND` still has no §6 row (delivery uses CHAPTER_/MANGA_NOT_FOUND).
+  That half of the delivery module's note stays open; it is a §6-owner call.
+- Any future delivery-URL shape change edits `mediaUrlFor` and its
+  UNIT-MEDIA-001 pin — never a repository, a schema, or a harness.
+
+---
+
+## SQ-LIB-5 — The cover-URL rule in three copies
+
+**Status: RESOLVED (code changed; no document amendment needed)**
+**Tags: spec-question, spec-fix**
+
+### The contradiction
+
+`src/server/db/repositories/library.repository.ts` recorded that `coverUrlOf`
+was "the same one-liner as `manga.repository.ts`'s" and that "[a] spec-fix
+task should lift `/media/{assetKey}` (FR-MEDIA-003) into `shared/`" — and the
+app lane held a third and fourth copy as two identical validator regexes
+(`src/app/discover/catalog-schema.ts`, `src/app/_members/member-schema.ts`,
+each noting "the one home for this rule" did not exist yet).
+
+### The decision
+
+**Lifted, under T-CATALOG-010.** The builder is `mediaUrlFor` and the
+validator shape is `MEDIA_URL_PATTERN`, both in `src/shared/storage-keys.ts`
+(the module F-017-S1 already established as the one home for key rules both
+sides of the D1 boundary need). Both repositories and both schemas call in;
+no copy remains. The `numeric → number` half of the old SQ-LIB-5 note
+(`toNumber` vs `asNumber` vs `toChapterNumber`, with this file's finite guard
+deliberate) is untouched and still stands.
+

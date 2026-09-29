@@ -37,7 +37,8 @@ export interface Creator {
 /**
  * Catalog card shape (FR-CATALOG-005).
  * Invariants:
- * - `coverUrl` is app-relative `/media/{assetKey}` — never a storage URL.
+ * - `coverUrl` is app-relative `/media/{assetKey}.jpeg` — never a storage URL
+ *   (T-CATALOG-010; the JPEG variant, built by `mediaUrlFor`).
  * - `latestChapter` is null for manga with no published chapters.
  */
 export interface MangaSummary {

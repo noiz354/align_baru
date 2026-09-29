@@ -86,6 +86,7 @@ import type {
 import { AppError } from '../../../shared/contracts/errors';
 import type { ChapterRepository } from '../../../features/chapters';
 import type { AssetKey, ChapterId, MangaId, MangaSlug } from '../../../shared/types';
+import { mediaUrlFor } from '../../../shared/storage-keys';
 import type { Db } from '../client';
 import { chapter, chapterPage, manga } from '../schema';
 import { chapterVisibleWhere, mangaReadClauses, mayReadDrafts } from './manga.repository';
@@ -147,26 +148,31 @@ function toSummary(row: ChapterRow): ChapterSummary {
   };
 }
 
-/** `/media/{assetKey}` — app-relative, never a storage URL (FR-MEDIA-003). */
-function pageUrl(assetKey: string): string {
-  return `/media/${assetKey}`;
-}
-
+/**
+ * One delivery URL per variant, built by the single rule in
+ * `shared/storage-keys.ts` (`mediaUrlFor`) — app-relative, never a storage
+ * URL (FR-MEDIA-003). T-CATALOG-010.
+ *
+ * CONTRADICTION RESOLVED (SQ-CAT-4): the previous comment claimed
+ * "`/media/{key}` negotiates the stored format by `Accept` (API_CONTRACT
+ * §2.1, ADR-005)" and gave all three variants the same extensionless URL.
+ * ADR-005 says the opposite — "no runtime negotiation server-side —
+ * `<picture>` picks the variant" — and the delivery layer parses the variant
+ * back out of the URL (`DELIVERY_KEY_PATTERN`), so an extensionless URL is a
+ * 404 by grammar. ADR-005 is the authority; the comment was wrong, not the
+ * delivery layer. The three URLs are therefore DISTINCT, one per variant.
+ */
 function toPageAsset(row: {
   pageNumber: number;
   assetKey: string;
   width: number;
   height: number;
 }): PageAsset {
-  const url = pageUrl(row.assetKey);
   return {
     pageNumber: row.pageNumber,
-    // The three variants share one key: `/media/{key}` negotiates the stored
-    // format by `Accept` (API_CONTRACT §2.1, ADR-005), so all three URLs are
-    // the same app-relative path.
-    urlAvif: url,
-    urlWebp: url,
-    urlJpeg: url,
+    urlAvif: mediaUrlFor(row.assetKey, 'avif'),
+    urlWebp: mediaUrlFor(row.assetKey, 'webp'),
+    urlJpeg: mediaUrlFor(row.assetKey, 'jpeg'),
     width: row.width,
     height: row.height,
   };

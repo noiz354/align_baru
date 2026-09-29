@@ -114,7 +114,7 @@ Notes:
 | Caller | Reader client |
 | Auth / Authz | public if chapter+manga published; admin for drafts; else 404 |
 | Input | path `chapterId` (uuid) |
-| Output | `{ chapter: { id, mangaSlug, mangaTitle, number, title?, readingDirection, pageCount }, pages: PageAsset[] }` — PageAsset: pageNumber (1-based), urlAvif, urlWebp, urlJpeg (each `/media/{assetKey}`), width, height |
+| Output | `{ chapter: { id, mangaSlug, mangaTitle, number, title?, readingDirection, pageCount }, pages: PageAsset[] }` — PageAsset: pageNumber (1-based), urlAvif, urlWebp, urlJpeg (each `/media/{assetKey}.{variant}` — three DISTINCT URLs, one per variant; T-CATALOG-010, SQ-CAT-4), width, height |
 | Failures | CHAPTER_NOT_FOUND → 404; CHAPTER_NOT_READY → 409 (draft with pages / failed job: "unavailable" state, EC-RDR-08); MANGA_NOT_FOUND → 404 |
 | Validation | uuid format |
 | Rate limit | generic |
@@ -130,7 +130,7 @@ Notes:
 | Input | path `assetKey` |
 | Output | image bytes; `Content-Type` (image/avif|webp|jpeg), `Content-Length`, `ETag`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` |
 | Failures | MEDIA_NOT_FOUND → 404 (any unknown/draft key); STORAGE_ERROR → 502 (no passthrough detail); INTERNAL_* → 500 |
-| Validation | key format (22–64 base64url chars) — malformed → 404, not 422 |
+| Validation | key format: 22–64 base64url chars + `.avif\|.webp\|.jpeg` suffix (the suffix selects the stored variant; T-CATALOG-010, SQ-CAT-4) — malformed → 404, not 422 |
 | Rate limit | generic; enumeration is cheap by design (single indexed lookup, THREAT T-11) |
 | Idempotency | pure read; immutable per key |
 

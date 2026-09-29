@@ -6,7 +6,7 @@
  * Requirements: FR-CATALOG-005, NFR-PERF-001 (LCP), NFR-PERF-003 (CLS),
  * NFR-PERF-008 (the ≤ 30-request budget). Tasks: T-CATALOG-003 (grid covers),
  * T-CATALOG-006 (detail cover), T-CATALOG-010 (the bytes behind
- * `/media/{assetKey}`). Spec: shared/contracts/manga.ts, PERFORMANCE.md §2.
+ * `/media/{assetKey}.jpeg`). Spec: shared/contracts/manga.ts, PERFORMANCE.md §2.
  *
  * ── Why this is the one client island on the page ─────────────────────────
  * Two states have to be reconciled on the client and neither can be decided on
@@ -77,7 +77,7 @@ const BOX_HEIGHT = 900;
 const LOAD_AHEAD_PX = 100;
 
 export type CoverImageProps = {
-  /** `/media/{assetKey}`, or null when no cover asset exists at all. */
+  /** `/media/{assetKey}.jpeg`, or null when no cover asset exists at all. */
   src: string | null;
   /** `true` for the first card's cover (the LCP element) and the detail cover. */
   priority?: boolean;

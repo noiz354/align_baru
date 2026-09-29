@@ -41,11 +41,13 @@
  * (API_CONTRACT §2.1 "malformed → 404, not 422"), and the grammar check runs
  * BEFORE any I/O — a cheap 404 stays cheap when the origin is down.
  *
- * spec-question for API_CONTRACT §2.1: the "22–64 base64url chars" validation
- * row should state the extension suffix, and MEDIA_NOT_FOUND (named in §2.1
- * and SECURITY.md §7) has no row in §6, so this module uses the 404 codes that
- * do exist — CHAPTER_NOT_FOUND for a page key, MANGA_NOT_FOUND for a cover
- * key. Both render "not found" text; neither reveals which key class matched.
+ * spec-question for API_CONTRACT §2.1 (SQ-CAT-4, RESOLVED by T-CATALOG-010):
+ * the "22–64 base64url chars" validation row now states the extension suffix,
+ * and the pages row names three distinct `/media/{assetKey}.{variant}` URLs.
+ * Still open: MEDIA_NOT_FOUND (named in §2.1 and SECURITY.md §7) has no row
+ * in §6, so this module uses the 404 codes that do exist —
+ * CHAPTER_NOT_FOUND for a page key, MANGA_NOT_FOUND for a cover key. Both
+ * render "not found" text; neither reveals which key class matched.
  *
  * ── ETag (ambiguity A4, carried from server/storage) ───────────────────────
  * `ObjectStoragePort.getStream` returns no origin ETag (only contentType +

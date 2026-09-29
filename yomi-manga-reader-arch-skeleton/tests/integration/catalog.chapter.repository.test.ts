@@ -52,10 +52,10 @@ describeDb('INT-CHAP-001 / T-CATALOG-001 — ChapterRepository on a real Postgre
   let mangaId: MangaId;
   let counter = 0;
 
-  /** One synthetic page record (DATA_MODEL §10; phase-one placeholder key). */
+  /** One synthetic page record (DATA_MODEL §10; grammar-valid base key). */
   const page = (pageNumber: number) => ({
     pageNumber,
-    assetKey: `seed/v1/page/${counter.toString().padStart(6, '0')}${pageNumber}`,
+    assetKey: `abcd${counter.toString().padStart(6, '0')}${pageNumber}abcdabcdabcdabcdabcdab`,
     width: 480,
     height: 720,
     byteSizeAvif: 1_024,
@@ -209,8 +209,11 @@ describeDb('INT-CHAP-001 / T-CATALOG-001 — ChapterRepository on a real Postgre
 
       const response = await chapters.pageList(id, null);
       expect(response?.pages.map((p) => p.pageNumber)).toEqual([1, 2, 3]);
-      expect(response?.pages[0]?.urlAvif).toBe(response?.pages[0]?.urlWebp);
-      expect(response?.pages[0]?.urlAvif).toMatch(/^\/media\/seed\/v1\/page\//);
+      // One distinct delivery URL per variant (T-CATALOG-010, SQ-CAT-4).
+      const first = response?.pages[0];
+      expect(first?.urlAvif).toMatch(/^\/media\/[A-Za-z0-9_-]{22,64}\.avif$/);
+      expect(first?.urlWebp).toMatch(/^\/media\/[A-Za-z0-9_-]{22,64}\.webp$/);
+      expect(first?.urlJpeg).toMatch(/^\/media\/[A-Za-z0-9_-]{22,64}\.jpeg$/);
       expect(response?.pages[0]?.width).toBe(480);
       expect(response?.chapter.pageCount).toBe(3);
       expect(response?.chapter.readingDirection).toBe('rtl');

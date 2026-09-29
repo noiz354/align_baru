@@ -180,13 +180,15 @@ describeDb('the chapter pages route (INT-RDR-PAGES, F-006-S2)', () => {
     expect(body.chapter.pageCount).toBe(2);
     expect(body.chapter.readingDirection).toBe('rtl');
     expect(body.pages).toHaveLength(2);
-    // The extension is NOT in the URL, and that is deliberate: `/media/{key}`
-    // negotiates the stored format from the `Accept` header (ADR-005,
-    // API_CONTRACT §2.1), so all three variant URLs are the SAME path. The route
-    // this replaced hard-coded `.jpeg` / `.avif` and lost the negotiation.
-    expect(body.pages[0]?.urlJpeg).toMatch(/^\/media\/[0-9a-f]{32}$/);
-    expect(body.pages[0]?.urlJpeg).toBe(body.pages[0]?.urlAvif);
-    expect(body.pages[0]?.urlJpeg).toBe(body.pages[0]?.urlWebp);
+    // One distinct URL per variant (T-CATALOG-010, SQ-CAT-4): the extension
+    // selects the stored variant and the delivery grammar requires it, so an
+    // extensionless `/media/{key}` is a 404 by grammar, not a negotiation.
+    // (The previous comment claimed `Accept` negotiation per ADR-005; ADR-005
+    // says "no runtime negotiation server-side", so the comment — not the
+    // delivery layer — was wrong.)
+    expect(body.pages[0]?.urlJpeg).toMatch(/^\/media\/[0-9a-f]{32}\.jpeg$/);
+    expect(body.pages[0]?.urlWebp).toMatch(/^\/media\/[0-9a-f]{32}\.webp$/);
+    expect(body.pages[0]?.urlAvif).toMatch(/^\/media\/[0-9a-f]{32}\.avif$/);
     expect(body.pages[0]?.pageNumber).toBe(1);
 
     // `mangaId` was in the OLD hand-built response and is NOT in the contract.

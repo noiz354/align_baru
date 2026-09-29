@@ -187,7 +187,11 @@ async function handleApi(
 }
 
 async function handleMedia(pathname: string, res: ServerResponse): Promise<boolean> {
-  const match = pathname.match(/^\/media\/([A-Za-z0-9_-]{6,64})$/);
+  // Mirrors the delivery grammar (`DELIVERY_KEY_PATTERN`): the base key plus
+  // the stored extension (T-CATALOG-010). The extension selects nothing here —
+  // the fixture has one PNG per cover — it only has to be ACCEPTED the way
+  // the route accepts it, or this harness would 404 URLs the product emits.
+  const match = pathname.match(/^\/media\/([A-Za-z0-9_-]{6,64})(?:\.(avif|webp|jpeg))?$/);
   if (match === null) return false;
   const key = match[1] ?? '';
   const owner = FIXTURE_MANGA.find((manga) => manga.coverAssetKey === key);

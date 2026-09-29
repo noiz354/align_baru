@@ -442,12 +442,14 @@ const HARNESS_SOURCE = readFileSync(
 );
 
 describe('INT-SEED-003 / T-FOUND-012 — the harness documents its own phase', () => {
-  it('says in its header that it is phase one (placeholder asset keys)', () => {
+  it('says in its header that keys and bytes are seeded but the pipeline is not done', () => {
     // A future agent must not read the seeded keys and believe the media
-    // pipeline is done. T-UPLOAD-004 has not run; the header says so, and the
-    // report repeats it on every run.
-    expect(HARNESS_SOURCE).toContain('PHASE ONE of the two-phase use the task names');
-    expect(HARNESS_SOURCE).toContain('T-UPLOAD-004 has not run, so this file is');
+    // pipeline is done. Phase two (delivery-valid keys AND written bytes,
+    // T-CATALOG-010) is real; T-UPLOAD-004 (pipeline-minted keys, GC) has
+    // not run. The header says both, and the test pins the wording so the
+    // caveat cannot drift away silently.
+    expect(HARNESS_SOURCE).toContain('PHASE TWO: keys are delivery-valid AND bytes are written');
+    expect(HARNESS_SOURCE).toContain('What T-UPLOAD-004 still owns');
   });
 
     it('writes page objects through the storage port and never touches the filesystem itself', () => {

@@ -168,15 +168,14 @@
  * raises `CATALOG_PAGE_INVALID`, the only pagination code in §6; a
  * `LIBRARY_PAGE_INVALID` row would express it better but adding one is §6's
  * owner's call (AGENTS.md §4.7).
- * SQ-LIB-5 (three copies of the cover-URL rule). `coverUrlOf` below is the same
- * one-liner as `manga.repository.ts`'s, which is the only correct way to write
- * it twice — but it IS written twice, because that helper is module-private and
- * this task may not edit another file. A spec-fix task should lift
- * `/media/{assetKey}` (FR-MEDIA-003) into `shared/`. The same applies to
- * `numeric → number` (`toNumber` here vs `asNumber` in `manga.repository.ts` vs
- * `toChapterNumber` in `progress.repository.ts`); this file's copy carries the
- * finite guard the other two do not, so a corrupted row degrades to a sortable
- * `0` instead of `NaN` poisoning a shelf position.
+ * SQ-LIB-5 (three copies of the cover-URL rule) — RESOLVED by T-CATALOG-010:
+ * `coverUrlOf` below is now a call into `mediaUrlFor` in
+ * `shared/storage-keys.ts`, like `manga.repository.ts`'s. The `numeric →
+ * number` part below still stands: `toNumber` here vs `asNumber` in
+ * `manga.repository.ts` vs `toChapterNumber` in `progress.repository.ts`;
+ * this file's copy carries the finite guard the other two do not, so a
+ * corrupted row degrades to a sortable `0` instead of `NaN` poisoning a shelf
+ * position.
  * SQ-LIB-6 (`lastRead` may name a soft-deleted chapter). The last-read LATERAL
  * does not filter chapter visibility, because the port asks for "the most
  * recent `readingProgress` row for this user+manga" and FR-LIBRARY-003 names no
@@ -200,6 +199,7 @@ import type {
   MangaSummary,
 } from '../../../shared/contracts';
 import type { BookmarkId, ChapterId, MangaId, MangaSlug, UserId } from '../../../shared/types';
+import { mediaUrlFor } from '../../../shared/storage-keys';
 import type { Db } from '../client';
 import { bookmark, chapter, libraryEntry, manga, readingProgress } from '../schema';
 import { chapterVisibleWhere } from './manga.repository';
@@ -390,9 +390,14 @@ interface BookmarkRow {
   mangaTitle: string | null;
 }
 
-/** `app-relative /media/{key}` (FR-MEDIA-003); a storage URL is never produced. SQ-LIB-5. */
+/**
+ * The shelf card cover URL. Was a module-private copy of
+ * `manga.repository.ts`'s one-liner (recorded SQ-LIB-5); now a call into the
+ * single rule in `shared/storage-keys.ts` (`mediaUrlFor`), like its sibling.
+ * JPEG variant, `null` passthrough — same contract, stated once. T-CATALOG-010.
+ */
 function coverUrlOf(coverAssetKey: string | null): string | null {
-  return coverAssetKey === null ? null : `/media/${coverAssetKey}`;
+  return coverAssetKey === null ? null : mediaUrlFor(coverAssetKey, 'jpeg');
 }
 
 /**

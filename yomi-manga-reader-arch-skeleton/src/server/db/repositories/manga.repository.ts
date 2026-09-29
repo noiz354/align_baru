@@ -93,6 +93,7 @@ import type {
   Tag,
 } from '../../../shared/contracts';
 import type { MangaId, MangaSlug } from '../../../shared/types';
+import { mediaUrlFor } from '../../../shared/storage-keys';
 import type { Db } from '../client';
 import {
   chapter,
@@ -329,9 +330,19 @@ interface MangaRow {
   updatedAt: Date;
 }
 
-/** `app-relative /media/{key}` (FR-MEDIA-003); a storage URL is never produced. */
+/**
+ * The card/detail cover URL, built by the single rule in
+ * `shared/storage-keys.ts` (`mediaUrlFor`) — app-relative, never a storage
+ * URL (FR-MEDIA-003). T-CATALOG-010; resolves recorded SQ-LIB-5 (this rule
+ * used to be copied in `library.repository.ts`).
+ *
+ * The variant is JPEG, deliberately: a cover is consumed by ONE `<img>`
+ * (there is no per-cover `<picture>` ladder), covers are stored WebP + JPEG
+ * only (ADR-005), and JPEG decodes everywhere the reader runs. A row with no
+ * cover key stays `null`, which the client renders as the placeholder.
+ */
 function coverUrlOf(coverAssetKey: string | null): string | null {
-  return coverAssetKey === null ? null : `/media/${coverAssetKey}`;
+  return coverAssetKey === null ? null : mediaUrlFor(coverAssetKey, 'jpeg');
 }
 
 function asMangaStatus(value: string): MangaStatus {
