@@ -1,55 +1,71 @@
+/**
+ * `GET /api/v1/hq/dashboard` — HTTP exposure of the authenticated dashboard boundary.
+ *
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The dashboard page calls the
+ * boundary directly (server-side, no self-fetch); this route exists so the same contract is
+ * reachable for tooling, tests and any future client transition, and so the boundary has one
+ * HTTP-shaped error surface.
+ *
+ * Query: `?date=YYYY-MM-DD&outlet=<stallId>`
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { authorizeHqScope, getHqDashboard, HqDashboardNotFoundError, type OutletStatus, getDefaultDashboardDay } from "@/features/hq/dashboard";
 import { errorResponse, getRequestId, resolveSession } from "../../_helpers";
+import { loadHqDashboard, type DashboardFailureKind } from "@/server/dashboard/boundary";
 
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
-  const parts = value.split("-").map(Number);
-  const year = parts[0] ?? 0;
-  const month = parts[1] ?? 0;
-  const day = parts[2] ?? 0;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-}, "Expected a real calendar date");
-const statusSchema = z.enum(["ALL", "OPERATING", "ATTENTION", "REVIEW", "NOT_STARTED", "CLOSED"]);
+const FAILURE_STATUS: Record<DashboardFailureKind, number> = {
+  UNAUTHENTICATED: 401,
+  FORBIDDEN: 403,
+  INVALID_FILTER: 400,
+  UNAVAILABLE: 503,
+};
 
-export async function GET(request: NextRequest) {
+const FAILURE_CODE: Record<DashboardFailureKind, string> = {
+  UNAUTHENTICATED: "UNAUTHENTICATED",
+  FORBIDDEN: "FORBIDDEN",
+  INVALID_FILTER: "INVALID_FILTER",
+  UNAVAILABLE: "DASHBOARD_UNAVAILABLE",
+};
+
+/** Operator-facing wording; deliberately contains no internal detail. */
+const FAILURE_MESSAGE: Record<DashboardFailureKind, string> = {
+  UNAUTHENTICATED: "Not authenticated",
+  FORBIDDEN: "Role cannot read the HQ dashboard",
+  INVALID_FILTER: "Date or outlet filter is not valid in this scope",
+  UNAVAILABLE: "Dashboard data could not be loaded",
+};
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestId = getRequestId();
-  try {
-    const session = await resolveSession();
-    if (!session) return errorResponse("UNAUTHENTICATED", "Sign in is required", 401, requestId);
-    const scope = authorizeHqScope(session);
+  const url = new URL(request.url);
 
-    const params = request.nextUrl.searchParams;
-    const date = params.get("date") ?? getDefaultDashboardDay();
-    const parsedDate = dateSchema.safeParse(date);
-    const statusRaw = params.get("status") ?? "ALL";
-    const parsedStatus = statusSchema.safeParse(statusRaw);
-    const limitRaw = Number(params.get("limit") ?? "6");
-    if (!parsedDate.success || !parsedStatus.success || !Number.isInteger(limitRaw) || limitRaw < 1 || limitRaw > 100) {
-      return errorResponse("VALIDATION_ERROR", "Invalid dashboard filters", 400, requestId, {
-        date: parsedDate.success ? undefined : parsedDate.error.flatten(),
-        status: parsedStatus.success ? undefined : parsedStatus.error.flatten(),
-        limit: Number.isInteger(limitRaw) && limitRaw >= 1 && limitRaw <= 100 ? undefined : "Limit must be between 1 and 100",
-      });
-    }
+  const result = await loadHqDashboard(
+    {
+      date: url.searchParams.get("date"),
+      outletId: url.searchParams.get("outlet"),
+    },
+    { resolveSession },
+  );
 
-    const model = getHqDashboard({
-      scope,
-      businessDay: parsedDate.data,
-      outletId: params.get("outletId") || undefined,
-      areaId: params.get("areaId") || undefined,
-      search: params.get("search") || undefined,
-      status: parsedStatus.data as "ALL" | OutletStatus,
-      cursor: params.get("cursor") || undefined,
-      limit: limitRaw,
-    });
-    return NextResponse.json({ data: model, meta: { requestId, freshnessBand: "current" } }, {
-      headers: { "X-Request-Id": requestId, "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    if (error instanceof HqDashboardNotFoundError) return errorResponse("NOT_FOUND", error.message, 404, requestId);
-    const status = (error as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
-    return errorResponse(status === 403 ? "FORBIDDEN" : "INTERNAL", status === 403 ? "Dashboard access denied" : "Unable to load dashboard data", status, requestId);
+  if (!result.ok) {
+    return errorResponse(
+      FAILURE_CODE[result.kind],
+      FAILURE_MESSAGE[result.kind],
+      FAILURE_STATUS[result.kind],
+      requestId,
+    );
   }
+
+  return NextResponse.json(
+    {
+      data: result.model,
+      meta: {
+        computedAt: result.model.kpis.computedAt,
+        freshnessBand: result.model.kpis.freshnessBand,
+        businessDay: result.model.businessDay,
+        scope: result.model.scope,
+      },
+    },
+    { headers: { "X-Request-Id": requestId } },
+  );
 }

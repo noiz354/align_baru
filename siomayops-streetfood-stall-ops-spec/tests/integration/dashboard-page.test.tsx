@@ -1,4 +1,5 @@
-// @ts-expect-error -- @types/react-dom is not a dependency of this project; the runtime module exists.
+// @types/react-dom is not a dependency of this project; the runtime module exists and is typed by
+// the minimal ambient declaration in tests/ui/_types/react-dom-server.d.ts.
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";

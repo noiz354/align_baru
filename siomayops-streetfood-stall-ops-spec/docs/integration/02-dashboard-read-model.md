@@ -1,9 +1,12 @@
 # Dashboard Read Model
 
 **Document ID:** DOC-INTEGRATION-02
-**Status:** the read model is delivered and wired (API, export, drill-down, UI) by earlier
-work; this document records its contract, the scope hardening added on top, and the remaining
-conformance gaps against `docs/integration/01-dashboard-data-map.md`.
+**Status:** the dashboard is delivered and wired. Two read models currently coexist on `main`
+(the older `features/hq/dashboard.ts` behind `/` and the HTTP readers, and the newer
+`features/hq/dashboard-read-model.ts` behind the `/hq` boundary — see
+`docs/integration/05-hq-dashboard-ui-integration.md`); this document records the contracts, the
+scope hardening applied to **both** server paths, and the remaining conformance gaps against
+`docs/integration/01-dashboard-data-map.md`.
 **Related:** `docs/integration/00-dashboard-ground-truth.md`, `docs/integration/01-dashboard-data-map.md`,
 `docs/product/HQ-DASHBOARD.md`, `docs/operations/API-READ.md`, `HQ.md`, `SALES.md`, `EXPENSES.md`,
 `docs/adr/ADR-0033-time-and-business-day.md`, `docs/security/PERMISSIONS.md`
@@ -14,12 +17,14 @@ conformance gaps against `docs/integration/01-dashboard-data-map.md`.
 
 | Piece | File |
 | --- | --- |
-| Read model + query (`getHqDashboard`, `getHqOutletDetail`, `authorizeHqScope`) | `src/features/hq/dashboard.ts` |
-| Scope-mandatory reader used for fail-closed scope resolution | `src/server/db/repository.ts` (`openScopedReader`) |
-| Delivery: dashboard JSON | `src/app/api/v1/hq/dashboard/route.ts` |
+| Older read model + query (`getHqDashboard`, `getHqOutletDetail`, `authorizeHqScope`) | `src/features/hq/dashboard.ts` |
+| Newer read model behind the `/hq` boundary (`getHqDashboardReadModel`, `isAuthorizedOutlet`) | `src/features/hq/dashboard-read-model.ts` |
+| Authenticated server boundary (`loadHqDashboard`) | `src/server/dashboard/boundary.ts` |
+| Scope-mandatory reader used for fail-closed scope resolution on both paths | `src/server/db/repository.ts` (`openScopedReader`) |
+| Delivery: dashboard JSON | `src/app/api/v1/hq/dashboard/route.ts` (via the boundary) |
 | Delivery: CSV export (audited) | `src/app/api/v1/hq/dashboard/export/route.ts` |
 | Delivery: outlet drill-down | `src/app/api/v1/hq/outlets/[outletId]/route.ts`, `src/app/hq/outlets/[outletId]/page.tsx` |
-| Tests | `tests/unit/hq-dashboard.test.ts`, `tests/integration/hq-dashboard-scope-isolation.test.ts` |
+| Tests | `tests/unit/hq-dashboard.test.ts`, `tests/integration/hq-dashboard-scope-isolation.test.ts`, `tests/integration/hq-dashboard-boundary.test.ts` |
 
 ```text
 persisted records (file-backed store: src/server/db/memory-store.ts -> data/db.json)
@@ -100,19 +105,24 @@ organization-filtered (`scope.organizationId`), then narrowed:
 
 ## Scope Enforcement
 
-- `authorizeHqScope(session)` is the single entry point and fails closed on three checks:
-  1. the session scope must belong to the session organization;
-  2. the role must hold `hq:view` for that scope (existing `authorize()` port) — an `OPERATOR`
-     session is denied before any data is read;
-  3. the scope must be resolvable by `openScopedReader`: `region` (no persisted region data) and
-     incomplete `area`/`stall` scopes are **denied** instead of silently returning an empty page.
+- Both server paths fail closed on scope:
+  1. **Boundary path (`/hq`, `GET /api/v1/hq/dashboard`)** — `loadHqDashboard()` runs the existing
+     `authorize(session, "hq:view", org)` check, then resolves the scope through
+     `openScopedReader`; `region` and incomplete `area`/`stall` scopes return `FORBIDDEN` instead of
+     falling back to an organization-wide read. A store that cannot answer stays a separate
+     `UNAVAILABLE` failure (the two are told apart by the error code, never conflated).
+  2. **Older path (`/`, export, outlet drill-down)** — `authorizeHqScope(session)` additionally
+     requires that the session scope belongs to the session organization, then applies the same
+     role check and resolution check, returning a branded `AuthorizedHqScope`.
 - Every collection is filtered by organization first, then by area/stall membership, so a session in
   organization A cannot see organization B's outlets, sales, expenses, alerts or activity — in the
   dashboard, the CSV export, or the outlet drill-down.
 - A requested outlet/area outside the scope raises `NOT_FOUND`; another tenant's identifier is
   indistinguishable from a nonexistent one, so existence is not revealed.
-- `tests/integration/hq-dashboard-scope-isolation.test.ts` asserts this in both directions, plus
-  drill-down, plus the fail-closed scope checks.
+- `tests/integration/hq-dashboard-scope-isolation.test.ts` asserts this in both directions for the
+  older model (plus drill-down and the fail-closed scope checks);
+  `tests/integration/hq-dashboard-boundary.test.ts` asserts the same for the boundary path, and the
+  boundary suite already proves cross-organization rows never reach the model.
 
 ## Date / Time Handling
 
@@ -185,3 +195,7 @@ deliberately **not** implemented (map GAP-03 and §15).
 10. **G10 — Field masking is not applied.** Operator names appear whenever a shift is active
     (`HQ.md` §8 forbids surveillance tiles, not operator names, but role-based masking per
     `docs/security/PERMISSIONS.md` §4 is still unimplemented).
+11. **G11 — Two read models coexist.** `/` and the HTTP readers use `features/hq/dashboard.ts`;
+    `/hq` uses `features/hq/dashboard-read-model.ts` through the boundary. They define different
+    contracts (the older one treats an outlet as a selling location, the newer one as a stall), so
+    consolidating them is still open work; this document covers both paths' scope behaviour only.
