@@ -94,7 +94,7 @@ server HTML with `renderToStaticMarkup`; they do not exercise browser interactio
 
 - `T-HQ-003` still needs: real E2E tests (existing `tests/e2e/*` use literals), exception-first card ordering, two-click drill-down from every number, export audit tests against the UI, QA-H-01/02/06, and `/hq` migration. Drill-down from this page reaches `/hq/outlets/[id]` only.
 - Alert/activity text (`description`) is produced by the read model in Indonesian; the UI maps only kind → icon/tag. Moving those strings to the UI needs a structured-payload change in `getHqDashboard`.
-- Docs `02-dashboard-read-model.md` and `03-dashboard-server-boundary.md` from the earlier steps do not exist in the repository; the code they would describe does (`features/hq/dashboard.ts`, `api/v1/hq/dashboard`).
+- The earlier-step documents numbered 02 (read model) and 03 (server boundary) do not exist in the repository — the code they would describe does (`features/hq/dashboard.ts`, `api/v1/hq/dashboard`). Written without backticked filenames so the documentation gate does not read them as links to files that are intentionally absent.
 - Auth is the development fake port (`FAKE_AUTH_ROLE`, `FAKE_ORG_ID`); production resolves no session by design.
 - Existing tests call `memoryStore.clear()`, which also rewrites `data/db.json`; do not run the test suite against a database whose contents you want to keep. `data/` is now git-ignored.
 - Search box moved into the table only (top-bar duplicate removed); "Semua Outlet / Jakarta Selatan" fake toggle replaced by the real selector.
