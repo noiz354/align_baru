@@ -1006,19 +1006,19 @@ Completion evidence:
 
 ### F-017-S1 — Single-part upload service
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A (`upload_job` untouched)
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A (`upload_job` untouched)
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `createUploadPipeline` no longer throws `T-UPLOAD-006`; a single-part ingest path
@@ -1034,28 +1034,39 @@ completed** ([MASTER_PLAN.md](MASTER_PLAN.md)). `image-processor.ts` still throw
 recorded, not hidden.
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-017-S1 (the driver interface is replaced, not completed)
+- Tests: 766 → **774 passed (774)**, 8 new.
+- Commands: 5 mutations (4 caught; the 5th exposed a missing test, then caught)
+  · full regression gates · `next build`
+- Notes: validate → normalise-all → store-all → commit → optionally publish.
+  A decode failure stores zero objects (pure phase first); store/commit
+  failures purge best-effort with swallowed delete errors (the cause is what
+  the caller must see). Keys through the ONE implementation (`pageObjectKey`,
+  moved to `shared/` when D1 refused the cross-boundary import — the fastest
+  failure in this track). Asset keys are CSPRNG 32-hex, random not sequential,
+  and double-storing identical pages is correct (no content-address coupling).
+  Publish runs the admin transition (first stamp kept). No route/page/form.
+  One full-suite run flaked on S3 InvalidAccessKeyId in UNRELATED media tests;
+  both pass alone, in pairs, and on full re-run — recorded as transient infra,
+  quarantine on recurrence.
 
 ---
 
 ### F-013-S1/S2 — `reader_preference`: give the orphaned table an owner
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A (the table exists)
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A (the table exists)
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - a `ReaderPreferenceRepository` over the existing table
@@ -1071,10 +1082,20 @@ Completion evidence:
 **Files:** repository, service, `api/preferences/`, `app/settings/`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-013-S1+S2 (port+repo+service+route+consumption+docs, one commit)
+- Tests: 774 → **788 passed (788)**, 14 new (7 route, 7 repository+service).
+- Commands: 4 mutations, all caught (one after adding the missing no-write
+  test) · full regression gates · `next build`
+- Notes: GET returns stored-or-defaults and never writes (asserted against the
+  table); PUT validates per field with the field named; route self-scoped
+  (caller's row only, 401 anonymous, no user in the body); reader consumes
+  autoNext visibly (last-page Next becomes the next-chapter link when on).
+  No /settings page — F-014 owns it and the deferral owns F-014; the API it
+  will write through exists. reader-behavior.md corrected per setting: three
+  STORED-not-applied, auto-advance described as built not as targeted, settings
+  UI marked absent. Anonymous/failed reads fall back to defaults (a preferences
+  outage must not trap a reader on the last page). No browser run of the
+  last-page swap — recorded before shipping, not after.
 
 ---
 

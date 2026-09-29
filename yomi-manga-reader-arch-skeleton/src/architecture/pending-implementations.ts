@@ -62,10 +62,9 @@ export const PLANNED_STUB_PORTS: readonly PendingPort[] = [
   // the inventory cannot outlive the code it describes.
 
   // ── admin + upload (F-016/017, service layer only — no routes) ─────────────
-  // The admin service factory left this list in F-016, when it stopped
-  // throwing — and the claims checker failed the build on the stale entry,
-  // which is the point: the inventory cannot outlive the code it describes.
-  { file: '../features/uploads/upload-pipeline.ts', task: 'T-UPLOAD-006' },
+  // The admin factory left in F-016 and the upload driver in F-017, each time
+  // with the claims checker failing the build on the stale entry: the
+  // inventory cannot outlive the code it describes.
   { file: '../features/uploads/prepare-chapter-upload.ts', task: 'T-UPLOAD-014' },
   { file: '../server/media/image-processor.ts', task: 'T-UPLOAD-004' },
   { file: '../app/api/uploads/prepare/route.ts', task: 'T-UPLOAD-008' },

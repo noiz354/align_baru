@@ -274,3 +274,6 @@ export async function getExceptionsCard(input: { organizationId: string }): Prom
     value: { exceptions: exceptions.slice(0, 20) },
   };
 }
+
+// Server-side dashboard read model (T-HQ-002 read layer). No API/UI wiring yet.
+export * from "./dashboard";

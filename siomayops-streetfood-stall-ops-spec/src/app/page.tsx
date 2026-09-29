@@ -1,60 +1,47 @@
-"use client";
+import { authorize, createAuthPort, type SessionContext } from "@/server/auth/port";
+import { authorizeHqScope, getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError, type AuthorizedHqScope } from "@/features/hq/dashboard";
+import DashboardClient from "./_dashboard/DashboardClient";
+import DashboardState from "./_dashboard/States";
 
-import { useState, useEffect } from "react";
-import { OfflineBanner } from "@/shared/ui/OfflineBanner";
-import { TapTarget } from "@/shared/ui/TapTarget";
+// Operational data must never be prerendered or shared between users.
+export const dynamic = "force-dynamic";
 
-export default function Page() {
-  const [isOffline, setIsOffline] = useState(false);
-  const [pendingCount] = useState(0);
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+function isRealDay(value: string): boolean {
+  if (!DAY.test(value)) return false;
+  const date = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().startsWith(value);
+}
+const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+const ROLE_LABEL: Record<string, string> = { OWNER: "Owner", HQ_OPS: "HQ Operasional", HQ_FINANCE: "HQ Keuangan", AREA_SUPERVISOR: "Supervisor Area", ANALYST: "Analis", AUDITOR: "Auditor", MENU_PRICING_ADMIN: "Admin Harga", OPERATOR: "Operator" };
 
-  useEffect(() => {
-    const update = () => setIsOffline(!navigator.onLine);
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    update();
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
+function can(session: SessionContext, action: "hq:view" | "hq:export"): boolean {
+  try { authorize(session, action, { kind: "org", organizationId: session.organizationId }); return true; } catch { return false; }
+}
 
-  return (
-    <main style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "#ffffff", display: "flex", flexDirection: "column" }}>
-      <OfflineBanner isOffline={isOffline} pendingRecordCount={pendingCount} />
-      <header style={{ padding: "16px", borderBottom: "1px solid #e5e7eb" }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>SiomayOps</h1>
-        <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 14 }}>Beranda penjual</p>
-      </header>
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const session = await createAuthPort().resolveSession();
+  if (!session) return <DashboardState kind="unauthenticated"/>;
+  // Scope and capability are resolved together, fail closed: a role without hq:view, a scope that
+  // belongs to another organization, or a scope the reader cannot resolve all land here.
+  let scope: AuthorizedHqScope;
+  try { scope = authorizeHqScope(session); } catch { return <DashboardState kind="forbidden"/>; }
 
-      <section style={{ padding: 16, display: "grid", gap: 12 }}>
-        <TapTarget minSize={72} label="Mulai Shift" onClick={() => (window.location.href = "/shift")} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <TapTarget minSize={44} label="Jualan" onClick={() => (window.location.href = "/sell")}>
-            Jualan
-          </TapTarget>
-          <TapTarget minSize={44} label="Stok" onClick={() => (window.location.href = "/stock")}>
-            Stok
-          </TapTarget>
-          <TapTarget minSize={44} label="Pengeluaran" onClick={() => (window.location.href = "/expenses")}>
-            Pengeluaran
-          </TapTarget>
-          <TapTarget minSize={44} label="Tutup Shift" onClick={() => (window.location.href = "/closing")}>
-            Tutup Shift
-          </TapTarget>
-        </div>
-        <div style={{ marginTop: 8, padding: 12, background: "#f3f4f6", borderRadius: 10 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>Akses Cepat HQ</h3>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <a href="/hq" style={{ fontSize: 13, color: "#0f766e", textDecoration: "none", fontWeight: 600 }}>Dashboard HQ →</a>
-            <a href="/alerts" style={{ fontSize: 13, color: "#0f766e", textDecoration: "none", fontWeight: 600 }}>Peringatan →</a>
-          </div>
-        </div>
-      </section>
+  const date = first(params.date) ?? getDefaultDashboardDay();
+  if (!isRealDay(date)) return <DashboardState kind="invalid"/>;
+  const outletId = first(params.outletId) || undefined;
 
-      <footer style={{ marginTop: "auto", padding: 16, fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
-        SiomayOps v0.1 — Offline-first • Uang presisi • Lokasi dilaporkan
-      </footer>
-    </main>
-  );
+  try {
+    // The whole authorized outlet list is requested so search/status filtering can stay in the browser
+    // without a refetch; scope is applied on the server before anything is returned.
+    const model = getHqDashboard({ scope, businessDay: date, outletId, limit: 100 });
+    const role = session.roles[0] ?? "OPERATOR";
+    const label = ROLE_LABEL[role] ?? role;
+    return <DashboardClient model={model} viewer={{ roleLabel: label, initials: label.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase(), canExport: can(session, "hq:export") }}/>;
+  } catch (error) {
+    if (error instanceof HqDashboardNotFoundError) return <DashboardState kind="not-found"/>;
+    console.error("dashboard.load_failed", error instanceof Error ? error.message : "unknown");
+    return <DashboardState kind="error"/>;
+  }
 }

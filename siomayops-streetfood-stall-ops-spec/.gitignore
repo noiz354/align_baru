@@ -13,10 +13,13 @@ build/
 .env.local
 .env.*.local
 
+# runtime persistence of the pilot store (src/server/db/memory-store.ts) — generated, never committed
+/data/
+
 # evidence and exports must never be committed
 evidence/
 exports/
 *.pem
 
-# local dev store (memory-store persistence)
-data/db.json
+# runtime file-backed store (regenerated on first boot)
+data/

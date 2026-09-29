@@ -87,74 +87,21 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { AppError } from '../../shared/contracts/errors';
-import type { DeliveryFormat, ObjectStoragePort } from '../../shared/contracts/ports';
+import type { ObjectStoragePort } from '../../shared/contracts/ports';
 import type { AssetKey } from '../../shared/types';
 import type { Env } from '../../shared/validation';
 
-/* ── layout (ADR-004): the only place a physical object key is built ─────── */
-
-/** The opaque key shape FR-MEDIA-003 mandates: 128-bit random, base64url. */
-const ASSET_KEY_PATTERN = /^[A-Za-z0-9_-]{22,64}$/;
-
-/** Row ids are uuids (DATA_MODEL.md conventions); anything else is a bug. */
-const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-/** The stored extension per delivery format (ADR-005 ladder). */
-const FORMAT_EXTENSION: Readonly<Record<DeliveryFormat, string>> = {
-  avif: 'avif',
-  webp: 'webp',
-  jpeg: 'jpeg',
-};
-
-/**
- * Fail-fast invariant check — NOT input validation. Both arguments are
- * server-owned (a DB row id, a generated key), so a violation is a broken
- * invariant and INTERNAL_ERROR (500) says exactly that. No client-supplied
- * value ever reaches here: the delivery layer validates the URL key first, so
- * a crafted path can never become an object key (NFR-SEC-010).
+/* ── layout (ADR-004): re-exported, not duplicated ───────────────────────────
  *
- * Requirements: NFR-SEC-010. Tasks: T-CATALOG-010.
+ * The key builders lived here until F-017-S1, when the ingest service needed
+ * the same rule and D1 forbids `features/*` from importing `server/*`. They
+ * are pure string rules with no infrastructure in them, so they moved to
+ * `shared/storage-keys.ts` — one implementation, two importers. This
+ * re-export keeps every existing server import working with no second copy of
+ * the rule anywhere; grep for a second `pages/` template before believing
+ * otherwise.
  */
-function requireKeyPart(value: string, pattern: RegExp, subject: string): string {
-  if (!pattern.test(value)) {
-    throw new AppError('INTERNAL_ERROR', {
-      cause: new Error(`refusing to build an object key: ${subject} is not well formed`),
-    });
-  }
-  return value;
-}
-
-/**
- * Physical key of one page variant: `pages/{chapterId}/{assetKey}.{ext}`
- * (ADR-004 bucket layout, DATA_MODEL §10).
- *
- * @param chapterId owning chapter row id (never a client value).
- * @param assetKey the opaque key stored in `chapter_page.asset_key`.
- * @param format the stored variant (ADR-005 ladder).
- */
-export function pageObjectKey(
-  chapterId: string,
-  assetKey: string,
-  format: DeliveryFormat,
-): AssetKey {
-  requireKeyPart(chapterId, UUID_PATTERN, 'chapterId');
-  requireKeyPart(assetKey, ASSET_KEY_PATTERN, 'assetKey');
-  return `pages/${chapterId}/${assetKey}.${FORMAT_EXTENSION[format]}` as AssetKey;
-}
-
-/**
- * Physical key of one cover variant: `covers/{mangaId}.{ext}` (ADR-004,
- * DATA_MODEL §3). Covers are WebP + JPEG only (ADR-005 / T-UPLOAD-011).
- *
- * @param mangaId owning manga row id.
- * @param assetKey the opaque key stored in `manga.cover_asset_key`.
- * @param format the stored variant.
- */
-export function coverObjectKey(mangaId: string, assetKey: string, format: DeliveryFormat): AssetKey {
-  requireKeyPart(mangaId, UUID_PATTERN, 'mangaId');
-  requireKeyPart(assetKey, ASSET_KEY_PATTERN, 'assetKey');
-  return `covers/${mangaId}.${FORMAT_EXTENSION[format]}` as AssetKey;
-}
+export { coverObjectKey, pageObjectKey } from '../../shared/storage-keys';
 
 /* ── typed storage errors ────────────────────────────────────────────────── */
 
@@ -180,7 +127,8 @@ export class ObjectNotFoundError extends Error {
 
 /** Narrow an unknown SDK error to its HTTP status, when it has one. */
 function httpStatusOf(error: unknown): number | undefined {
-  const metadata = (error as { $metadata?: { httpStatusCode?: number } } | null | undefined)?.$metadata;
+  const metadata = (error as { $metadata?: { httpStatusCode?: number } } | null | undefined)
+    ?.$metadata;
   return metadata?.httpStatusCode;
 }
 
@@ -301,9 +249,7 @@ export function selectStorageDriver(
     dbUrl.startsWith('./') ||
     dbUrl.endsWith('.db');
   const local =
-    isPglite ||
-    source['STORAGE_DIR'] !== undefined ||
-    source['YOMI_STORAGE'] === 'filesystem';
+    isPglite || source['STORAGE_DIR'] !== undefined || source['YOMI_STORAGE'] === 'filesystem';
   return local ? 'filesystem' : 's3';
 }
 
@@ -469,9 +415,7 @@ interface Spool {
   readonly stream: Readable;
 }
 
-function toNodeStream(
-  source: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>,
-): Readable {
+function toNodeStream(source: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>): Readable {
   return source instanceof Readable ? source : Readable.from(source as AsyncIterable<Uint8Array>);
 }
 
@@ -593,9 +537,12 @@ function presignUploadPart(input: PresignInput): string {
     'UNSIGNED-PAYLOAD',
   ].join('\n');
 
-  const stringToSign = [SIGV4_ALGORITHM, amzDate, credentialScope, sha256Hex(canonicalRequest)].join(
-    '\n',
-  );
+  const stringToSign = [
+    SIGV4_ALGORITHM,
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join('\n');
   const signingKey = hmacSha256(
     hmacSha256(
       hmacSha256(hmacSha256(`AWS4${input.secretAccessKey}`, dateStamp), input.region),
