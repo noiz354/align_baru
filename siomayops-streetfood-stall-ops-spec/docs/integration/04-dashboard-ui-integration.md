@@ -1,7 +1,9 @@
 # Dashboard UI Integration
 
 **Document ID:** DOC-INTEGRATION-04
-**Status:** implemented and runtime-verified (read-only dashboard)
+**Status:** implemented, runtime-verified (read-only dashboard), and merged with `main`
+**Last updated:** after merging `origin/main` into this branch, which landed the parallel dashboard
+work described under "Previous State" and "Known Gaps".
 **Related:** `docs/product/HQ-DASHBOARD.md`, `HQ.md`, `DESIGN.md` §4, `ARCHITECTURE.md` §7/§8,
 `API.md`, `docs/operations/API-READ.md`, `TASKS.md` (T-HQ-001/002/003), `AGENTS.md`, and the repository harness document at the monorepo root
 
@@ -28,17 +30,26 @@ What `/hq` actually was at commit `bca4e69` (`src/app/hq/page.tsx`, 249 lines, `
 | Filters | None. No date or outlet selector existed |
 | Loading | Literal `"Loading..."` strings inside cards |
 
-Two facts about the starting point matter for an honest record:
+Two facts about the starting point matter for an honest record (both were verified at the fork
+point `bca4e69`, before any later merge):
 
-1. **The four preceding integration documents named in the task brief do not exist in this
-   checkout.** There is no `docs/integration/` directory before this file, and nothing in the tree
-   mentions a dashboard ground-truth, data-map, read-model or server-boundary document. The
-   read model with `salesTrend` / `outlets` / `alerts` / `recentActivity` does not exist either.
-   This step therefore **builds the missing read model and boundary here** (decisions confirmed with
-   the task owner) rather than consuming them.
-2. **The dashboard surface is `/hq`, not `/`.** `src/app/page.tsx` is the operator home
-   (quick-action tiles: Mulai Shift, Jualan, Stok, Pengeluaran, Tutup Shift) and contains no KPI,
-   table, chart or sample operational value. It was left untouched.
+1. **The preceding integration documents did not exist when this branch was cut.** At `bca4e69`
+   there was no `docs/integration/` directory at all: no ground-truth, no data-map, no read model
+   with `salesTrend` / `outlets` / `alerts` / `recentActivity`, and no dashboard boundary. This step
+   therefore **built the missing read model and boundary here** (decisions confirmed with the task
+   owner) rather than consuming them.
+   **Since then, `main` gained part of that work from other branches:** `docs/integration/00-dashboard-ground-truth.md`,
+   `01-dashboard-data-map.md`, `dashboard-data-map.md`, a parallel read model
+   (`src/features/hq/dashboard.ts` with `getHqDashboard` / `getHqOutletDetail`), outlet drill-down
+   (`/hq/outlets/[outletId]`, `/api/v1/hq/outlets/[outletId]`) and an export route
+   (`/api/v1/hq/dashboard/export`). This document records what *this* branch built; the two read
+   models are **not consolidated** — see "Known Gaps".
+2. **The dashboard surface is `/hq`, not `/`.** At the fork point `src/app/page.tsx` was the
+   operator home (quick-action tiles: Mulai Shift, Jualan, Stok, Pengeluaran, Tutup Shift) with no
+   KPI, table, chart or sample operational value, so it was left untouched. `main` has since
+   replaced that file with a client-side dashboard that still renders a hardcoded outlet array and
+   mock operational values; this branch deliberately does not touch it (see "Remaining
+   Non-Persistent UI").
 
 ---
 
@@ -211,8 +222,12 @@ internal error message.
   `hq:view` action — no second auth flow was introduced.
 - **Authenticated:** default fake-provider session (`HQ_OPS`) renders the dashboard.
 - **Unauthenticated:** `resolveSession()` returning `null` yields `UNAUTHENTICATED` (covered by
-  `tests/integration/hq-dashboard-boundary.test.ts`). It cannot be produced over HTTP today,
-  because the pilot fake provider always returns a session; there is no sign-out surface.
+  `tests/integration/hq-dashboard-boundary.test.ts`). This is no longer hypothetical: as of the
+  merged `main`, the auth port **fails closed under `NODE_ENV=production`**, so a production server
+  renders the "Tidak ada sesi aktif." state on `/hq` and answers `401 UNAUTHENTICATED` on the
+  dashboard API — verified against a production build after the merge. In development the
+  configurable pilot actor is used instead, which is the environment the runtime evidence below
+  was captured in.
 - **Forbidden:** verified in the running app with `FAKE_AUTH_ROLE=OPERATOR` — `/hq` renders the
   forbidden state and `GET /api/v1/hq/dashboard` returns `403 FORBIDDEN`.
 - **Expired session:** not implemented anywhere in the project (no session TTL, no revocation
@@ -223,6 +238,8 @@ internal error message.
 Environment: this sandbox, Node v22.22.3 (project declares `>=20`), production build
 (`npm run build` → `next start`), file-backed pilot store.
 
+Before the merge (branch as reviewed):
+
 ```bash
 npm run typecheck                     # PASS
 npm run lint                          # PASS
@@ -230,6 +247,25 @@ npm test                              # 24 files, 155 tests passed
 npm run build                         # ✓ Compiled successfully; /hq is ƒ (server-rendered on demand)
 node tools/verify-hq-dashboard.mjs    # 33 passed, 0 failed, 0 skipped
 ```
+
+After merging `origin/main` into the branch (merged tree, dev server for the pilot actor):
+
+```bash
+npm run typecheck                     # PASS
+npm run lint                          # PASS
+npm test                              # 25 files, 160 tests passed (155 + 5 from main's unit suite)
+npm run build                         # ✓ Compiled successfully; /hq and main's dashboard routes all build
+node tools/verify-hq-dashboard.mjs    # 33 passed, 0 failed, 0 skipped (unchanged)
+```
+
+Post-merge smoke over both surfaces (development): `/` 200, `/hq` 200, `/hq/outlets/[outletId]` 200,
+`/api/v1/hq/dashboard` 200, `/api/v1/hq/dashboard/export` 200 (CSV), `/api/v1/hq/sales` 200.
+`/api/v1/hq/outlets/[outletId]` answered 404 for the seeded outlet, which is that route's own
+not-found logic (the file is byte-identical to `main`) and not a merge regression.
+
+Production build with the merged auth port (which fails closed): `/`, `/hq` and
+`/hq/outlets/[outletId]` render their unauthenticated states, and `/api/v1/hq/dashboard`,
+`/api/v1/hq/dashboard/export`, `/api/v1/hq/outlets/[outletId]` all answer `401`.
 
 `tools/verify-hq-dashboard.mjs` creates real records through the app's own APIs and derives every
 expectation from the API before/after delta, so it carries no fixture data of its own:
@@ -293,6 +329,12 @@ peringatan; tindak lanjut (drill-down) belum tersedia", "Drill-down dan ekspor b
 There is no "Catat Transaksi" or "Catat Pengeluaran" button on the dashboard surface, and none was
 added: the dashboard is intentionally a read surface until mutation integration is its own task.
 
+One additional static surface arrived with the merge and is **recorded, not fixed**: `main`'s
+`src/app/page.tsx` is a `"use client"` dashboard whose `const outlets = [...]` array and KPI cards
+are still hardcoded samples, so the app's root path shows operational values that do not come from
+persistence. It is owned by whoever wrote it and is out of scope for this change; leaving it
+untouched keeps this PR to one transition (the HQ dashboard) instead of two.
+
 ## Known Gaps
 
 1. **T-HQ-003 remains open.** Drill-down (every number to its records), exception-first ordering of
@@ -312,8 +354,19 @@ added: the dashboard is intentionally a read surface until mutation integration 
    watermark yet.
 6. **Session expiry has no implementation anywhere.** As above, the dashboard inherits the auth
    port's behaviour; there is no TTL to test against.
-7. **`docs/integration/00`–`03` do not exist in this checkout** (see Previous State). This document
-   therefore records the read model and boundary it built rather than referencing those files.
+7. **Two read models coexist after the merge, and that is a real gap.** `main` provides
+   `src/features/hq/dashboard.ts` (`getHqDashboard`, `getHqOutletDetail`) serving `/hq/outlets/[outletId]`,
+   `/api/v1/hq/dashboard/export` and the `00`/`01` data-map docs; this branch provides
+   `src/features/hq/dashboard-read-model.ts` + `src/server/dashboard/boundary.ts` serving `/hq`.
+   Both aggregate the same persisted facts and they read better together than apart. The only
+   conflicting path was `GET /api/v1/hq/dashboard`; the merge kept this branch's contract because
+   nothing outside this branch's own tooling consumes that HTTP route (`main`'s export and
+   drill-down routes import the model functions directly). Consolidating the two models into one
+   aggregation path is the natural follow-up and is **not** done here.
+8. **Drill-down and export exist on `main` but are not wired into this `/hq` card surface.** The
+   ten cards on this page still have no per-figure drill-down link, and the page renders main's
+   `outlets/[outletId]` and `dashboard/export` endpoints nowhere. `T-HQ-003` therefore stays open:
+   its definition requires the cards themselves to drill through and export to be audited.
 8. **Pre-existing gate failures unchanged:** `npm run check:stubs` failed before this work and still
    fails (311 → 365 violation lines; +54, all of them from the new dashboard files, most of which
    require every source file to be a `PHASE 0` stub). `npm run census` also failed before this work
