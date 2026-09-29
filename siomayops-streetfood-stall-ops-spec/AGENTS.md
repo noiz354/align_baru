@@ -123,3 +123,8 @@ Any "we'll handle it later" on these eight is a review blocker.
 | Provider/legal terms | Business owner + `docs/payments/*` review |
 | Suspected field coercion pattern | Human process per `RUNBOOK.md` — never an automated response |
 | Security incident | `SECURITY.md` §8 + `RUNBOOK.md` |
+
+
+## Worktree page-spec authority (mandatory)
+
+For all page and end-to-end product work in this worktree, the checked-in archive `siomayops_end_to_end_pages.zip` and its extracted canonical prompts in `docs/product/end-to-end-pages/` are mandatory and authoritative. Read the index first, then execute exactly one page prompt at a time in its listed order; do not start a later page until the current one meets its acceptance criteria and evidence requirements. Follow each prompt in full across UI, backend, persistence, authorization, analytics/observability, tests, CI, and runtime evidence. Do not omit, weaken, reorder, or substitute requirements from the archive. Apply the global cross-cutting gate after all page prompts. If a prompt conflicts with another project document, stop and report the exact conflict rather than silently deviating; preserve applicable safety, privacy, security, and financial integrity rules. These instructions are specific to this worktree and supersede generic phase/status statements only to the extent needed to execute the archive prompts.
