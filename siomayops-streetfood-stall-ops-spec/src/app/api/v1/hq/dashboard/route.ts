@@ -42,7 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const result = await loadHqDashboard(
     {
       date: url.searchParams.get("date"),
-      outletId: url.searchParams.get("outlet"),
+      outletId: url.searchParams.get("outlet") ?? url.searchParams.get("outletId"),
     },
     { resolveSession },
   );
@@ -66,6 +66,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         scope: result.model.scope,
       },
     },
-    { headers: { "X-Request-Id": requestId } },
+    { headers: { "X-Request-Id": requestId, "Cache-Control": "no-store" } },
   );
 }

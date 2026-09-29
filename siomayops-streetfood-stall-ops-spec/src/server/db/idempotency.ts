@@ -79,6 +79,11 @@ export async function storeIdempotentResponse(input: {
   memoryStore.idempotency.set(mapKey, record);
 }
 
+const inFlightRequests = new Map<
+  string,
+  { requestHash: string; promise: Promise<{ body: unknown; status: number }> }
+>();
+
 // Convenience wrapper used by API routes
 export async function withIdempotency<T>(
   opts: {
@@ -90,6 +95,7 @@ export async function withIdempotency<T>(
   },
   fn: () => Promise<{ body: T; status: number }>
 ): Promise<{ body: T; status: number; replayed: boolean }> {
+  const mapKey = idempotencyMapKey(opts.organizationId, opts.route, opts.idempotencyKey);
   const begin = await beginIdempotentRequest({
     key: opts.idempotencyKey,
     organizationId: opts.organizationId,
@@ -100,14 +106,36 @@ export async function withIdempotency<T>(
   if (begin.kind === "REPLAY") {
     return { body: begin.record.responseBody as T, status: begin.record.statusCode, replayed: true };
   }
-  const result = await fn();
-  await storeIdempotentResponse({
-    key: opts.idempotencyKey,
-    organizationId: opts.organizationId,
-    route: opts.route,
-    requestHash: opts.requestHash,
-    responseBody: result.body,
-    statusCode: result.status,
-  });
-  return { ...result, replayed: false };
+
+  const existingInFlight = inFlightRequests.get(mapKey);
+  if (existingInFlight) {
+    if (existingInFlight.requestHash !== opts.requestHash) {
+      const err = new Error("Idempotency key mismatch: same key with different payload");
+      (err as any).code = "IDEMPOTENCY_MISMATCH";
+      throw err;
+    }
+    const settled = await existingInFlight.promise;
+    return { body: settled.body as T, status: settled.status, replayed: true };
+  }
+
+  const execPromise = (async () => {
+    const result = await fn();
+    await storeIdempotentResponse({
+      key: opts.idempotencyKey,
+      organizationId: opts.organizationId,
+      route: opts.route,
+      requestHash: opts.requestHash,
+      responseBody: result.body,
+      statusCode: result.status,
+    });
+    return result;
+  })();
+
+  inFlightRequests.set(mapKey, { requestHash: opts.requestHash, promise: execPromise });
+  try {
+    const result = await execPromise;
+    return { ...result, replayed: false };
+  } finally {
+    inFlightRequests.delete(mapKey);
+  }
 }

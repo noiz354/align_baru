@@ -42,6 +42,104 @@ export default function DashboardClient({ model, viewer }: { model: HqDashboardR
   const [toast, setToast] = useState("");
   const [notificationOpen, setNotificationOpen] = useState(false);
 
+  const [formOutletId, setFormOutletId] = useState(model.scope.outletId ?? model.outletOptions[0]?.id ?? "");
+  const [formAmount, setFormAmount] = useState("");
+  const [formPaymentMethod, setFormPaymentMethod] = useState<"CASH" | "QRIS" | "EWALLET" | "BANK_TRANSFER">("CASH");
+  const [formCategory, setFormCategory] = useState<"CONSUMABLE" | "ICE" | "PACKAGING" | "TRANSPORT" | "LOCATION_FEE" | "REPAIR" | "OTHER">("CONSUMABLE");
+  const [formFundingSource, setFormFundingSource] = useState<"CASH_BOX" | "OPERATOR_PERSONAL">("CASH_BOX");
+  const [formNote, setFormNote] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  const openModal = (kind: "transaction" | "expense") => {
+    setFormOutletId(model.scope.outletId ?? model.outletOptions[0]?.id ?? "");
+    setFormAmount("");
+    setFormPaymentMethod("CASH");
+    setFormCategory("CONSUMABLE");
+    setFormFundingSource("CASH_BOX");
+    setFormNote("");
+    setFormError(null);
+    setIdempotencyKey(`${kind === "transaction" ? "tx" : "exp"}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    setModal(kind);
+  };
+
+  const handleModalSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    setFormError(null);
+
+    const trimmedOutlet = formOutletId.trim();
+    if (!trimmedOutlet) {
+      setFormError("Silakan pilih outlet operasional terlebih dahulu");
+      return;
+    }
+
+    const rawAmount = formAmount.trim();
+    if (!/^\d+$/.test(rawAmount)) {
+      setFormError("Nominal harus berupa bilangan bulat Rupiah positif");
+      return;
+    }
+    const parsedAmount = Number(rawAmount);
+    if (!Number.isSafeInteger(parsedAmount) || parsedAmount <= 0) {
+      setFormError("Nominal harus lebih dari Rp 0");
+      return;
+    }
+
+    if (modal === "expense" && !formNote.trim()) {
+      setFormError("Catatan pengeluaran wajib diisi");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const endpoint = modal === "transaction" ? "/api/v1/transactions" : "/api/v1/expenses";
+      const payload =
+        modal === "transaction"
+          ? {
+              outletId: trimmedOutlet,
+              amount: parsedAmount,
+              paymentMethod: formPaymentMethod,
+              note: formNote.trim() || undefined,
+              clientTransactionId: idempotencyKey,
+            }
+          : {
+              outletId: trimmedOutlet,
+              category: formCategory,
+              amount: parsedAmount,
+              fundingSource: formFundingSource,
+              note: formNote.trim(),
+              clientExpenseId: idempotencyKey,
+            };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFormError(json?.error?.message || "Gagal menyimpan catatan ke server");
+        return;
+      }
+      const kind = modal;
+      setModal(null);
+      showToast(
+        kind === "transaction"
+          ? `Transaksi ${rupiah(parsedAmount)} berhasil disimpan`
+          : `Pengeluaran ${rupiah(parsedAmount)} berhasil disimpan`,
+      );
+      startTransition(() => router.refresh());
+    } catch {
+      setFormError("Gagal menghubungi server. Periksa koneksi dan coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const day = model.scope.businessDay;
   const outletId = model.scope.outletId;
   const { kpis } = model;
@@ -112,8 +210,8 @@ export default function DashboardClient({ model, viewer }: { model: HqDashboardR
           <div><div className="eyebrow"><span className="live-dot"/>OPERASIONAL <span className="eyebrow-divider">/</span> DASHBOARD</div><h1>Operasional Hari Ini</h1><p>Ringkasan aktivitas {scopeNoun} — {formatLongDay(day)}</p></div>
           <div className="heading-actions">
             {viewer.canExport && <a className="button button-secondary" href={exportHref} download>Ekspor CSV</a>}
-            <button className="button button-secondary" onClick={() => setModal("expense")}><Icon name="plus" size={17}/>Catat Pengeluaran</button>
-            <button className="button button-primary" onClick={() => setModal("transaction")}><Icon name="plus" size={17}/>Catat Transaksi</button>
+            <button className="button button-secondary" onClick={() => openModal("expense")} data-testid="btn-open-catat-pengeluaran"><Icon name="plus" size={17}/>Catat Pengeluaran</button>
+            <button className="button button-primary" onClick={() => openModal("transaction")} data-testid="btn-open-catat-transaksi"><Icon name="plus" size={17}/>Catat Transaksi</button>
           </div>
         </div>
 
@@ -165,7 +263,7 @@ export default function DashboardClient({ model, viewer }: { model: HqDashboardR
       </main>
     </div>
 
-    {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}><div className="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-title"><div className="modal-head"><div><span className="modal-icon"><Icon name={modal === "transaction" ? "receipt" : "wallet"} size={19}/></span><div><h2 id="entry-title">{modal === "transaction" ? "Catat Transaksi" : "Catat Pengeluaran"}</h2><p>Simulasi formulir — data belum dikirim ke server</p></div></div><button className="icon-button" aria-label="Tutup" onClick={() => setModal(null)}><Icon name="close"/></button></div><form onSubmit={(event) => { event.preventDefault(); setModal(null); showToast(modal === "transaction" ? "Demo: transaksi belum disimpan ke server" : "Demo: pengeluaran belum disimpan ke server"); }}><label>Outlet<select required defaultValue=""><option value="" disabled>Pilih outlet</option>{model.outletOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>{modal === "transaction" ? <><label>Total transaksi<div className="currency-input"><span>Rp</span><input required type="number" min="1" placeholder="0"/></div></label><label>Metode pembayaran<select defaultValue="Tunai"><option>Tunai</option><option>QRIS</option></select></label></> : <><label>Kategori<select defaultValue=""><option value="" disabled>Pilih kategori</option><option>Bahan baku</option><option>Transportasi</option><option>Parkir &amp; keamanan</option><option>Lainnya</option></select></label><label>Jumlah<div className="currency-input"><span>Rp</span><input required type="number" min="1" placeholder="0"/></div></label></>}<div className="modal-actions"><button type="button" className="button button-secondary" onClick={() => setModal(null)}>Batal</button><button type="submit" className="button button-primary">Simpan catatan</button></div></form></div></div>}
+    {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !submitting) setModal(null); }}><div className="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-title"><div className="modal-head"><div><span className="modal-icon"><Icon name={modal === "transaction" ? "receipt" : "wallet"} size={19}/></span><div><h2 id="entry-title">{modal === "transaction" ? "Catat Transaksi" : "Catat Pengeluaran"}</h2><p>{modal === "transaction" ? "Catat penjualan langsung ke shift aktif outlet" : "Catat pengeluaran operasional outlet hari ini"}</p></div></div><button className="icon-button" aria-label="Tutup" disabled={submitting} onClick={() => setModal(null)}><Icon name="close"/></button></div><form onSubmit={handleModalSubmit} noValidate>{formError && <div role="alert" data-testid="entry-modal-error" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{formError}</div>}<label>Outlet<select required value={formOutletId} disabled={submitting} onChange={(e) => { setFormOutletId(e.target.value); setFormError(null); }} data-testid="entry-select-outlet"><option value="" disabled>Pilih outlet</option>{model.outletOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>{modal === "transaction" ? <><label>Total transaksi<div className="currency-input"><span>Rp</span><input required type="number" min="1" step="1" placeholder="0" value={formAmount} disabled={submitting} onChange={(e) => { setFormAmount(e.target.value); setFormError(null); }} data-testid="entry-input-amount"/></div></label><label>Metode pembayaran<select value={formPaymentMethod} disabled={submitting} onChange={(e) => setFormPaymentMethod(e.target.value as "CASH" | "QRIS" | "EWALLET" | "BANK_TRANSFER")} data-testid="entry-select-payment-method"><option value="CASH">Tunai (CASH)</option><option value="QRIS">QRIS (Perlu Verifikasi)</option><option value="EWALLET">E-Wallet (Perlu Verifikasi)</option><option value="BANK_TRANSFER">Transfer Bank (Perlu Verifikasi)</option></select></label><label>Catatan (opsional)<input type="text" maxLength={280} placeholder="Contoh: Pesanan 5 porsi siomay" value={formNote} disabled={submitting} onChange={(e) => setFormNote(e.target.value)} data-testid="entry-input-note"/></label></> : <><label>Kategori<select value={formCategory} disabled={submitting} onChange={(e) => setFormCategory(e.target.value as "CONSUMABLE" | "ICE" | "PACKAGING" | "TRANSPORT" | "LOCATION_FEE" | "REPAIR" | "OTHER")} data-testid="entry-select-category"><option value="CONSUMABLE">Bahan Baku &amp; Konsumsi</option><option value="ICE">Es Batu</option><option value="PACKAGING">Kemasan &amp; Plastik</option><option value="TRANSPORT">Transportasi &amp; BBM</option><option value="LOCATION_FEE">Biaya Lokasi / Kebersihan</option><option value="REPAIR">Perbaikan Gerobak</option><option value="OTHER">Lainnya</option></select></label><label>Jumlah<div className="currency-input"><span>Rp</span><input required type="number" min="1" step="1" placeholder="0" value={formAmount} disabled={submitting} onChange={(e) => { setFormAmount(e.target.value); setFormError(null); }} data-testid="entry-input-amount"/></div></label><label>Sumber dana<select value={formFundingSource} disabled={submitting} onChange={(e) => setFormFundingSource(e.target.value as "CASH_BOX" | "OPERATOR_PERSONAL")} data-testid="entry-select-funding-source"><option value="CASH_BOX">Kas Laci Gerobak (CASH_BOX)</option><option value="OPERATOR_PERSONAL">Dana Pribadi Operator</option></select></label><label>Catatan pengeluaran<input required type="text" maxLength={280} placeholder="Contoh: Beli gas LPG 3kg dan plastik kemasan" value={formNote} disabled={submitting} onChange={(e) => { setFormNote(e.target.value); setFormError(null); }} data-testid="entry-input-note"/></label></>}<div className="modal-actions"><button type="button" className="button button-secondary" disabled={submitting} onClick={() => setModal(null)}>Batal</button><button type="submit" className="button button-primary" disabled={submitting} data-testid="entry-btn-submit">{submitting ? "Menyimpan..." : "Simpan catatan"}</button></div></form></div></div>}
     {toast && <div className="toast"><span><Icon name="check" size={15}/></span>{toast}</div>}
   </div>;
 }

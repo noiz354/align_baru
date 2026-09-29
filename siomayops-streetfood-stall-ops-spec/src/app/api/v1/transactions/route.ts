@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { resolveSession, errorResponse, getRequestId, getIdempotencyKey } from "../_helpers";
-import { recordExpense } from "@/features/expenses";
-import { getAuthorizedOutlets } from "@/features/sales";
+import { recordTransaction, getAuthorizedOutlets } from "@/features/sales";
 import { getDashboardReadModel } from "@/features/hq";
 import { repositories } from "@/server/db/repository";
 
@@ -13,15 +12,10 @@ export async function GET(request: NextRequest) {
     return errorResponse("UNAUTHENTICATED", "Sesi tidak terautentikasi", 401, requestId);
   }
   const url = new URL(request.url);
-  const reviewState = url.searchParams.get("reviewState") || undefined;
   const outletId = url.searchParams.get("outletId") || undefined;
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
   const [{ items }, authorizedOutlets] = await Promise.all([
-    repositories.expenses.list(session.scope, {
-      stallId: outletId,
-      reviewStatus: reviewState,
-      limit,
-    }),
+    repositories.sales.list(session.scope, { stallId: outletId, limit }),
     getAuthorizedOutlets(session),
   ]);
   return NextResponse.json(
@@ -48,19 +42,21 @@ export async function POST(request: NextRequest) {
 
   const headerKey = getIdempotencyKey(request);
   const bodyKey =
-    typeof (body as any).clientExpenseId === "string" ? (body as any).clientExpenseId : "";
+    typeof (body as any).clientTransactionId === "string"
+      ? (body as any).clientTransactionId
+      : typeof (body as any).clientSaleId === "string"
+        ? (body as any).clientSaleId
+        : "";
   const idempotencyKey = headerKey || bodyKey;
 
   try {
-    const result = await recordExpense(session, body, {
+    const result = await recordTransaction(session, body, {
       idempotencyKey,
       correlationId: requestId,
     });
 
     try {
       revalidatePath("/hq");
-      revalidatePath("/hq/expenses");
-      revalidatePath("/expenses");
       revalidatePath("/");
     } catch {}
 
@@ -74,7 +70,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         data: result,
-        expenseId: result.expenseId,
         dashboard,
         replayed: result.replayed,
       },

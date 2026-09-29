@@ -19,7 +19,7 @@
  * HQ coverage card ("who is selling, where, and who is not?").
  */
 
-import { memoryStore } from "../../server/db/memory-store";
+import { memoryStore, syncFromDiskIfNeeded } from "../../server/db/memory-store";
 import type {
   StoredExpense,
   StoredPayment,
@@ -909,6 +909,7 @@ function buildExceptions(request: DashboardRequest, facts: ScopedFacts, now: Dat
  * (`src/server/dashboard/boundary.ts`) — never from a browser bundle.
  */
 export function getHqDashboardReadModel(request: DashboardRequest): HqDashboardReadModel {
+  syncFromDiskIfNeeded();
   const now = request.now ?? new Date();
   const range = businessDayRange(request.businessDay, DEFAULT_BUSINESS_DAY_CONFIG);
   const facts = collectScopedFacts(request);

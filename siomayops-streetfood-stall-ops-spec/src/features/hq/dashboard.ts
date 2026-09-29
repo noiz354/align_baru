@@ -1,5 +1,5 @@
 import { authorize, type SessionContext } from "@/server/auth/port";
-import { memoryStore, type StoredSale } from "@/server/db/memory-store";
+import { memoryStore, syncFromDiskIfNeeded, type StoredSale } from "@/server/db/memory-store";
 import { openScopedReader } from "@/server/db/repository";
 import { DEFAULT_BUSINESS_DAY_CONFIG, toBusinessDay, type BusinessDay } from "@/shared/time/business-day";
 import type { Scope } from "@/shared/types/scope";
@@ -459,6 +459,7 @@ function getSalesTrend(completedSales: StoredSale[], _day: BusinessDay): { label
 }
 
 export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
+  syncFromDiskIfNeeded();
   const now = new Date();
   const locations = scopedLocations(input.scope, input.outletId, input.areaId);
   const allVisibleLocations = scopedLocations(input.scope, undefined, input.areaId);
