@@ -133,6 +133,42 @@ export function ReaderClient({
   // same response already carries were dropped on the floor.
   const [prevChapter, setPrevChapter] = useState<ChapterNeighbour | null>(null);
   const [nextChapter, setNextChapter] = useState<ChapterNeighbour | null>(null);
+  /**
+   * Whether the reader advances past the last page (`autoNextChapter`,
+   * F-013-S2).
+   *
+   * Read from `/api/preferences` alongside everything else this island fetches
+   * — the page does no server fetching (PGlite-in-RSC), so the preference
+   * arrives the same way the pages do. Starts `true`, the documented default:
+   * an anonymous reader (401) and a reader who never opened settings get the
+   * same answer, which is what "default" means. A failed read also falls back
+   * to `true` rather than disabling navigation — a preferences outage must not
+   * trap a reader on the last page of a chapter.
+   */
+  const [autoNext, setAutoNext] = useState(true);
+
+  // The reader's own preferences, fetched independently of the chapter load:
+  // they do not depend on it, must not delay it, and must not fail it. A
+  // separate effect with no dependencies runs once on mount; anything it
+  // cannot read falls back to the documented defaults (see the state above).
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPreferences() {
+      try {
+        const res = await fetch('/api/preferences', { headers: { accept: 'application/json' } });
+        if (!res.ok) return;
+        const data = (await readJson(res)) as { autoNextChapter?: unknown };
+        if (cancelled) return;
+        if (typeof data?.autoNextChapter === 'boolean') setAutoNext(data.autoNextChapter);
+      } catch {
+        // Deliberately nothing: defaults stand. See the state comment.
+      }
+    }
+    void loadPreferences();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Resolve chapterId via manga chapters list, then fetch pages + progress
   useEffect(() => {
@@ -255,14 +291,31 @@ export function ReaderClient({
         <span aria-live="polite">
           Page {page} / {maxPage} {saving ? '• saving...' : ''}
         </span>
-        <button
-          onClick={next}
-          disabled={page >= maxPage}
-          aria-label="Next page"
-          style={{ padding: '8px 16px' }}
-        >
-          Next
-        </button>
+        {page >= maxPage && autoNext && nextChapter !== null ? (
+          // `autoNextChapter` consumed (F-013-S2): on the last page, Next
+          // becomes the next chapter instead of a dead end. A real link, not a
+          // button that navigates — keyboard and screen-reader users get the
+          // same affordance as the chapter links below, and a nested
+          // interactive inside a button would be invalid HTML either way. When
+          // the preference is off (or there is no next chapter), the button
+          // below stays disabled at the end, exactly as before.
+          <a
+            href={`${hrefFor(nextChapter)}?page=1`}
+            aria-label={`Next chapter: ${labelFor(nextChapter)}`}
+            style={{ padding: '8px 16px' }}
+          >
+            Next chapter →
+          </a>
+        ) : (
+          <button
+            onClick={next}
+            disabled={page >= maxPage}
+            aria-label="Next page"
+            style={{ padding: '8px 16px' }}
+          >
+            Next
+          </button>
+        )}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>
           {chapterId?.slice(0, 8)} • {slug} ch{chapterNumber}
         </span>

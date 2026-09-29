@@ -87,6 +87,11 @@ Direction determines **reading order**, not just visual mirroring. The single so
 
 ### 8.1 Zoom
 - Range 100–400%; default from ReaderPreference.zoomDefault (100%).
+- **Status in F-013-S2: the preference is STORED (validated 1.0–4.0, served by
+  `GET /api/preferences`) and nothing consumes it — there is no zoom UI, no
+  pinch, no Ctrl+wheel, no double-tap. The inputs below describe the target,
+  not the present, and this paragraph exists so the table in §16 does not
+  claim otherwise.**
 - Inputs: pinch (touch, 100–400 continuous), Ctrl+wheel (desktop, 10% steps), double-tap (toggle 100% ↔ 200% at tap point), keys `+`/`−` (10% steps) and `0` (reset), chrome zoom controls (100/150/200/300/400 quick set).
 - At zoom > 100%, the page pans within the box (two-finger pan / drag); pan is clamped to page bounds.
 - Zoom resets on: entering a new chapter, switching to/from double (documented rule, T-READER-030).
@@ -194,7 +199,13 @@ interface ReaderState {
     - no next (series end) → "You've finished {title}".
     - next exists but draft/unpublished → "That's everything for now".
   - vertical: card is the flow tail (in scroll, no dead end); paged: card replaces the "next" affordance (next = no-op with card visible).
-  - **Auto-advance** (ReaderPreference.autoNextChapter, default true): after 1.5 s on the card, navigate to the next chapter (visible countdown, cancelable by any input). Reduced-motion: no animation, same timing.
+  - **Auto-advance** (ReaderPreference.autoNextChapter, default true): what
+    exists in F-013-S2 is the first half — on the last page, Next becomes a
+    "Next chapter" link when the preference is on (and a next chapter exists),
+    and stays disabled at the end when it is off. There is no completion card,
+    no 1.5 s timer and no countdown yet; the paragraph above describes the
+    target, not the present. Reduced-motion: no animation, same timing (when
+    the timer lands).
 - **No wrap-around, ever** (T-READER-033): End at M stays M; there is no "back to start" key (that's Home's job — but Home in a *completed* chapter goes to the reading-start page, which is allowed: Home is position, next is progression).
 - **Next-chapter navigation** preserves mode/direction/zoom-reset (new chapter = zoom reset rule §8.1); page starts at reading-start (1) or the saved position if the user had read it before (restore rule §12 applies).
 
@@ -224,13 +235,19 @@ Stored (authenticated: server; anonymous: device-local — duality documented §
 
 | Setting | Values | Default | Effect |
 |---|---|---|---|
-| defaultMode | vertical / single / double | vertical | applied on chapter open (user can switch per-session) |
-| directionOverride | none / rtl / ltr | none (use manga's) | effective direction = override ⊕ manga (§4) |
-| zoomDefault | 1.0–4.0 | 1.0 | applied on open (chapter switch resets to it, §8.1) |
-| autoNextChapter | true / false | true | §13 auto-advance |
+| defaultMode | vertical / single / double | vertical | STORED, not applied — the reader renders one mode and has no switch yet |
+| directionOverride | none / rtl / ltr | none (use manga's) | STORED, not applied — effective direction is always the manga's (§4) |
+| zoomDefault | 1.0–4.0 | 1.0 | STORED, not applied — no zoom UI exists yet (§8.1) |
+| autoNextChapter | true / false | true | APPLIED (F-013-S2): last-page Next becomes the next-chapter link when on; the 1.5 s auto-advance in §13 is still target, not present |
+
+**Status in F-013-S2: the table above is honest about three stored-not-applied
+settings and one applied.** Before this slice every row claimed an effect no
+code produced. "Stored" means validated, persisted per user, and served — it
+does not mean used, and the Effect column now says which is which instead of
+letting "stored" imply "live".
 
 - Changes in the reader are persisted (debounced 500 ms) and take effect immediately (mode/direction) or on next open (defaults).
-- The settings UI (`/settings` → reader section) is a form (a11y per ACCESSIBILITY.md §5); the reader chrome also exposes quick mode/direction toggles (same persistence path).
+- The settings UI (`/settings` → reader section) is a form (a11y per ACCESSIBILITY.md §5); the reader chrome also exposes quick mode/direction toggles (same persistence path). **Status in F-013-S2: neither exists — `/settings` renders `NotYetBuilt` (F-014, deferred) and the reader chrome has no toggles. The API contract above is what a future form will write through, which is why the validation already names fields.**
 - Preferences never leak between users (server-stored, scoped; device-local is namespaced per browser profile).
 
 ## 17. State Diagrams (conceptual)

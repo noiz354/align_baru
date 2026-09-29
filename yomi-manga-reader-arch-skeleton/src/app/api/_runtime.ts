@@ -49,9 +49,9 @@ export function resolveCaller(request: Request): Promise<CallerContext> {
  * this only supplies the factory.
  */
 async function buildApiDeps(): Promise<ApiDeps> {
-  const { library, history, readerProgress, manga, chapters, logger } =
+  const { library, history, readerProgress, manga, chapters, preferences, logger } =
     await createLibraryComposition();
-  return { library, history, readerProgress, manga, chapters, resolveCaller, logger };
+  return { library, history, readerProgress, manga, chapters, preferences, resolveCaller, logger };
 }
 
 /**
