@@ -537,19 +537,19 @@ Completion evidence:
 
 ### F-012-S1 — `/search`: results, states, pagination
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `NotYetBuilt` is gone
@@ -562,28 +562,38 @@ Completion evidence:
 **Files:** `src/app/search/**`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-012-S1+S2 (one commit: a search box whose query is not in the URL
+  is a different feature, not a first slice)
+- Tests: 741 → **747 passed (747)**, 6 new (the server read; the island needs
+  jsdom, which is a dependency decision, not a test-file decision).
+- Commands: full regression gates · `next build` · real-browser checks (first
+  paint, links, submit, empty state, Back restores query+results, debounce chain
+  via probes).
+- Notes: five states with error never rendered as "no results"; `?q=` is
+  shareable and Back moves through searches (`push` — the acceptance overruled
+  the first implementation's `replace`); cursor never in the URL; a 429 on first
+  paint names itself. Interactive typing is not drivable by this automation
+  harness (synthetic keystrokes reach the DOM but not React; clicks, submits
+  and navigations all work) — recorded in the evidence file with the chain
+  observed firing and the residual risk named.
 
 ---
 
 ### F-012-S2 — Deep-linkable query in the URL
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - typing updates the URL; reloading restores the query and results
@@ -594,10 +604,20 @@ Completion evidence:
 **Files:** `src/app/search/**`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-012-S1+S2 (one commit: a search box whose query is not in the URL
+  is a different feature, not a first slice)
+- Tests: 741 → **747 passed (747)**, 6 new (the server read; the island needs
+  jsdom, which is a dependency decision, not a test-file decision).
+- Commands: full regression gates · `next build` · real-browser checks (first
+  paint, links, submit, empty state, Back restores query+results, debounce chain
+  via probes).
+- Notes: five states with error never rendered as "no results"; `?q=` is
+  shareable and Back moves through searches (`push` — the acceptance overruled
+  the first implementation's `replace`); cursor never in the URL; a 429 on first
+  paint names itself. Interactive typing is not drivable by this automation
+  harness (synthetic keystrokes reach the DOM but not React; clicks, submits
+  and navigations all work) — recorded in the evidence file with the chain
+  observed firing and the residual risk named.
 
 ---
 

@@ -1,48 +1,66 @@
 /**
  * Search (`/search`).
  *
- * Requirements: FR-SEARCH-001…005, NFR-A11Y-002. Tasks: T-SEARCH-004 (UI), T-SEARCH-006 (states).
- * Data: T-SEARCH-001 (`GET /api/search`). Ranking: T-SEARCH-003.
+ * Requirements: FR-SEARCH-001…005, NFR-A11Y-002. Tasks: T-SEARCH-004 (UI),
+ * T-SEARCH-006 (states), T-READER-001 (deep link — the `?q=` contract below).
  *
- * (This header used to say `GET /api/v1/search`. That route was never created:
- * the contract names the endpoint `/api/search` (API_CONTRACT §2.2), and a
- * second route to the same rows would be a second surface to guard, rate-limit
- * and keep in sync. Corrected in F-011-S2 — one route, not both.)
+ * ── What this page is ─────────────────────────────────────────────────────
+ * A server shell that reads `?q=` and renders page 1 for it, plus the client
+ * island that takes over for typing and paging. `NotYetBuilt` is gone: the box
+ * searches, the states are honest, and the URL is shareable.
  *
- * ── Why there is no search box yet ─────────────────────────────────────────
- * A search box is a promise that typing in it does something. T-SEARCH-004 depends on
- * T-SEARCH-001, and T-SEARCH-001 is not implemented: `src/app/api/search/route.ts:9` throws
- * `Not implemented: T-SEARCH-003`, and `src/features/search/search.service.ts:39` throws
- * `Not implemented: T-SEARCH-001`. The trigram indexes the search depends on are now in place
- * (migration 0001, DATA_MODEL §19), so the database half is real — but a debounce, a URL sync
- * and an arrow-navigable results list over a route that always throws would be a keyboard-
- * navigable error page, which is worse than a page that admits it is not there.
+ * ── The `?q=` contract (F-012-S2) ──────────────────────────────────────────
+ * The query is IN the URL, so a search is a link: pasting `/search?q=naruto`
+ * shows the same first page to anyone, with or without JavaScript. The island
+ * keeps it there with `router.push` as the reader types (debounced) and submits
+ * (immediate) — each completed query is a history entry, so Back moves through
+ * searches (F-012-S2). Clearing the box `replace`s the bare `/search`, so no
+ * meaningless `?q=` is ever left behind. The cursor is deliberately NOT in the
+ * URL (see `search-box.tsx` and `catalog-results.tsx` for why an opaque token
+ * is not shareable state).
  *
- * T-SEARCH-006's states are the same problem: "no results for 'x'", "the catalog is empty" and
- * "rate limited" are three distinct claims about a real response, and none of them can be true
- * until one arrives.
- *
- * The design intent is recorded here so it is not lost: debounced 300 ms query box with Enter
- * forcing an immediate search, `?q=` URL sync, ranked results with a kind badge and a
- * match-field hint, and distinct states for empty query, no results, rate limited and empty
- * catalog — per ACCESSIBILITY.md §5, with `main` never blank.
+ * ── A new query mounts a fresh island ───────────────────────────────────────
+ * `key={initialQuery}`: state (items, cursor, error) cannot survive a change of
+ * query, so there is no effect that resets and no stale window where page 2 of
+ * one search is offered for another. Correct by construction, the catalog's own
+ * rule.
  */
 import type { Metadata } from 'next';
-import { NotYetBuilt } from '../../shared/ui/StateRegion';
+import { readSearchPage } from './search-data';
+import { SearchBox } from './search-box';
+
+/** `searchParams` is a promise in Next 16, and `q` may arrive as an array. */
+type SearchParams = {
+  q?: string | string[];
+};
 
 export const metadata: Metadata = {
   title: 'Search',
 };
 
-export default function SearchPage() {
+function readInitialQuery(raw: string | string[] | undefined): string {
+  if (Array.isArray(raw)) return '';
+  return (raw ?? '').slice(0, 120);
+}
+
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const initialQuery = readInitialQuery((await searchParams).q);
+  const initial = initialQuery.trim() === '' ? null : await readSearchPage(initialQuery);
+
   return (
     <>
       <h1>Search</h1>
-      <NotYetBuilt
-        headingId="search-not-built"
-        task="T-SEARCH-001"
-        intent="offer a debounced search box across titles and aliases with ranked results, a URL you can share, and distinct messages for no results, an empty catalog and rate limiting"
-        actions={[{ href: '/discover', label: 'Browse the catalog', primary: true }]}
+      <SearchBox
+        key={initialQuery}
+        initialQuery={initialQuery}
+        initialItems={initial !== null && initial.ok ? initial.items : []}
+        initialCursor={initial !== null && initial.ok ? initial.nextCursor : null}
+        initialFailed={initial !== null && !initial.ok}
+        initialFailedCode={initial !== null && !initial.ok ? initial.code : null}
       />
     </>
   );

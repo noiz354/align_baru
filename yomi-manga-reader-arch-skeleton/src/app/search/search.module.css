@@ -1,0 +1,112 @@
+/**
+ * Search styles (`/search`).
+ *
+ * Requirements: FR-SEARCH-005, NFR-A11Y-002/004/006/010. Tasks: T-SEARCH-004/006.
+ *
+ * ── No colour is written here ─────────────────────────────────────────────
+ * Every colour is a `var(--token)` from `src/shared/ui/tokens.css`, which is the
+ * only file in `src/` where a colour literal may appear (T-FOUND-004).
+ *
+ * ── Badges are text, never colour-only ────────────────────────────────────
+ * The kind badge (Manga/Creator/Tag) and the band hint ("exact match", …) are
+ * words in bordered chips. A reader who cannot distinguish the colours still
+ * gets the whole of the information, because the information was never in the
+ * colour to begin with.
+ *
+ * ── Targets ───────────────────────────────────────────────────────────────
+ * The search button and the load-more button are the shared `.btn` (44 px,
+ * NFR-A11Y-010). The input is full-width with a 44 px minimum height so the box
+ * itself is as easy to hit as the button beside it.
+ */
+.stack {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.form {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+
+.input {
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  font: inherit;
+}
+
+.count {
+  margin: 0;
+}
+
+.state {
+  display: grid;
+  gap: var(--sp-3);
+  justify-items: start;
+  padding: var(--sp-4);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+}
+
+.stateText {
+  margin: 0;
+}
+
+.query {
+  font-weight: 600;
+}
+
+.results {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 1.125rem;
+}

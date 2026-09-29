@@ -56,11 +56,10 @@ export const PLANNED_STUB_PORTS: readonly PendingPort[] = [
 
   // ── search (F-010/011/012) ─────────────────────────────────────────────────
   // `search.service.ts` (T-SEARCH-001) and `api/search/route.ts` (T-SEARCH-003)
-  // left this list in F-011, when both stopped throwing — and `check-claims.mjs`
-  // failed the build on the stale entries, which is the point: the inventory
-  // cannot outlive the code it describes.
-  { file: '../app/search/page.tsx', task: 'T-SEARCH-003' },
-  { file: '../app/search/page.tsx', task: 'T-SEARCH-001' },
+  // left this list in F-011, and `app/search/page.tsx` (T-SEARCH-001/003) in
+  // F-012 when `NotYetBuilt` was replaced by the real page — each time
+  // `check-claims.mjs` failed the build on the stale entry, which is the point:
+  // the inventory cannot outlive the code it describes.
 
   // ── admin + upload (F-016/017, service layer only — no routes) ─────────────
   { file: '../features/admin/admin.service.ts', task: 'T-ADMIN-001' },
