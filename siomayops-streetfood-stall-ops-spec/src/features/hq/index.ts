@@ -768,3 +768,7 @@ export async function getDashboardReadModel(
     authorizedOutlets,
   };
 }
+
+// Server-side dashboard read model (T-HQ-002 read layer).
+export * from "./dashboard";
+

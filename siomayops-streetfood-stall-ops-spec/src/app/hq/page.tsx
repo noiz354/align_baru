@@ -1,36 +1,53 @@
-import { createAuthPort } from "@/server/auth/port";
-import { getDashboardReadModel } from "@/features/hq";
-import { HQDashboardClient } from "./HQDashboardClient";
+/**
+ * `/hq` — HQ dashboard (Server Component).
+ *
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
+ *
+ * Flow implemented here:
+ *
+ *   browser → this page → authenticated server boundary → dashboard read model → persistence
+ *
+ * The page is a Server Component on purpose: the operational data is read and scoped on the
+ * server, so no raw persistence and no KPI arithmetic reaches the browser. Interactivity lives in
+ * two client components only — the URL-state filters and the outlet table's local search.
+ *
+ * Filters are URL state (`/hq?date=YYYY-MM-DD&outlet=<id>`), which keeps the view refresh-safe,
+ * shareable and browser-back friendly.
+ */
 
+import type { Metadata } from "next";
+import { loadHqDashboard } from "@/server/dashboard/boundary";
+import { DashboardView } from "./_ui/dashboard-view";
+import { DashboardProblem } from "./_ui/problem-state";
+
+export const metadata: Metadata = {
+  title: "HQ Dashboard — SiomayOps",
+  description: "Dashboard HQ: penjualan, pengeluaran, outlet, peringatan, dan aktivitas harian.",
+};
+
+/** Read models must never be served from a build-time cache. */
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
-interface HQDashboardPageProps {
-  searchParams?: Promise<{ action?: string }>;
+export interface HqPageProps {
+  readonly searchParams: Promise<{ readonly date?: string; readonly outlet?: string }>;
 }
 
-export default async function HQDashboardPage({ searchParams }: HQDashboardPageProps) {
-  const authPort = createAuthPort();
-  const session = await authPort.resolveSession();
-  if (!session) {
-    return (
-      <main style={{ maxWidth: 640, margin: "40px auto", padding: 24, textAlign: "center" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Akses Ditolak</h1>
-        <p style={{ color: "#6b7280", fontSize: 14 }}>Sesi tidak terautentikasi.</p>
-      </main>
-    );
+function firstValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return typeof value === "string" ? value : null;
+}
+
+export default async function HqPage({ searchParams }: HqPageProps) {
+  const params = await searchParams;
+  const date = firstValue(params.date);
+  const outlet = firstValue(params.outlet);
+
+  const result = await loadHqDashboard({ date, outletId: outlet });
+
+  if (!result.ok) {
+    const retryHref = date ? `/hq?date=${encodeURIComponent(date)}` : "/hq";
+    return <DashboardProblem kind={result.kind} retryHref={retryHref} requestId={result.requestId} />;
   }
 
-  const readModel = await getDashboardReadModel(session);
-  const resolvedParams = searchParams ? await searchParams : undefined;
-  const autoOpenModal = resolvedParams?.action === "catat-transaksi";
-  const autoOpenExpenseModal = resolvedParams?.action === "catat-pengeluaran";
-
-  return (
-    <HQDashboardClient
-      initialData={readModel}
-      autoOpenModal={autoOpenModal}
-      autoOpenExpenseModal={autoOpenExpenseModal}
-    />
-  );
+  return <DashboardView model={result.model} />;
 }

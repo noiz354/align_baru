@@ -51,7 +51,7 @@ Enforced by tooling:
 | `EXPENSE` | 14 | EXPENSES.md, docs/finance/EXPENSE-REVIEW.md | T-EXP-001, T-EXP-002, T-EXP-003, T-EXP-004, T-OPS-001 | unit/expense-review | QA-E |
 | `STOCK` | 12 | INVENTORY.md, docs/finance/STOCK-VARIANCE.md | T-SHIFT-002, T-STOCK-001, T-STOCK-002, T-STOCK-003, T-STOCK-004 | unit/stock-variance, integration/stock-derivation | QA-K |
 | `LOYALTY` | 12 | LOYALTY.md | T-LOY-001, T-LOY-002, T-LOY-003 | unit/loyalty-redemption, integration/loyalty-concurrency | QA-L |
-| `HQ` | 14 | HQ.md, docs/product/HQ-DASHBOARD.md | T-CLOSE-004, T-HQ-001, T-HQ-002, T-HQ-003, T-LOC-003, T-LOC-005 | e2e/hq-coverage | QA-H |
+| `HQ` | 14 | HQ.md, docs/product/HQ-DASHBOARD.md | T-CLOSE-004, T-HQ-001, T-HQ-002, T-HQ-003, T-LOC-003, T-LOC-005 | e2e/hq-coverage, unit/hq-dashboard, integration/hq-dashboard-scope-isolation | QA-H |
 | `PERF` | 18 | PERFORMANCE.md, docs/product/OPERATOR-RECOGNITION.md | T-EXP-004, T-HQ-002, T-OFF-002, T-PERF-001, T-PERF-002 | unit/normalisation (with T-PERF-002) | QA-H |
 | `RECOG` | 8 | docs/product/OPERATOR-RECOGNITION.md | T-REC-001, T-REC-002 | integration/recognition-gates (with T-REC-001) | QA-H |
 | `COMM` | 8 | COMMUNICATION.md | T-COMM-001 | integration/threads (with T-COMM-001) | QA-H |

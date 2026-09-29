@@ -447,8 +447,8 @@ describe("Catat Transaksi End-to-End Write Flow", () => {
       const dashRes = await getDashboardRoute(dashReq);
       expect(dashRes.status).toBe(200);
       const dashJson = await dashRes.json();
-      expect(dashJson.data.sales.totalSales.amountMinor).toBe(145137);
-      expect(dashJson.data.sales.count).toBe(3);
+      expect(dashJson.data.kpis.value.salesToday.amountMinor).toBe(145137);
+      expect(dashJson.data.kpis.value.transactionCount).toBe(3);
 
       // Verify GET /api/v1/transactions lists the new transaction
       const listReq = new NextRequest(`http://localhost:3000/api/v1/transactions?outletId=${STALL_2_ID}`);

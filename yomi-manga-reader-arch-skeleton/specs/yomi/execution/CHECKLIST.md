@@ -1054,19 +1054,19 @@ Completion evidence:
 
 ### F-013-S1/S2 — `reader_preference`: give the orphaned table an owner
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A (the table exists)
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A (the table exists)
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - a `ReaderPreferenceRepository` over the existing table
@@ -1082,10 +1082,20 @@ Completion evidence:
 **Files:** repository, service, `api/preferences/`, `app/settings/`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-013-S1+S2 (port+repo+service+route+consumption+docs, one commit)
+- Tests: 774 → **788 passed (788)**, 14 new (7 route, 7 repository+service).
+- Commands: 4 mutations, all caught (one after adding the missing no-write
+  test) · full regression gates · `next build`
+- Notes: GET returns stored-or-defaults and never writes (asserted against the
+  table); PUT validates per field with the field named; route self-scoped
+  (caller's row only, 401 anonymous, no user in the body); reader consumes
+  autoNext visibly (last-page Next becomes the next-chapter link when on).
+  No /settings page — F-014 owns it and the deferral owns F-014; the API it
+  will write through exists. reader-behavior.md corrected per setting: three
+  STORED-not-applied, auto-advance described as built not as targeted, settings
+  UI marked absent. Anonymous/failed reads fall back to defaults (a preferences
+  outage must not trap a reader on the last page). No browser run of the
+  last-page swap — recorded before shipping, not after.
 
 ---
 
@@ -1093,19 +1103,19 @@ Completion evidence:
 
 ### F-021-S1 — Get E2E into CI
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - the 5 non-todo e2e specs run in CI: `catalog-journey`, `catalog-perf`,
@@ -1117,10 +1127,19 @@ Completion evidence:
   double-count
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-021-S1 (verification + deletions; the job already existed)
+- Tests: 788 unchanged; Playwright locally 83/85 (2 environmental, both
+  chased to cause: dev-bundle JS measured against a production budget, and a
+  seed title this box lacks).
+- Commands: 5 Playwright specs against the seeded app · full regression gates
+  · `next build`
+- Notes: the checklist said "E2E absent" and named project-checks.yml — both
+  stale (ci.yml has a real e2e job: Chromium, seeded PG, production artifact,
+  axe gate, no continue-on-error, gated on push like every other job). The 7
+  dead todo shells (24 describe.todo, executed by NO runner) are deleted; IDs
+  live in TEST_STRATEGY.md/TASKS.md. vitest include covers unit+integration
+  only, so no double-count. Not claimed: CI-green (only CI claims that),
+  mobile results, or the deleted todos reimplemented.
 
 ---
 

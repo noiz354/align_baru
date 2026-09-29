@@ -489,8 +489,8 @@ describe("Catat Pengeluaran End-to-End Write Flow", () => {
       const dashRes = await getDashboardRoute(dashReq);
       expect(dashRes.status).toBe(200);
       const dashJson = await dashRes.json();
-      expect(dashJson.data.expenses.totalExpenses.amountMinor).toBe(37450);
-      expect(dashJson.data.expenses.count).toBe(1);
+      expect(dashJson.data.kpis.value.expenses.amountMinor).toBe(37450);
+      expect(dashJson.data.expenseReview.value.pending).toBe(1);
 
       // Verify GET /api/v1/expenses lists the new expense
       const listReq = new NextRequest(`http://localhost:3000/api/v1/expenses?outletId=${STALL_2_ID}`);
