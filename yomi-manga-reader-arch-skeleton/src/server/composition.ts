@@ -50,6 +50,8 @@ import {
   createBookmarkRepository,
   createLibraryRepository,
 } from './db/repositories/library.repository';
+import { createReaderPreferenceRepository } from './db/repositories/preference.repository';
+import { createPreferenceService, type PreferenceService } from '../features/reader-preferences';
 import { createRepositories } from './db/repositories';
 import type { ChapterRepository } from '../features/chapters';
 import type { MangaRepository } from '../features/manga';
@@ -217,6 +219,7 @@ export async function createLibraryComposition(source?: EnvSource): Promise<Libr
     // regressions from taking the direct-database path away.
     manga,
     chapters,
+    preferences: createPreferenceService({ preferences: createReaderPreferenceRepository(db) }),
     logger,
     close: () => releaseDb(db),
   };
@@ -237,6 +240,8 @@ export interface LibraryComposition {
    */
   readonly manga: MangaRepository;
   readonly chapters: ChapterRepository;
+  /** Reader preferences, self-scoped to the caller (F-013-S1/S2). */
+  readonly preferences: PreferenceService;
   /** The process logger, so a route reports through the real one. */
   readonly logger: Logger;
   /** Drains the database pool (DEPLOYMENT.md §5). */

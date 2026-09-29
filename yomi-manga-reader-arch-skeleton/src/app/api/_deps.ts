@@ -33,6 +33,7 @@ import type { HistoryRepository, ReaderProgressRepository } from '../../features
 import type { Logger } from '../../server/telemetry/logger';
 import type { MangaRepository } from '../../features/manga';
 import type { ChapterRepository } from '../../features/chapters';
+import type { PreferenceService } from '../../features/reader-preferences';
 
 /** Everything an `/api` members' route handler is allowed to reach for. */
 export interface ApiDeps {
@@ -57,6 +58,15 @@ export interface ApiDeps {
    */
   readonly manga: MangaRepository;
   readonly chapters: ChapterRepository;
+  /**
+   * Reader preferences (features/reader-preferences's public surface).
+   *
+   * On the members' seam because it is self-scoped: it touches the caller's
+   * OWN row and nothing else, and it is never admin-gated — so it is safe to
+   * ship while the route guard is deferred. A reader's preferences are not
+   * anyone else's business, and there is no admin view of them by design.
+   */
+  readonly preferences: PreferenceService;
   /**
    * Resolves the CALLER from the verified session cookie, or null for anonymous.
    *
