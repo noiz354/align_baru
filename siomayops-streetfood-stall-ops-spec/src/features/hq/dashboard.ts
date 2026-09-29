@@ -1,575 +1,567 @@
-/**
- * HQ dashboard read model — server-side aggregation only.
- *
- * Flow: file-backed store -> `openScopedReader` (scope-mandatory reads, INV-11/INV-14)
- *   -> `getHqDashboard()` (this module) -> `HqDashboardReadModel`.
- *
- * The model returns data, never presentation: integer minor units (ADR-0006), ISO-8601 UTC
- * instants, structured type codes and ids. Money formatting, wording and freshness badges belong
- * to the delivery layer. No API route or UI is wired to this module yet.
- *
- * Rules implemented here come from `HQ.md` §5, `docs/product/HQ-DASHBOARD.md`, `SALES.md` §2,
- * `EXPENSES.md`, `docs/operations/API-READ.md` §1 and ADR-0033 (server-derived business day).
- */
-import { authorize, type SessionContext } from "../../server/auth/port";
-import { openScopedReader, type ScopedReader } from "../../server/db/repository";
-import { money } from "../../shared/money/money";
-import {
-  DEFAULT_BUSINESS_DAY_CONFIG,
-  businessDayRange,
-  systemClock,
-  type BusinessDay,
-  type Clock,
-} from "../../shared/time";
-import type { Scope, ScopeKind } from "../../shared/types/scope";
-import type { ShiftStatus } from "../../domain/shift";
+import { authorize, type SessionContext } from "@/server/auth/port";
+import { memoryStore, type StoredSale } from "@/server/db/memory-store";
+import { openScopedReader } from "@/server/db/repository";
+import { DEFAULT_BUSINESS_DAY_CONFIG, toBusinessDay, type BusinessDay } from "@/shared/time/business-day";
+import type { Scope } from "@/shared/types/scope";
 
-/** Activity feed size when the caller does not ask for a specific page (API-READ.md §1 default). */
-export const DASHBOARD_ACTIVITY_DEFAULT_LIMIT = 25;
-/** Hard cap for the activity feed (API-READ.md §1 maximum). */
-export const DASHBOARD_ACTIVITY_MAX_LIMIT = 200;
-/** Alerts are current conditions, not a paginated history: keep the highest-consequence subset. */
-export const DASHBOARD_ALERT_LIMIT = 50;
-/** "Shift open > 30 min without a report" — the only alert threshold documented today
- * (`docs/product/HQ-DASHBOARD.md` §6). No other threshold is invented here. */
-export const SHIFT_LOCATION_REPORT_GRACE_MINUTES = 30;
-/** The business day is 24 hours; buckets are hourly and zero-filled. */
-const TREND_BUCKET_COUNT = 24;
-/** A shift in one of these states is still an open accountability session (`SHIFTS.md`,
- * `STATE_MACHINE.md`: SUSPENDED can only return to OPEN, be closed or be voided). */
-const ACTIVE_SESSION_STATUSES: readonly ShiftStatus[] = ["OPEN", "PENDING_SYNC", "SUSPENDED"];
-const BUSINESS_DAY_CONFIG = DEFAULT_BUSINESS_DAY_CONFIG;
-
-export type HqDashboardAlertSeverity = "info" | "warning" | "critical";
-export type HqDashboardStallStatus = "ACTIVE" | "IDLE";
-export type HqDashboardFreshnessBand = "current" | "recent" | "stale";
-
-export interface HqDashboardKpis {
-  /** Gross total of COMPLETED sales for the business day, integer minor units. */
-  readonly salesMinor: number;
-  readonly transactionCount: number;
-  /** `Math.round(salesMinor / transactionCount)`; 0 when the day has no transactions. */
-  readonly averageTransactionMinor: number;
-  /** Field expenses attributed to the business day through their shift, integer minor units. */
-  readonly expensesMinor: number;
-  /** `expensesMinor / salesMinor`, null when the day has no sales. Dimensionless, never money. */
-  readonly expenseRatio: number | null;
-  /** Stalls with an open accountability session on the selected day. */
-  readonly activeStalls: number;
-  /** Stalls inside the authorized scope (and inside the outlet filter, when one is applied). */
-  readonly totalStalls: number;
+export class HqDashboardNotFoundError extends Error {
+  readonly code = "NOT_FOUND";
+  constructor() {
+    super("Outlet not found");
+    this.name = "HqDashboardNotFoundError";
+  }
 }
 
-export interface SalesTrendPoint {
-  /** ISO-8601 UTC instant of the hourly bucket start (business day starts at 04:00 Asia/Jakarta). */
-  readonly bucketStart: string;
-  readonly amountMinor: number;
-  readonly transactionCount: number;
-}
+export type OutletStatus = "OPERATING" | "ATTENTION" | "REVIEW" | "NOT_STARTED" | "CLOSED";
+export type DashboardAlertKind = "SHIFT_LOCATION_MISSING" | "FLAGGED_EXPENSE" | "INCIDENT" | "RECORDED_ALERT";
 
-export interface StallSummary {
-  readonly stallId: string;
-  readonly code: string;
+export interface OutletSummary {
+  readonly id: string;
+  readonly name: string;
   readonly areaId: string;
-  /** Registry value as persisted; not interpreted. */
-  readonly registryStatus: string;
-  /** ACTIVE only when an open session exists on the selected day — never inferred from sales. */
-  readonly operationalStatus: HqDashboardStallStatus;
-  readonly activeShiftId?: string;
-  readonly activeShiftStatus?: ShiftStatus;
-  readonly operatorId?: string;
-  readonly operatorName?: string;
-  readonly startedAt?: string;
+  readonly operatorName: string | null;
+  readonly operatorId: string | null;
+  readonly activeShiftId: string | null;
+  readonly startedAt: string | null;
   readonly salesMinor: number;
   readonly transactionCount: number;
   readonly expensesMinor: number;
+  readonly status: OutletStatus;
+  readonly statusReason: string | null;
 }
 
-export interface OperationalAlert {
-  /** Deterministic id: the persisted alert id, or `<type>:<entityId>` for derived conditions. */
-  readonly alertId: string;
-  readonly type: string;
-  readonly severity: HqDashboardAlertSeverity;
-  readonly stallId?: string;
-  readonly shiftId?: string;
-  readonly entityType?: string;
-  readonly entityId?: string;
+export interface HqDashboardAlert {
+  readonly id: string;
+  readonly outletId: string | null;
+  readonly outletName: string | null;
+  readonly kind: DashboardAlertKind;
+  readonly severity: "INFO" | "WARNING" | "CRITICAL";
+  readonly title: string;
+  readonly description: string;
   readonly createdAt: string;
-  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly href: string | null;
 }
 
-export interface ActivityItem {
-  readonly activityId: string;
+export interface HqDashboardActivity {
+  readonly id: string;
   readonly occurredAt: string;
-  readonly type: string;
-  readonly actorId?: string;
-  readonly actorKind: string;
-  readonly actorRole?: string;
-  readonly entityType: string;
-  readonly entityId: string;
-  /** Resolved when the event subject can be attributed to a stall; absent otherwise. */
-  readonly stallId?: string;
-  readonly reason?: string;
+  readonly outletId: string | null;
+  readonly outletName: string | null;
+  readonly kind: "SALE" | "EXPENSE" | "SHIFT" | "PRODUCT" | "OTHER";
+  readonly description: string;
+  readonly amountMinor: number | null;
+  readonly secondary: string | null;
 }
 
 export interface HqDashboardReadModel {
-  /** ISO-8601 UTC instant this model was produced (FR-HQ-008: no aggregate without its age). */
   readonly generatedAt: string;
-  readonly businessDay: BusinessDay;
-  readonly currency: "IDR";
-  readonly freshnessBand: HqDashboardFreshnessBand;
-  readonly filters: {
-    readonly businessDay: BusinessDay;
-    readonly scopeKind: ScopeKind;
-    /** Present only when an outlet/stall filter was applied. */
-    readonly stallId?: string;
+  readonly sourceWatermark: string | null;
+  readonly scope: { readonly businessDay: BusinessDay; readonly outletId: string | null };
+  readonly kpis: {
+    readonly salesMinor: number;
+    readonly previousDaySalesMinor: number;
+    readonly salesChangeBps: number | null;
+    readonly transactionCount: number;
+    readonly averageTransactionMinor: number;
+    readonly cashSalesMinor: number;
+    readonly digitalVerifiedMinor: number;
+    readonly digitalUnverifiedMinor: number;
+    readonly expensesMinor: number;
+    readonly expenseRatioBps: number;
+    readonly activeOutlets: number;
+    readonly totalOutlets: number;
+    readonly notStartedOutlets: number;
   };
-  readonly kpis: HqDashboardKpis;
-  readonly salesTrend: readonly SalesTrendPoint[];
-  readonly stalls: readonly StallSummary[];
-  readonly alerts: readonly OperationalAlert[];
-  readonly recentActivity: readonly ActivityItem[];
+  readonly salesTrend: readonly { readonly label: string; readonly cumulativeMinor: number }[];
+  readonly alerts: readonly HqDashboardAlert[];
+  readonly activity: readonly HqDashboardActivity[];
+  readonly outletOptions: readonly { readonly id: string; readonly name: string; readonly areaId: string }[];
+  readonly outlets: readonly OutletSummary[];
+  readonly pagination: { readonly limit: number; readonly nextCursor: string | null; readonly total: number };
 }
 
-/** Authorization scope that has already passed `authorizeHqScope()`; cannot be constructed literally. */
+/**
+ * Authorization scope for the dashboard, produced only by `authorizeHqScope()`.
+ *
+ * The session is the only source of scope: the read model cannot be called with a hand-written
+ * scope object, and the brand cannot be forged at runtime (a missing or ambiguous scope is a DENY,
+ * never a wider fallback — docs/security/PERMISSIONS.md §1).
+ */
 declare const AUTHORIZED_HQ_SCOPE: unique symbol;
 export type AuthorizedHqScope = Scope & { readonly [AUTHORIZED_HQ_SCOPE]: "hq:dashboard" };
 
-export type HqDashboardErrorCode = "VALIDATION_FAILED" | "NOT_FOUND" | "FORBIDDEN";
-
-export class HqDashboardError extends Error {
-  readonly code: HqDashboardErrorCode;
-  constructor(code: HqDashboardErrorCode, message: string) {
-    super(message);
-    this.name = "HqDashboardError";
-    this.code = code;
-  }
-}
-
-export interface GetHqDashboardInput {
-  /** Must come from `authorizeHqScope()`/`getHqDashboardForSession()`, never from a request body. */
-  readonly scope: AuthorizedHqScope;
-  readonly businessDay: BusinessDay;
-  readonly stallId?: string;
-  readonly activityLimit?: number;
-  readonly clock?: Clock;
-}
-
-export interface GetHqDashboardForSessionInput {
-  readonly session: SessionContext;
-  readonly businessDay: BusinessDay;
-  readonly stallId?: string;
-  readonly activityLimit?: number;
-  readonly clock?: Clock;
-}
-
 /**
- * Resolve the session's authorization scope into a dashboard-safe scope.
+ * Resolve a session into a dashboard-safe scope, fail closed.
  *
- * Uses the existing `authorize()` port with the `hq:view` capability, so a role without HQ read
- * access (for example `OPERATOR`) is denied before any data is loaded. The returned scope is
- * branded: `getHqDashboard()` cannot be called with an arbitrary, hand-written scope object.
+ *  1. the session scope must belong to the session organization;
+ *  2. the role must hold `hq:view` for that scope (existing `authorize()` port);
+ *  3. the scope must be resolvable by the scoped reader, so `region` and incomplete
+ *     `area`/`stall`/`self` scopes are denied instead of silently returning an empty page.
  */
 export function authorizeHqScope(session: SessionContext): AuthorizedHqScope {
   if (session.scope.organizationId !== session.organizationId) {
-    throw new HqDashboardError("FORBIDDEN", "Session scope does not belong to the session organization");
+    throw Object.assign(new Error("Session scope does not belong to the session organization"), { code: "FORBIDDEN" });
   }
-  try {
-    authorize(session, "hq:view", session.scope);
-  } catch (error) {
-    throw new HqDashboardError("FORBIDDEN", error instanceof Error ? error.message : "Forbidden");
-  }
+  authorize(session, "hq:view", session.scope);
+  openScopedReader(session.scope);
   return session.scope as AuthorizedHqScope;
 }
 
-/** Convenience entry point for the delivery layer: session in, authorized dashboard out. */
-export async function getHqDashboardForSession(
-  input: GetHqDashboardForSessionInput
-): Promise<HqDashboardReadModel> {
-  const scope = authorizeHqScope(input.session);
-  return getHqDashboard({
-    scope,
-    businessDay: input.businessDay,
-    stallId: input.stallId,
-    activityLimit: input.activityLimit,
-    clock: input.clock,
+export interface DashboardQuery {
+  readonly scope: AuthorizedHqScope;
+  readonly businessDay: BusinessDay;
+  readonly outletId?: string;
+  readonly areaId?: string;
+  readonly search?: string;
+  readonly status?: "ALL" | OutletStatus;
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+const ACTIVE_SHIFT_STATUSES = new Set(["OPEN", "PENDING_SYNC"]);
+const CLOSED_LOCATION_STATUSES = new Set(["INACTIVE", "RESTRICTED", "TEMPORARILY_UNAVAILABLE"]);
+const HOURS = [6, 8, 10, 12, 14, 16, 18] as const;
+const jakartaDay = (date: Date) => toBusinessDay(date, DEFAULT_BUSINESS_DAY_CONFIG);
+const atIso = (date: Date | undefined) => date instanceof Date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+
+function outletLocationForShift(shiftId: string): string | null {
+  const reports = Array.from(memoryStore.locationReports.values())
+    .filter((report) => report.shiftId === shiftId && !report.departedAt)
+    .sort((a, b) => b.arrivedAt.getTime() - a.arrivedAt.getTime());
+  if (reports[0]) return reports[0].sellingLocationId;
+  return memoryStore.shifts.get(shiftId)?.startLocationId ?? null;
+}
+
+function locationHasShiftOrOperator(locationId: string, scope: Scope): boolean {
+  for (const shift of memoryStore.shifts.values()) {
+    if (shift.organizationId !== scope.organizationId) continue;
+    if (scope.kind === "stall" && shift.stallId !== scope.stallId) continue;
+    if (scope.kind === "self" && shift.operatorId !== scope.operatorId) continue;
+    if (shift.startLocationId === locationId || outletLocationForShift(shift.id) === locationId) return true;
+    for (const report of memoryStore.locationReports.values()) {
+      if (report.organizationId === scope.organizationId && report.shiftId === shift.id && report.sellingLocationId === locationId) return true;
+    }
+  }
+  return false;
+}
+
+function canSeeLocation(location: { organizationId: string; areaId: string; id: string }, scope: Scope): boolean {
+  if (location.organizationId !== scope.organizationId) return false;
+  switch (scope.kind) {
+    case "org": return true;
+    case "area": return Boolean(scope.areaId) && location.areaId === scope.areaId;
+    // The pilot runtime has no Region entity/map to prove membership. Fail closed rather than broaden.
+    case "region": return false;
+    case "stall": return Boolean(scope.stallId) && locationHasShiftOrOperator(location.id, scope);
+    case "self": return Boolean(scope.operatorId) && locationHasShiftOrOperator(location.id, scope);
+  }
+}
+
+function previousBusinessDay(day: BusinessDay): BusinessDay {
+  const parts = day.split("-").map(Number);
+  const year = parts[0] ?? 0;
+  const month = parts[1] ?? 1;
+  const date = parts[2] ?? 1;
+  const previous = new Date(Date.UTC(year, month - 1, date - 1, 12));
+  return `${previous.getUTCFullYear()}-${String(previous.getUTCMonth() + 1).padStart(2, "0")}-${String(previous.getUTCDate()).padStart(2, "0")}`;
+}
+
+function rangeContains(day: BusinessDay, date: Date): boolean {
+  return jakartaDay(date) === day;
+}
+
+function scopedLocations(scope: Scope, outletId?: string, areaId?: string) {
+  if (scope.kind === "area" && areaId && areaId !== scope.areaId) throw new HqDashboardNotFoundError();
+  const visible = Array.from(memoryStore.sellingLocations.values())
+    .filter((location) => canSeeLocation(location, scope))
+    .filter((location) => !areaId || location.areaId === areaId);
+  if (!outletId) return visible;
+  const selected = visible.find((location) => location.id === outletId);
+  if (!selected) throw new HqDashboardNotFoundError();
+  return [selected];
+}
+
+function shiftsForDay(scope: Scope, day: BusinessDay, locationIds: Set<string>) {
+  return Array.from(memoryStore.shifts.values()).filter((shift) => {
+    if (shift.organizationId !== scope.organizationId || shift.businessDay !== day) return false;
+    if (scope.kind === "area") {
+      const stall = memoryStore.stalls.get(shift.stallId);
+      if (!scope.areaId || stall?.areaId !== scope.areaId) return false;
+    } else if (scope.kind === "stall" && shift.stallId !== scope.stallId) return false;
+    else if (scope.kind === "self" && shift.operatorId !== scope.operatorId) return false;
+    else if (scope.kind === "region") return false;
+    return locationIds.has(outletLocationForShift(shift.id) ?? "");
   });
 }
 
-export async function getHqDashboard(input: GetHqDashboardInput): Promise<HqDashboardReadModel> {
-  const businessDay = input.businessDay;
-  assertBusinessDay(businessDay);
-  const activityLimit = resolveActivityLimit(input.activityLimit);
-  const now = (input.clock ?? systemClock).now();
-  const range = businessDayRange(businessDay, BUSINESS_DAY_CONFIG);
-  const reader = openScopedReader(input.scope);
-  const isOrgWide = reader.scopeKind === "org";
+function locationIdForExpense(expense: { sellingLocationId?: string; shiftId: string }): string | null {
+  if (expense.sellingLocationId) return expense.sellingLocationId;
+  const shift = memoryStore.shifts.get(expense.shiftId);
+  return shift?.startLocationId ?? null;
+}
 
-  const authorizedStalls = reader.listAuthorizedStalls();
-  const authorizedStallIds = new Set(authorizedStalls.map((stall) => stall.id));
-  const appliedStallId = resolveStallFilter(reader, authorizedStallIds, input.stallId);
+function latestWatermark(dates: (Date | undefined)[]): string | null {
+  const valid = dates.filter((value): value is Date => value instanceof Date && Number.isFinite(value.getTime()));
+  if (!valid.length) return null;
+  return new Date(Math.max(...valid.map((date) => date.getTime()))).toISOString();
+}
 
-  // ---- facts of the selected business day (one load per collection, no per-row reads) --------
-  const shifts = restrictToStall(
-    reader.listShifts({ businessDay }),
-    appliedStallId,
-    (shift) => shift.stallId
-  );
-  const shiftIds = shifts.map((shift) => shift.id);
-  const shiftStallIndex = new Map<string, string>();
-  for (const shift of shifts) shiftStallIndex.set(shift.id, shift.stallId);
+function formatOutletActivity(id: string | undefined, visible: Map<string, { id: string; name: string }>) {
+  if (!id) return { id: null, name: null };
+  const outlet = visible.get(id);
+  return outlet ? { id: outlet.id, name: outlet.name } : { id: null, name: null };
+}
 
-  const activeShiftByStall = new Map<string, (typeof shifts)[number]>();
-  for (const shift of shifts) {
-    if (!ACTIVE_SESSION_STATUSES.includes(shift.status)) continue;
-    const current = activeShiftByStall.get(shift.stallId);
-    if (!current || shift.startedAt.getTime() > current.startedAt.getTime()) {
-      activeShiftByStall.set(shift.stallId, shift);
-    }
-  }
-
-  const sales = restrictToStall(
-    reader.listSales({ businessDay }),
-    appliedStallId,
-    (sale) => sale.stallId
-  );
-  const completedSales = sales.filter((sale) => sale.status === "COMPLETED");
-  const expenses = reader.listExpenses({ shiftIds });
-  const locationReports = reader.listLocationReports({ shiftIds });
-  const payments = reader.listPayments({ saleIds: sales.map((sale) => sale.id) });
-
-  // ---- KPI aggregation -----------------------------------------------------------------------
-  let salesMinor = 0;
-  let expensesMinor = 0;
-  const salesByStall = new Map<string, { amountMinor: number; count: number }>();
-  const expensesByStall = new Map<string, number>();
-  const trendAmounts = new Array<number>(TREND_BUCKET_COUNT).fill(0);
-  const trendCounts = new Array<number>(TREND_BUCKET_COUNT).fill(0);
-  const bucketMs = (range.end.getTime() - range.start.getTime()) / TREND_BUCKET_COUNT;
-
-  for (const sale of completedSales) {
-    salesMinor += sale.totalMinor;
-    const perStall = salesByStall.get(sale.stallId);
-    if (perStall) {
-      perStall.amountMinor += sale.totalMinor;
-      perStall.count += 1;
-    } else {
-      salesByStall.set(sale.stallId, { amountMinor: sale.totalMinor, count: 1 });
-    }
-    // Server acceptance time is the authoritative clock (ADR-0033); device `occurredAt` is metadata.
-    const bucket = bucketIndexFor(sale.serverAcceptedAt ?? sale.createdAt, range.start.getTime(), bucketMs);
-    if (bucket !== null) {
-      trendAmounts[bucket] = (trendAmounts[bucket] ?? 0) + sale.totalMinor;
-      trendCounts[bucket] = (trendCounts[bucket] ?? 0) + 1;
-    }
-  }
-
-  for (const expense of expenses) {
-    expensesMinor += expense.amountMinor;
-    const stallId = shiftStallIndex.get(expense.shiftId);
-    if (stallId !== undefined) {
-      expensesByStall.set(stallId, (expensesByStall.get(stallId) ?? 0) + expense.amountMinor);
-    }
-  }
-
-  // ---- per-stall summaries -------------------------------------------------------------------
-  const operatorNames = new Map(
-    reader
-      .listOperators([...new Set([...activeShiftByStall.values()].map((shift) => shift.operatorId))])
-      .map((operator) => [operator.id, operator.name])
-  );
-
-  const stalls: StallSummary[] = authorizedStalls
-    .filter((stall) => appliedStallId === undefined || stall.id === appliedStallId)
-    .map((stall) => {
-      const activeShift = activeShiftByStall.get(stall.id);
-      const perStall = salesByStall.get(stall.id);
-      const summary: StallSummary = {
-        stallId: stall.id,
-        code: stall.code,
-        areaId: stall.areaId,
-        registryStatus: stall.status,
-        operationalStatus: activeShift ? "ACTIVE" : "IDLE",
-        activeShiftId: activeShift?.id,
-        activeShiftStatus: activeShift?.status,
-        operatorId: activeShift?.operatorId,
-        operatorName: activeShift ? operatorNames.get(activeShift.operatorId) : undefined,
-        startedAt: activeShift?.startedAt.toISOString(),
-        salesMinor: money(perStall?.amountMinor ?? 0).amountMinor,
-        transactionCount: perStall?.count ?? 0,
-        expensesMinor: money(expensesByStall.get(stall.id) ?? 0).amountMinor,
-      };
-      return summary;
-    })
-    // Deterministic ordering by business code; deliberately not ranked by sales (HQ.md §8).
-    .sort((a, b) => (a.code === b.code ? a.stallId.localeCompare(b.stallId) : a.code.localeCompare(b.code)));
-
-  const salesTotalMinor = money(salesMinor).amountMinor;
-  const expensesTotalMinor = money(expensesMinor).amountMinor;
-  const transactionCount = completedSales.length;
-  const kpis: HqDashboardKpis = {
-    salesMinor: salesTotalMinor,
-    transactionCount,
-    averageTransactionMinor:
-      transactionCount === 0 ? 0 : money(Math.round(salesTotalMinor / transactionCount)).amountMinor,
-    expensesMinor: expensesTotalMinor,
-    expenseRatio: salesTotalMinor === 0 ? null : expensesTotalMinor / salesTotalMinor,
-    activeStalls: stalls.filter((stall) => stall.operationalStatus === "ACTIVE").length,
-    totalStalls: stalls.length,
-  };
-
-  const salesTrend: SalesTrendPoint[] = Array.from({ length: TREND_BUCKET_COUNT }, (_, index) => ({
-    bucketStart: new Date(range.start.getTime() + index * bucketMs).toISOString(),
-    amountMinor: money(trendAmounts[index] ?? 0).amountMinor,
-    transactionCount: trendCounts[index] ?? 0,
-  }));
-
-  // ---- alert sources -------------------------------------------------------------------------
-  const entityStallIndex = new Map<string, string>();
-  for (const shift of shifts) entityStallIndex.set(key("shift", shift.id), shift.stallId);
-  for (const sale of sales) entityStallIndex.set(key("sale", sale.id), sale.stallId);
-  for (const report of locationReports) entityStallIndex.set(key("location_report", report.id), report.stallId);
-  for (const expense of expenses) {
-    const stallId = shiftStallIndex.get(expense.shiftId);
-    if (stallId !== undefined) entityStallIndex.set(key("expense", expense.id), stallId);
-  }
-  const saleStallIndex = new Map(sales.map((sale) => [sale.id, sale.stallId]));
-  for (const payment of payments) {
-    const stallId = saleStallIndex.get(payment.saleId);
-    if (stallId !== undefined) entityStallIndex.set(key("payment", payment.id), stallId);
-  }
-  const resolveEntityStall = (entityType?: string, entityId?: string): string | undefined => {
-    if (entityType === undefined || entityId === undefined) return undefined;
-    if (entityType === "stall") return isOrgWide || authorizedStallIds.has(entityId) ? entityId : undefined;
-    return entityStallIndex.get(key(entityType, entityId));
-  };
-
-  const alerts: OperationalAlert[] = [];
-
-  // (1) Persisted alerts a human has not acknowledged yet (current condition, not day-scoped).
-  for (const alert of reader.listAlerts()) {
-    if (alert.acknowledged) continue;
-    const stallId = resolveEntityStall(alert.relatedEntityType, alert.relatedEntityId);
-    if (!inScope(stallId, isOrgWide, authorizedStallIds)) continue;
-    alerts.push({
-      alertId: alert.id,
-      type: alert.type,
-      severity: severityFromStored(alert.severity),
-      stallId,
-      entityType: alert.relatedEntityType,
-      entityId: alert.relatedEntityId,
-      createdAt: alert.createdAt.toISOString(),
-    });
-  }
-
-  // (2) Shift open longer than the documented grace period without a current location report.
-  const shiftsWithOpenReport = new Set<string>();
-  for (const report of locationReports) {
-    if (!report.departedAt) shiftsWithOpenReport.add(report.shiftId);
-  }
-  for (const shift of activeShiftByStall.values()) {
-    const openMinutes = (now.getTime() - shift.startedAt.getTime()) / 60000;
-    if (openMinutes <= SHIFT_LOCATION_REPORT_GRACE_MINUTES) continue;
-    if (shiftsWithOpenReport.has(shift.id)) continue;
-    alerts.push({
-      alertId: `shift_without_location_report:${shift.id}`,
-      type: "shift_without_location_report",
-      severity: "warning", // catalogue severity ATTENTION
-      stallId: shift.stallId,
-      shiftId: shift.id,
-      entityType: "shift",
-      entityId: shift.id,
-      createdAt: shift.startedAt.toISOString(),
-      metadata: { businessDay, status: shift.status, openMinutes: Math.floor(openMinutes) },
-    });
-  }
-
-  // (3) Expenses the domain flagged for human review inside the selected day.
-  for (const expense of expenses) {
-    const reviewStatus = expense.reviewStatus;
-    if (reviewStatus !== "REVIEW_REQUIRED" && reviewStatus !== "ESCALATED") continue;
-    alerts.push({
-      alertId: `expense_review_required:${expense.id}`,
-      type: "expense_review_required",
-      severity: "info", // catalogue severity INFO: "Expense pattern flagged"
-      stallId: shiftStallIndex.get(expense.shiftId),
-      shiftId: expense.shiftId,
-      entityType: "expense",
-      entityId: expense.id,
-      createdAt: expense.createdAt.toISOString(),
-      metadata: {
-        category: expense.category,
-        amountMinor: expense.amountMinor,
-        paidFrom: expense.paidFrom,
-        reviewStatus,
-        flaggedReason: expense.flaggedReason,
-      },
-    });
-  }
-
-  alerts.sort(
-    (a, b) =>
-      severityRank(b.severity) - severityRank(a.severity) ||
-      Date.parse(b.createdAt) - Date.parse(a.createdAt) ||
-      a.alertId.localeCompare(b.alertId)
-  );
-
-  // ---- recent activity (audit stream, newest first, bounded) ----------------------------------
-  const recentActivity: ActivityItem[] = [];
-  const events = reader
-    .listAuditEvents({ from: range.start, to: range.end })
-    .slice()
-    .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime() || a.id.localeCompare(b.id));
+function getActivity(scope: Scope, day: BusinessDay, visibleLocations: Map<string, { id: string; name: string }>, selectedOutletId?: string): HqDashboardActivity[] {
+  const events = memoryStore.auditEvents
+    .filter((event) => event.organizationId === scope.organizationId && rangeContains(day, event.occurredAt))
+    .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+  const result: HqDashboardActivity[] = [];
   for (const event of events) {
-    if (recentActivity.length >= activityLimit) break;
-    const stallId = resolveEntityStall(event.entityType, event.entityId);
-    if (!inScope(stallId, isOrgWide, authorizedStallIds)) continue;
-    recentActivity.push({
-      activityId: event.id,
-      occurredAt: event.occurredAt.toISOString(),
-      type: event.action,
-      actorId: event.actorId,
-      actorKind: event.actorKind,
-      actorRole: event.actorRole,
-      entityType: event.entityType,
-      entityId: event.entityId,
-      stallId,
-      reason: event.reason,
-    });
+    let outletId: string | undefined;
+    let kind: HqDashboardActivity["kind"] = "OTHER";
+    let description = event.action.replaceAll(".", " ");
+    let amountMinor: number | null = null;
+    let secondary: string | null = null;
+    const payload = event.newValueJson ? safeJson(event.newValueJson) : {};
+    if (event.entityType === "sale") {
+      const sale = memoryStore.sales.get(event.entityId);
+      outletId = sale?.sellingLocationId;
+      kind = "SALE";
+      description = event.action === "sale.created" ? "Transaksi dibuat" : "Transaksi diperbarui";
+      amountMinor = sale?.totalMinor ?? null;
+    } else if (event.entityType === "payment") {
+      const payment = memoryStore.payments.get(event.entityId);
+      const sale = payment ? memoryStore.sales.get(payment.saleId) : undefined;
+      outletId = sale?.sellingLocationId;
+      kind = "SALE";
+      description = event.action === "payment.recorded" ? "Mencatat transaksi" : "Pembaruan pembayaran";
+      amountMinor = payment?.amountMinor ?? null;
+    } else if (event.entityType === "expense") {
+      const expense = memoryStore.expenses.get(event.entityId);
+      outletId = expense ? locationIdForExpense(expense) ?? undefined : undefined;
+      kind = "EXPENSE";
+      description = event.action === "expense.submitted" ? "Mencatat pengeluaran" : "Pembaruan pengeluaran";
+      amountMinor = expense?.amountMinor ?? null;
+      secondary = expense?.category ?? null;
+    } else if (event.entityType === "shift") {
+      const shift = memoryStore.shifts.get(event.entityId);
+      outletId = shift ? outletLocationForShift(shift.id) ?? undefined : undefined;
+      kind = event.action === "shift.started" ? "SHIFT" : "OTHER";
+      const operator = shift ? memoryStore.operators.get(shift.operatorId) : undefined;
+      description = event.action === "shift.started" ? `Operator ${operator?.name ?? ""} memulai operasional`.trim() : "Pembaruan operasional";
+    } else if (event.entityType === "price_policy") {
+      const policy = Array.from(memoryStore.pricePolicies.values()).find((item) => item.id === event.entityId);
+      const item = policy ? memoryStore.menuItems.get(policy.menuItemId) : undefined;
+      outletId = policy?.scope === "LOCATION" ? policy.scopeId : undefined;
+      kind = "PRODUCT";
+      description = item ? `Harga ${item.name} diperbarui` : "Kebijakan harga diperbarui";
+    } else if (event.entityType === "stock_movement") {
+      const movement = memoryStore.stockMovements.get(event.entityId);
+      const item = movement ? memoryStore.stockItems.get(movement.stockItemId) : undefined;
+      outletId = movement?.stallId ? outletLocationForStall(movement.stallId, day) ?? undefined : undefined;
+      kind = "OTHER";
+      description = item ? `Pergerakan stok ${item.name}` : "Pergerakan stok dicatat";
+    } else {
+      // Include known location records only when they can be resolved to a scoped outlet.
+      outletId = typeof payload.sellingLocationId === "string" ? payload.sellingLocationId : undefined;
+    }
+    if (!outletId && (selectedOutletId || scope.kind !== "org")) continue;
+    if (outletId && !visibleLocations.has(outletId)) continue;
+    if (selectedOutletId && outletId !== selectedOutletId) continue;
+    const outlet = formatOutletActivity(outletId, visibleLocations);
+    result.push({ id: event.id, occurredAt: event.occurredAt.toISOString(), outletId: outlet.id, outletName: outlet.name, kind, description, amountMinor, secondary });
+    if (result.length === 8) break;
+  }
+  return result;
+}
+
+function outletLocationForStall(stallId: string, day: BusinessDay): string | null {
+  const shift = Array.from(memoryStore.shifts.values()).find((item) => item.stallId === stallId && item.businessDay === day);
+  return shift ? outletLocationForShift(shift.id) : null;
+}
+
+function safeJson(value: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function getAlerts(scope: Scope, day: BusinessDay, visibleLocations: Map<string, { id: string; name: string }>, selectedOutletId?: string): HqDashboardAlert[] {
+  const result: HqDashboardAlert[] = [];
+  const seen = new Set<string>();
+  const add = (alert: HqDashboardAlert) => {
+    const key = `${alert.kind}:${alert.id}`;
+    if (seen.has(key)) return;
+    if (selectedOutletId && alert.outletId !== selectedOutletId) return;
+    if (scope.kind !== "org" && !alert.outletId) return;
+    if (alert.outletId && !visibleLocations.has(alert.outletId)) return;
+    seen.add(key);
+    result.push(alert);
+  };
+  const byShift = new Map(Array.from(memoryStore.shifts.values()).map((shift) => [shift.id, shift]));
+
+  for (const stored of memoryStore.alerts.values()) {
+    if (stored.organizationId !== scope.organizationId || stored.acknowledged || !rangeContains(day, stored.createdAt)) continue;
+    const relatedId = stored.relatedEntityId;
+    let outletId: string | null = null;
+    if (relatedId) {
+      if (memoryStore.sellingLocations.has(relatedId)) outletId = relatedId;
+      else if (memoryStore.shifts.has(relatedId)) outletId = outletLocationForShift(relatedId);
+      else if (memoryStore.incidents.has(relatedId)) {
+        const incident = memoryStore.incidents.get(relatedId);
+        const shift = incident?.shiftId ? byShift.get(incident.shiftId) : undefined;
+        outletId = shift ? outletLocationForShift(shift.id) : null;
+      }
+    }
+    const outlet = outletId ? visibleLocations.get(outletId) : undefined;
+    add({ id: stored.id, outletId: outlet?.id ?? null, outletName: outlet?.name ?? null, kind: "RECORDED_ALERT", severity: stored.severity, title: stored.type, description: stored.message, createdAt: stored.createdAt.toISOString(), href: stored.relatedEntityType && stored.relatedEntityId ? `/hq/records/${encodeURIComponent(stored.relatedEntityType)}/${encodeURIComponent(stored.relatedEntityId)}` : null });
   }
 
+  for (const shift of shiftsForDay(scope, day, new Set(visibleLocations.keys()))) {
+    if (!ACTIVE_SHIFT_STATUSES.has(shift.status)) continue;
+    const hasOpenReport = Array.from(memoryStore.locationReports.values()).some((report) => report.shiftId === shift.id && !report.departedAt);
+    const age = Date.now() - shift.startedAt.getTime();
+    if (!hasOpenReport && age >= 30 * 60 * 1000) {
+      const locationId = outletLocationForShift(shift.id);
+      const outlet = locationId ? visibleLocations.get(locationId) : undefined;
+      add({ id: shift.id, outletId: outlet?.id ?? null, outletName: outlet?.name ?? null, kind: "SHIFT_LOCATION_MISSING", severity: "WARNING", title: outlet?.name ?? "Outlet", description: "Shift aktif belum memiliki laporan lokasi setelah 30 menit", createdAt: shift.startedAt.toISOString(), href: `/hq/outlets/${encodeURIComponent(locationId ?? "")}?date=${day}` });
+    }
+  }
+  for (const expense of memoryStore.expenses.values()) {
+    if (expense.organizationId !== scope.organizationId || !expense.flaggedReason) continue;
+    const shift = memoryStore.shifts.get(expense.shiftId);
+    if (!shift || shift.businessDay !== day) continue;
+    const locationId = locationIdForExpense(expense);
+    const outlet = locationId ? visibleLocations.get(locationId) : undefined;
+    add({ id: expense.id, outletId: outlet?.id ?? null, outletName: outlet?.name ?? null, kind: "FLAGGED_EXPENSE", severity: "WARNING", title: outlet?.name ?? "Pengeluaran", description: `Pengeluaran perlu ditinjau (${expense.flaggedReason})`, createdAt: expense.createdAt.toISOString(), href: `/hq/records/expense/${encodeURIComponent(expense.id)}` });
+  }
+  for (const incident of memoryStore.incidents.values()) {
+    if (incident.organizationId !== scope.organizationId || incident.status === "CLOSED" || incident.status === "RESOLVED") continue;
+    const shift = incident.shiftId ? byShift.get(incident.shiftId) : undefined;
+    if (shift && shift.businessDay !== day) continue;
+    const outletId = shift ? outletLocationForShift(shift.id) : null;
+    const outlet = outletId ? visibleLocations.get(outletId) : undefined;
+    add({ id: incident.id, outletId: outlet?.id ?? null, outletName: outlet?.name ?? null, kind: "INCIDENT", severity: "WARNING", title: outlet?.name ?? "Insiden", description: incident.description, createdAt: incident.createdAt.toISOString(), href: `/hq/incidents?incidentId=${encodeURIComponent(incident.id)}` });
+  }
+  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 20);
+}
+
+function getOutletSummaries(scope: Scope, day: BusinessDay, locations: ReturnType<typeof scopedLocations>, search: string, status: DashboardQuery["status"], cursor: string | undefined, limit: number, attentionIds: Set<string>) {
+  const shifts = shiftsForDay(scope, day, new Set(locations.map((location) => location.id)));
+  const todayShiftByOutlet = new Map<string, typeof shifts>();
+  for (const shift of shifts) {
+    const locationId = outletLocationForShift(shift.id);
+    if (!locationId) continue;
+    const rows = todayShiftByOutlet.get(locationId) ?? [];
+    rows.push(shift);
+    todayShiftByOutlet.set(locationId, rows);
+  }
+  const completedSales = Array.from(memoryStore.sales.values()).filter((sale) => sale.organizationId === scope.organizationId && sale.businessDay === day && sale.status === "COMPLETED");
+  const salesByOutlet = new Map<string, { total: number; count: number }>();
+  for (const sale of completedSales) {
+    const total = salesByOutlet.get(sale.sellingLocationId) ?? { total: 0, count: 0 };
+    total.total += sale.totalMinor;
+    total.count++;
+    salesByOutlet.set(sale.sellingLocationId, total);
+  }
+  const expensesByOutlet = new Map<string, number>();
+  for (const expense of memoryStore.expenses.values()) {
+    if (expense.organizationId !== scope.organizationId) continue;
+    if (expense.reviewStatus === "REJECTED") continue; // data-map §3.4
+    const shift = memoryStore.shifts.get(expense.shiftId);
+    if (!shift || shift.businessDay !== day) continue;
+    const locationId = locationIdForExpense(expense);
+    if (locationId) expensesByOutlet.set(locationId, (expensesByOutlet.get(locationId) ?? 0) + expense.amountMinor);
+  }
+
+  let rows: OutletSummary[] = locations.map((location) => {
+    const locationShifts = todayShiftByOutlet.get(location.id) ?? [];
+    const active = locationShifts.filter((shift) => ACTIVE_SHIFT_STATUSES.has(shift.status)).sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+    const shift = active[0];
+    const operator = shift ? memoryStore.operators.get(shift.operatorId) : undefined;
+    const saleTotal = salesByOutlet.get(location.id) ?? { total: 0, count: 0 };
+    let rowStatus: OutletStatus;
+    let statusReason: string | null = null;
+    if (shift && attentionIds.has(location.id)) {
+      rowStatus = "ATTENTION";
+      statusReason = "Ada hal yang memerlukan tindak lanjut";
+    } else if (shift && Array.from(memoryStore.expenses.values()).some((expense) => expense.organizationId === scope.organizationId && expense.flaggedReason && expense.shiftId === shift.id)) {
+      rowStatus = "REVIEW";
+      statusReason = "Pengeluaran perlu ditinjau";
+    } else if (shift) {
+      rowStatus = "OPERATING";
+    } else if (CLOSED_LOCATION_STATUSES.has(location.status)) {
+      rowStatus = "CLOSED";
+      statusReason = location.status;
+    } else if (day >= jakartaDay(new Date())) {
+      rowStatus = "NOT_STARTED";
+    } else {
+      rowStatus = "CLOSED";
+    }
+    return { id: location.id, name: location.name, areaId: location.areaId, operatorName: operator?.name ?? null, operatorId: operator?.id ?? null, activeShiftId: shift?.id ?? null, startedAt: atIso(shift?.startedAt), salesMinor: saleTotal.total, transactionCount: saleTotal.count, expensesMinor: expensesByOutlet.get(location.id) ?? 0, status: rowStatus, statusReason };
+  });
+  if (search) {
+    const term = search.trim().toLocaleLowerCase("id-ID");
+    rows = rows.filter((row) => `${row.name} ${row.operatorName ?? ""} ${row.status}`.toLocaleLowerCase("id-ID").includes(term));
+  }
+  if (status && status !== "ALL") rows = rows.filter((row) => row.status === status);
+  rows.sort((a, b) => a.name.localeCompare(b.name, "id-ID") || a.id.localeCompare(b.id));
+  const startIndex = cursor ? rows.findIndex((row) => row.id === cursor) + 1 : 0;
+  const safeStart = Math.max(0, startIndex);
+  const page = rows.slice(safeStart, safeStart + limit);
+  const nextCursor = safeStart + limit < rows.length && page.length ? page[page.length - 1]!.id : null;
+  return { rows: page, nextCursor, total: rows.length, shifts };
+}
+
+function salesForScopeDay(scope: Scope, day: BusinessDay, selectedOutletId?: string, areaId?: string) {
+  const visibleOutletIds = new Set(scopedLocations(scope, undefined, areaId).map((location) => location.id));
+  const sales = Array.from(memoryStore.sales.values()).filter((sale) => {
+    if (sale.organizationId !== scope.organizationId || sale.businessDay !== day) return false;
+    if (sale.status !== "COMPLETED" && sale.status !== "DRAFT") return false;
+    if (!visibleOutletIds.has(sale.sellingLocationId)) return false;
+    return !selectedOutletId || sale.sellingLocationId === selectedOutletId;
+  });
+  const completed = sales.filter((sale) => sale.status === "COMPLETED");
+  return { sales, completed, visibleOutletIds };
+}
+
+function paymentTotals(saleIds: Set<string>) {
+  let cash = 0;
+  let verifiedDigital = 0;
+  let unverifiedDigital = 0;
+  for (const payment of memoryStore.payments.values()) {
+    if (!saleIds.has(payment.saleId)) continue;
+    if (payment.status === "PAID" && payment.method === "CASH") cash += payment.amountMinor;
+    else if (payment.status === "PAID") verifiedDigital += payment.amountMinor;
+    else if (payment.status === "PENDING_VERIFICATION" || payment.status === "PENDING" || payment.status === "AUTHORIZED") unverifiedDigital += payment.amountMinor;
+  }
+  return { cash, verifiedDigital, unverifiedDigital };
+}
+
+function getSalesTrend(completedSales: StoredSale[], _day: BusinessDay): { label: string; cumulativeMinor: number }[] {
+  const hourly = new Map<number, number>();
+  for (const sale of completedSales) {
+    const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", hourCycle: "h23" }).format(sale.occurredAt));
+    hourly.set(hour, (hourly.get(hour) ?? 0) + sale.totalMinor);
+  }
+  let cumulative = 0;
+  for (let hour = 0; hour < 6; hour++) cumulative += hourly.get(hour) ?? 0;
+  return HOURS.map((hour) => {
+    for (let next = hour === 6 ? 6 : (hour === 8 ? 7 : hour - 1); next <= hour; next++) cumulative += hourly.get(next) ?? 0;
+    // Include late transactions in the final day total rather than implying they disappeared.
+    if (hour === 18) for (let late = 19; late < 24; late++) cumulative += hourly.get(late) ?? 0;
+    return { label: `${String(hour).padStart(2, "0")}:00`, cumulativeMinor: cumulative };
+  });
+}
+
+export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
+  const now = new Date();
+  const locations = scopedLocations(input.scope, input.outletId, input.areaId);
+  const allVisibleLocations = scopedLocations(input.scope, undefined, input.areaId);
+  const allVisible = new Map(allVisibleLocations.map((location) => [location.id, { id: location.id, name: location.name }]));
+  const { sales, completed } = salesForScopeDay(input.scope, input.businessDay, input.outletId, input.areaId);
+  const salesMinor = completed.reduce((sum, sale) => sum + sale.totalMinor, 0);
+  const saleIds = new Set(sales.map((sale) => sale.id));
+  const payments = paymentTotals(saleIds);
+  const previousDay = previousBusinessDay(input.businessDay);
+  const previousSales = Array.from(memoryStore.sales.values()).filter((sale) => sale.organizationId === input.scope.organizationId && sale.businessDay === previousDay && sale.status === "COMPLETED" && allVisible.has(sale.sellingLocationId) && (!input.outletId || sale.sellingLocationId === input.outletId)).reduce((sum, sale) => sum + sale.totalMinor, 0);
+  const transactionCount = completed.length;
+  const expenseRows = Array.from(memoryStore.expenses.values()).filter((expense) => {
+    if (expense.organizationId !== input.scope.organizationId) return false;
+    // Data-map rule (§3.4): a rejected expense is not a cost of the day. The record itself stays
+    // visible (it is never deleted); only the aggregate excludes it.
+    if (expense.reviewStatus === "REJECTED") return false;
+    const shift = memoryStore.shifts.get(expense.shiftId);
+    if (!shift || shift.businessDay !== input.businessDay) return false;
+    const locationId = locationIdForExpense(expense);
+    return Boolean(locationId && allVisible.has(locationId) && (!input.outletId || locationId === input.outletId));
+  });
+  const expensesMinor = expenseRows.reduce((sum, expense) => sum + expense.amountMinor, 0);
+  const dayShifts = shiftsForDay(input.scope, input.businessDay, new Set(locations.map((location) => location.id)));
+  const activeOutletIds = new Set(dayShifts.filter((shift) => ACTIVE_SHIFT_STATUSES.has(shift.status)).map((shift) => outletLocationForShift(shift.id)).filter((id): id is string => Boolean(id)));
+  const activeOutlets = activeOutletIds.size;
+  const notStartedOutlets = Math.max(0, locations.filter((location) => !CLOSED_LOCATION_STATUSES.has(location.status)).length - activeOutlets);
+  const alerts = getAlerts(input.scope, input.businessDay, allVisible, input.outletId);
+  const attentionIds = new Set(alerts.map((alert) => alert.outletId).filter((id): id is string => Boolean(id)));
+  const outletPage = getOutletSummaries(input.scope, input.businessDay, locations, input.search ?? "", input.status ?? "ALL", input.cursor, input.limit ?? 6, attentionIds);
+  const trend = getSalesTrend(completed.filter((sale) => !input.outletId || sale.sellingLocationId === input.outletId), input.businessDay);
+  const relevantDates: (Date | undefined)[] = [
+    ...sales.map((sale) => sale.serverAcceptedAt),
+    ...expenseRows.map((expense) => expense.createdAt),
+    ...dayShifts.map((shift) => shift.updatedAt),
+    ...alerts.map((alert) => new Date(alert.createdAt)),
+  ];
+  const sourceWatermark = latestWatermark(relevantDates);
   return {
     generatedAt: now.toISOString(),
-    businessDay,
-    currency: "IDR",
-    freshnessBand: freshnessBand(now, now),
-    filters: {
-      businessDay,
-      scopeKind: reader.scopeKind,
-      stallId: appliedStallId,
+    sourceWatermark,
+    scope: { businessDay: input.businessDay, outletId: input.outletId ?? null },
+    kpis: {
+      salesMinor,
+      previousDaySalesMinor: previousSales,
+      salesChangeBps: previousSales > 0 ? Math.round(((salesMinor - previousSales) / previousSales) * 10000) : null,
+      transactionCount,
+      averageTransactionMinor: transactionCount ? Math.round(salesMinor / transactionCount) : 0,
+      cashSalesMinor: payments.cash,
+      digitalVerifiedMinor: payments.verifiedDigital,
+      digitalUnverifiedMinor: payments.unverifiedDigital,
+      expensesMinor,
+      expenseRatioBps: salesMinor ? Math.round((expensesMinor / salesMinor) * 10000) : 0,
+      activeOutlets,
+      totalOutlets: locations.length,
+      notStartedOutlets,
     },
-    kpis,
-    salesTrend,
-    stalls,
-    alerts: alerts.slice(0, DASHBOARD_ALERT_LIMIT),
-    recentActivity,
+    salesTrend: trend,
+    alerts,
+    activity: getActivity(input.scope, input.businessDay, allVisible, input.outletId),
+    outletOptions: allVisibleLocations.map(({ id, name, areaId }) => ({ id, name, areaId })).sort((a, b) => a.name.localeCompare(b.name, "id-ID")),
+    outlets: outletPage.rows,
+    pagination: { limit: input.limit ?? 6, nextCursor: outletPage.nextCursor, total: outletPage.total },
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------------------------
-
-function key(entityType: string, entityId: string): string {
-  return `${entityType}:${entityId}`;
+export interface HqOutletDetail {
+  readonly generatedAt: string;
+  readonly sourceWatermark: string | null;
+  readonly businessDay: BusinessDay;
+  readonly outlet: OutletSummary;
+  readonly transactions: readonly { id: string; occurredAt: string; totalMinor: number; status: string; paymentStatus: string | null }[];
+  readonly expenses: readonly { id: string; occurredAt: string; amountMinor: number; category: string; description: string; reviewStatus: string }[];
+  readonly nextCursor: string | null;
 }
 
-/** Keep only the rows of the filtered stall when an outlet filter is applied. */
-function restrictToStall<T>(rows: readonly T[], stallId: string | undefined, stallOf: (row: T) => string): readonly T[] {
-  if (stallId === undefined) return rows;
-  return rows.filter((row) => stallOf(row) === stallId);
+export function getHqOutletDetail(input: { scope: AuthorizedHqScope; businessDay: BusinessDay; outletId: string; cursor?: string; limit?: number }): HqOutletDetail {
+  const dashboard = getHqDashboard({ scope: input.scope, businessDay: input.businessDay, outletId: input.outletId, limit: 200 });
+  const outlet = dashboard.outlets.find((row) => row.id === input.outletId);
+  if (!outlet) throw new HqDashboardNotFoundError();
+  const location = memoryStore.sellingLocations.get(input.outletId);
+  if (!location || !canSeeLocation(location, input.scope)) throw new HqDashboardNotFoundError();
+  const visibleShifts = shiftsForDay(input.scope, input.businessDay, new Set([input.outletId]));
+  const shiftIds = new Set(visibleShifts.filter((shift) => outletLocationForShift(shift.id) === input.outletId).map((shift) => shift.id));
+  const transactionRows = Array.from(memoryStore.sales.values()).filter((sale) => sale.organizationId === input.scope.organizationId && sale.businessDay === input.businessDay && sale.sellingLocationId === input.outletId && sale.status === "COMPLETED").map((sale) => {
+    const payment = Array.from(memoryStore.payments.values()).find((candidate) => candidate.saleId === sale.id);
+    return { id: sale.id, occurredAt: sale.occurredAt.toISOString(), totalMinor: sale.totalMinor, status: sale.status, paymentStatus: payment?.status ?? null };
+  });
+  const expenseRows = Array.from(memoryStore.expenses.values()).filter((expense) => expense.organizationId === input.scope.organizationId && shiftIds.has(expense.shiftId) && locationIdForExpense(expense) === input.outletId).map((expense) => ({ id: expense.id, occurredAt: expense.incurredAt.toISOString(), amountMinor: expense.amountMinor, category: expense.category, description: expense.description, reviewStatus: expense.reviewStatus }));
+  const combined = [
+    ...transactionRows.map((row) => ({ id: row.id, date: row.occurredAt })),
+    ...expenseRows.map((row) => ({ id: row.id, date: row.occurredAt })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+  const cursorIndex = input.cursor ? combined.findIndex((row) => row.id === input.cursor) + 1 : 0;
+  const start = Math.max(0, cursorIndex);
+  const limit = input.limit ?? 20;
+  const slice = combined.slice(start, start + limit);
+  const ids = new Set(slice.map((row) => row.id));
+  const nextCursor = start + limit < combined.length && slice.length ? slice[slice.length - 1]!.id : null;
+  const transactions = transactionRows.filter((row) => ids.has(row.id));
+  const expenses = expenseRows.filter((row) => ids.has(row.id));
+  return { generatedAt: dashboard.generatedAt, sourceWatermark: dashboard.sourceWatermark, businessDay: input.businessDay, outlet, transactions, expenses, nextCursor };
 }
 
-function inScope(
-  stallId: string | undefined,
-  isOrgWide: boolean,
-  authorizedStallIds: ReadonlySet<string>
-): boolean {
-  if (isOrgWide) return true;
-  return stallId !== undefined && authorizedStallIds.has(stallId);
-}
-
-function severityRank(severity: HqDashboardAlertSeverity): number {
-  switch (severity) {
-    case "critical":
-      return 3;
-    case "warning":
-      return 2;
-    default:
-      return 1;
-  }
-}
-
-function severityFromStored(severity: "INFO" | "WARNING" | "CRITICAL"): HqDashboardAlertSeverity {
-  switch (severity) {
-    case "CRITICAL":
-      return "critical";
-    case "WARNING":
-      return "warning";
-    default:
-      return "info";
-  }
-}
-
-/** Hourly bucket index, clamped into the business-day window for records the server attributed to
- * this day but accepted outside it (for example a shift running past the 04:00 cut-off), so the
- * trend always reconciles with the KPI total. Returns null for an unplaceable timestamp. */
-function bucketIndexFor(instant: Date | undefined, startMs: number, bucketMs: number): number | null {
-  if (!instant) return null;
-  const offset = instant.getTime() - startMs;
-  if (!Number.isFinite(offset)) return null;
-  const raw = Math.floor(offset / bucketMs);
-  if (raw < 0) return 0;
-  if (raw >= TREND_BUCKET_COUNT) return TREND_BUCKET_COUNT - 1;
-  return raw;
-}
-
-function assertBusinessDay(businessDay: string): void {
-  if (typeof businessDay !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(businessDay)) {
-    throw new HqDashboardError("VALIDATION_FAILED", `Invalid business day: ${String(businessDay)}`);
-  }
-  const parts = businessDay.split("-").map((part) => Number(part));
-  const year = parts[0]!;
-  const month = parts[1]!;
-  const day = parts[2]!;
-  const probe = new Date(Date.UTC(year, month - 1, day));
-  if (
-    probe.getUTCFullYear() !== year ||
-    probe.getUTCMonth() !== month - 1 ||
-    probe.getUTCDate() !== day
-  ) {
-    throw new HqDashboardError("VALIDATION_FAILED", `Invalid business day: ${businessDay}`);
-  }
-}
-
-function resolveActivityLimit(limit: number | undefined): number {
-  if (limit === undefined) return DASHBOARD_ACTIVITY_DEFAULT_LIMIT;
-  if (!Number.isInteger(limit) || limit < 1 || limit > DASHBOARD_ACTIVITY_MAX_LIMIT) {
-    throw new HqDashboardError(
-      "VALIDATION_FAILED",
-      `activityLimit must be an integer between 1 and ${DASHBOARD_ACTIVITY_MAX_LIMIT}`
-    );
-  }
-  return limit;
-}
-
-/**
- * Optional outlet filter. The requested stall must exist inside the session organization
- * (otherwise NOT_FOUND — indistinguishable from another organization's stall) and must be inside
- * the authorized scope (otherwise FORBIDDEN: a denial, never a silent wider read).
- */
-function resolveStallFilter(
-  reader: ScopedReader,
-  authorizedStallIds: ReadonlySet<string>,
-  requestedStallId: string | undefined
-): string | undefined {
-  if (requestedStallId === undefined) return undefined;
-  if (typeof requestedStallId !== "string" || requestedStallId.trim() === "") {
-    throw new HqDashboardError("VALIDATION_FAILED", "stallId must be a non-empty string");
-  }
-  const stall = reader.findStallInOrganization(requestedStallId);
-  if (!stall) {
-    throw new HqDashboardError("NOT_FOUND", "Stall not found");
-  }
-  if (!authorizedStallIds.has(stall.id)) {
-    throw new HqDashboardError("FORBIDDEN", "Stall is outside the authorized scope");
-  }
-  return stall.id;
-}
-
-function freshnessBand(computedAt: Date, now: Date): HqDashboardFreshnessBand {
-  const ageMinutes = (now.getTime() - computedAt.getTime()) / 60000;
-  if (ageMinutes < 5) return "current";
-  if (ageMinutes < 60) return "recent";
-  return "stale";
+export function getDefaultDashboardDay(now = new Date()): BusinessDay {
+  return toBusinessDay(now, DEFAULT_BUSINESS_DAY_CONFIG);
 }

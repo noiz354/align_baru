@@ -42,23 +42,31 @@ const DEFAULT_ORG_ID = "00000000-0000-7000-0000-000000000001";
 export function createAuthPort(): AuthPort {
   return {
     async resolveSession(): Promise<SessionContext | null> {
-      // Fake provider for dev/test: returns a configurable actor
-      // In production, this must be replaced with real Better Auth
-      if (process.env.NODE_ENV === "production" && process.env.ALLOW_FAKE_AUTH === "true") {
-        throw new Error("Fake auth must not be enabled in production");
+      // This repository has no real session adapter yet. Never turn the development actor
+      // into a production authentication bypass; protected production routes fail closed.
+      if (process.env.NODE_ENV === "production") return null;
+
+      const configuredRole = process.env.FAKE_AUTH_ROLE || "HQ_OPS";
+      const allowedRoles: readonly Role[] = ["OWNER", "HQ_OPS", "HQ_FINANCE", "AREA_SUPERVISOR", "MENU_PRICING_ADMIN", "ANALYST", "AUDITOR", "OPERATOR"];
+      if (!allowedRoles.includes(configuredRole as Role)) return null;
+      const role = configuredRole as Role;
+      const organizationId = process.env.FAKE_ORG_ID || DEFAULT_ORG_ID;
+      const operatorId = role === "OPERATOR" ? process.env.FAKE_OPERATOR_ID || undefined : undefined;
+      let scope: Scope;
+      if (role === "OPERATOR") {
+        if (!operatorId) return null;
+        scope = { kind: "self", organizationId, operatorId };
+      } else if (role === "AREA_SUPERVISOR") {
+        const areaId = process.env.FAKE_AUTH_AREA_ID;
+        if (!areaId) return null;
+        scope = { kind: "area", organizationId, areaId };
+      } else {
+        scope = { kind: "org", organizationId };
       }
-      // For now, return a default HQ_OPS session if no auth header, or operator if env var set
-      const role = (process.env.FAKE_AUTH_ROLE as Role) || "HQ_OPS";
-      const operatorId = process.env.FAKE_OPERATOR_ID;
-      const scope: Scope = {
-        kind: role === "OPERATOR" ? "self" : "org",
-        organizationId: process.env.FAKE_ORG_ID || DEFAULT_ORG_ID,
-        operatorId: operatorId,
-      };
       return {
-        organizationId: scope.organizationId,
+        organizationId,
         userId: "00000000-0000-7000-0000-000000000002",
-        operatorId: operatorId,
+        operatorId,
         roles: [role],
         scope,
         sessionIssuedAt: new Date(),
@@ -107,7 +115,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Action>> = {
     "evidence:upload", "evidence:view", "notification:view",
   ]),
   HQ_OPS: new Set([
-    "hq:read", "hq:view", "operator:manage", "stall:manage", "assignment:manage",
+    "hq:read", "hq:view", "hq:export", "operator:manage", "stall:manage", "assignment:manage",
     "price:manage", "menu:manage", "menu:view", "location:manage", "location:view",
     "shift:suspend", "shift:view", "incident:resolve", "incident:view", "stock:transfer", "stock:view",
     "expense:review", "expense:view", "sale:view", "payment:view",
