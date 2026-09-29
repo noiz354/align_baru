@@ -23,3 +23,6 @@ exports/
 
 # runtime file-backed store (regenerated on first boot)
 data/
+
+# npm lockfile (project uses pnpm-lock.yaml)
+package-lock.json
