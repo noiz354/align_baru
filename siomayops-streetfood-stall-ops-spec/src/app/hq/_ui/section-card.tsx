@@ -2,7 +2,7 @@
  * Dashboard section shell — the card look carried over from the previous HQ page
  * (white surface, 1px `#e5e7eb` border, 12px radius, 16px padding, 14px/700 title).
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  */
 
 import type { ReactNode } from "react";

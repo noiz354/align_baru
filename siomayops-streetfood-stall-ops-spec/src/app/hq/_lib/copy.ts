@@ -1,7 +1,7 @@
 /**
  * Indonesian presentation copy for the HQ dashboard.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. The read model returns
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The read model returns
  * structured types and numbers only; every human-readable string lives here, so wording can
  * change without touching the read model (HQ-DASHBOARD.md §3, "alert wording rule").
  */

@@ -1,7 +1,7 @@
 /**
  * `/hq` — HQ dashboard (Server Component).
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  *
  * Flow implemented here:
  *

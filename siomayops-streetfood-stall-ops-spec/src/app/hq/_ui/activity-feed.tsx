@@ -2,7 +2,7 @@
  * Recent activity feed — bound to `readModel.recentActivity` (derived from the append-only
  * audit log).
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Structured audit actions are
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Structured audit actions are
  * translated to Indonesian in `_lib/copy.ts`; unknown actions degrade to a neutral phrase instead
  * of leaking a raw code or crashing. Per the dashboard privacy rule (HQ-DASHBOARD.md §3.6) the
  * feed describes records, not people: no actor names, no per-person timeline.

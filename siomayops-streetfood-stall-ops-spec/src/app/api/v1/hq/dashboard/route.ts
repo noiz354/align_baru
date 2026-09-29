@@ -1,7 +1,7 @@
 /**
  * `GET /api/v1/hq/dashboard` — HTTP exposure of the authenticated dashboard boundary.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. The dashboard page calls the
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The dashboard page calls the
  * boundary directly (server-side, no self-fetch); this route exists so the same contract is
  * reachable for tooling, tests and any future client transition, and so the boundary has one
  * HTTP-shaped error surface.

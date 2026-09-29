@@ -3,7 +3,7 @@
 /**
  * Server-backed dashboard filters.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Both controls are URL state
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Both controls are URL state
  * (`/hq?date=YYYY-MM-DD&outlet=<id>`), so the selection is refresh-safe, shareable and
  * browser-back friendly, and every change re-renders the Server Component — the query itself is
  * executed by the authenticated server boundary, never in the browser (HQ-DASHBOARD.md §3.4).

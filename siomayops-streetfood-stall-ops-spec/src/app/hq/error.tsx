@@ -3,7 +3,7 @@
 /**
  * `/hq` error boundary.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. When the dashboard cannot be
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. When the dashboard cannot be
  * rendered, the boundary shows a dashboard-level error state with a retry — it never falls back to
  * the previous numbers (there is no stale-data fallback anywhere in this flow).
  *

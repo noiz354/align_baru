@@ -1,7 +1,7 @@
 /**
  * `/hq` loading state.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Server rendering means the
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Server rendering means the
  * dashboard streams a skeleton in the shape of the real page — header, KPI tiles, chart and card
  * grid — rather than a full-screen spinner. No operational number is shown while loading, because
  * a placeholder that looks like a figure is exactly the failure mode this integration removes.

@@ -3,7 +3,7 @@
 /**
  * Outlet table with client-side search and status filter.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. The outlet rows arrive from the
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The outlet rows arrive from the
  * server already scoped to the viewer; search and status narrowing are presentational only and are
  * never used as an authorization boundary (HQ-DASHBOARD.md §3.4). The date/outlet selectors that
  * *do* change the server query live in `dashboard-filters.tsx`.

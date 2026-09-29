@@ -1,7 +1,7 @@
 /**
  * The HQ dashboard surface.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. This component renders a
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. This component renders a
  * read model that the authenticated server boundary already produced: it formats numbers and maps
  * structured types to Indonesian copy, and it computes no operational figure of its own.
  *

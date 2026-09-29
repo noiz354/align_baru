@@ -1,7 +1,7 @@
 /**
  * KPI tiles — the seven headline figures bound to `readModel.kpis`.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Values arrive already
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Values arrive already
  * computed; this component only formats them (money through `MoneyText`, ratios through
  * `formatPercent`). A value that cannot be computed renders the established dash, never a zero.
  */

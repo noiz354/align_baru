@@ -1,7 +1,7 @@
 /**
  * Authenticated server boundary for the HQ dashboard (T-HQ-003 integration step).
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  *
  * This is the only door between the dashboard surface and the read model:
  *

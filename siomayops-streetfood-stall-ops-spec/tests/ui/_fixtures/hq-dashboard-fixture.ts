@@ -1,7 +1,7 @@
 /**
  * Deterministic fixture for the HQ dashboard UI tests.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. The fixture seeds the same
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The fixture seeds the same
  * in-memory store the running app uses (`src/server/db/memory-store.ts`) and then drives the real
  * read model, so these tests exercise the shipping query path rather than a hand-built object.
  *

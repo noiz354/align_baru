@@ -1,7 +1,7 @@
 /**
  * SiomayOps — HQ dashboard read model (T-HQ-002 read models, consumed by T-HQ-003 cards).
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  *
  * Rules this module exists to enforce:
  *  - the dashboard surface renders **only** from this model; no page, component or client
@@ -60,7 +60,7 @@ export interface DashboardRequest {
  *  - `cashVarianceMinor`: default returned by `GET /api/v1/config/thresholds`.
  *  - `lowStockQty`: pilot default carried over from the previous dashboard's inline rule
  *    (`currentQty < 10`); it is NOT yet part of a shared configuration module — see
- *    "Known Gaps" in `docs/integration/04-dashboard-ui-integration.md`.
+ *    "Known Gaps" in `docs/integration/05-hq-dashboard-ui-integration.md`.
  */
 export const CASH_VARIANCE_TOLERANCE_MINOR = 10000;
 export const LOW_STOCK_QTY = 10;
@@ -740,7 +740,7 @@ function buildActivity(request: DashboardRequest, facts: ScopedFacts): ActivityE
 /**
  * Current stock quantity per item for the organization, using the same convention as
  * `GET /api/v1/stock` (sum of movement quantities). See "Known Gaps" in
- * `docs/integration/04-dashboard-ui-integration.md` for the divergence from
+ * `docs/integration/05-hq-dashboard-ui-integration.md` for the divergence from
  * `deriveStockPosition`.
  */
 function deriveStockSummary(request: Pick<DashboardRequest, "organizationId">): StockSummary {

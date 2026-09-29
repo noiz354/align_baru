@@ -74,7 +74,7 @@ cursor pagination, and audit on export.
 | `GET /api/v1/hq/closings` | 8 | unfinished closings by area with cause categories | ≤5 min | T-HQ-002 |
 | `GET /api/v1/hq/locations` | 9 | used today, dormant, restricted with reason | ≤15 min | T-LOC-002 |
 | `GET /api/v1/hq/exceptions` | 10 | merged decision queue ordered by consequence | ≤2 min | T-HQ-003 |
-| `GET /api/v1/hq/dashboard` | 1–10 | the same ten cards for one business day in a single response, scoped by `?date=` and `?outlet=` — the surface the dashboard page renders (`docs/integration/04-dashboard-ui-integration.md`) | ≤60 s | T-HQ-003 (integration) |
+| `GET /api/v1/hq/dashboard` | 1–10 | the same ten cards for one business day in a single response, scoped by `?date=` and `?outlet=` — the surface the dashboard page renders (`docs/integration/05-hq-dashboard-ui-integration.md`) | ≤60 s | T-HQ-003 (integration) |
 
 Every card response includes `computedAt`, `freshnessBand`, and a `drillDown` descriptor describing
 which list endpoint serves the underlying records.

@@ -1,7 +1,7 @@
 /**
  * Sales trend chart — bound to `readModel.salesTrend`.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  *
  * Contract (see the read model): the model always returns the full business-day bucket set in
  * chronological order, so the axis is stable. A day with no sales renders a flat zero line plus

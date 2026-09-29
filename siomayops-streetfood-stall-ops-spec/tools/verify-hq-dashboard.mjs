@@ -2,7 +2,7 @@
 /**
  * tools/verify-hq-dashboard.mjs — runtime proof for the read-only HQ dashboard.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`.
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`.
  *
  * What it proves, in order:
  *   1. `GET /api/v1/hq/dashboard` answers for the current business day;

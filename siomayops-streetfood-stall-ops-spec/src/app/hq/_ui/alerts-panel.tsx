@@ -1,7 +1,7 @@
 /**
  * Alerts panel — bound to `readModel.alerts`.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. The read model supplies a
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. The read model supplies a
  * structured `type` + `severity` + `context`; the Indonesian wording comes from
  * `_lib/copy.ts`, so no presentation string travels back into the read model.
  */

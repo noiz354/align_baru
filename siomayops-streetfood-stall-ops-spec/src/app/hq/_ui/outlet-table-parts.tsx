@@ -1,7 +1,7 @@
 /**
  * Outlet table, hook-free parts: the pure filter, the row and the status chip.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Kept free of hooks so the
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Kept free of hooks so the
  * table can be rendered by a Server Component test (`renderToStaticMarkup`) as well as by the
  * interactive client wrapper in `outlet-table.tsx`.
  *

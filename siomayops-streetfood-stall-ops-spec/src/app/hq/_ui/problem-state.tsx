@@ -1,7 +1,7 @@
 /**
  * Dashboard-level problem states.
  *
- * Documented in `docs/integration/04-dashboard-ui-integration.md`. Every message is written to be
+ * Documented in `docs/integration/05-hq-dashboard-ui-integration.md`. Every message is written to be
  * true without a stack trace, a file path, a database location or a secret, and none of these
  * states renders a stale figure — a dashboard that cannot read its data shows no numbers at all.
  */
