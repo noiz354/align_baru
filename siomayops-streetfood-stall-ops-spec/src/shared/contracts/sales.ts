@@ -35,3 +35,36 @@ export const saleResponseSchema = z.object({
 export type SaleResponse = z.infer<typeof saleResponseSchema>;
 
 export const voidSaleRequestSchema = z.object({ reason: z.string().min(3).max(300) });
+
+export const MAX_TRANSACTION_AMOUNT_MINOR = 100_000_000; // Rp 100.000.000
+
+export const supportedPaymentMethods = [
+  "CASH",
+  "QRIS_STATIC",
+  "QRIS_DYNAMIC",
+  "BANK_TRANSFER",
+  "EWALLET",
+  "OTHER_DIGITAL",
+] as const;
+
+export const recordTransactionRequestSchema = z.object({
+  outletId: z.string().trim().min(1, "Outlet wajib dipilih"),
+  amount: z
+    .number({
+      required_error: "Nominal transaksi wajib diisi",
+      invalid_type_error: "Nominal transaksi harus berupa angka",
+    })
+    .finite("Nominal transaksi harus berupa angka valid")
+    .int("Nominal transaksi harus bilangan bulat Rupiah (tanpa desimal)")
+    .positive("Nominal transaksi harus lebih dari Rp 0")
+    .max(MAX_TRANSACTION_AMOUNT_MINOR, "Nominal transaksi melebihi batas maksimum Rp 100.000.000"),
+  paymentMethod: z
+    .enum(supportedPaymentMethods, {
+      errorMap: () => ({ message: "Metode pembayaran tidak didukung" }),
+    })
+    .default("CASH"),
+  occurredAt: z.string().trim().optional(),
+  note: z.string().trim().max(300, "Catatan maksimal 300 karakter").optional(),
+  clientTransactionId: z.string().trim().min(8, "ID transaksi klien minimal 8 karakter").max(128).optional(),
+});
+export type RecordTransactionRequest = z.infer<typeof recordTransactionRequestSchema>;
