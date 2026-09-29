@@ -23,6 +23,7 @@
 
 import { z } from "zod";
 import { createAuthPort, authorize, type SessionContext } from "../auth/port";
+import { openScopedReader } from "../db/repository";
 import {
   getHqDashboardReadModel,
   isAuthorizedOutlet,
@@ -125,6 +126,17 @@ export async function loadHqDashboard(
   // Everything below reads persistence, so a data failure must surface as an explicit
   // unavailability — never as a partially built dashboard and never as a thrown stack trace.
   try {
+    // Fail closed on a scope the reader cannot resolve (`region`, an incomplete `area`/`stall`
+    // scope): that is a denial, never a silent organization-wide fallback. A store that cannot
+    // answer is a different failure and must stay distinct (UNAVAILABLE), so the two are told
+    // apart by the error code rather than by position.
+    try {
+      openScopedReader(sessionScope);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      return { ok: false, requestId, kind: code === "FORBIDDEN" ? "FORBIDDEN" : "UNAVAILABLE" };
+    }
+
     // A stall-scoped viewer is pinned to their own outlet: asking for another one is a filter
     // violation, not a silent fallback to the organization view.
     const pinnedOutletId = sessionScope.kind === "stall" ? sessionScope.stallId : undefined;

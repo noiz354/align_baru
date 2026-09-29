@@ -65,6 +65,32 @@ describe("dashboard boundary — authentication and authorization", () => {
     if (!result.ok) expect(result.kind).toBe("FORBIDDEN");
   });
 
+  it("returns FORBIDDEN for scopes the reader cannot resolve, instead of falling back to the organization", async () => {
+    const owner = (scope: SessionContext["scope"]): SessionContext => ({
+      organizationId: ORG_ID,
+      userId: "00000000-0000-7000-0000-0000000000d3",
+      roles: ["OWNER"],
+      scope,
+      sessionIssuedAt: FIXTURE_NOW,
+    });
+
+    // `region` has no persisted data, and an area/stall scope without its id is ambiguous.
+    // (A scope naming another organization is a different guard: the boundary always queries with
+    // `session.organizationId`, and `authorizeHqScope` rejects the mismatch for the `/` dashboard
+    // and the route handlers — see tests/integration/hq-dashboard-scope-isolation.test.ts.)
+    const unresolvable: SessionContext["scope"][] = [
+      { kind: "region", organizationId: ORG_ID, regionId: "region-1" },
+      { kind: "area", organizationId: ORG_ID },
+      { kind: "stall", organizationId: ORG_ID },
+    ];
+
+    for (const scope of unresolvable) {
+      const result = await loadHqDashboard({}, { resolveSession: resolveAs(owner(scope)), now });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.kind).toBe("FORBIDDEN");
+    }
+  });
+
   it("returns UNAVAILABLE when the auth port itself fails, without leaking the reason", async () => {
     const result = await loadHqDashboard(
       {},

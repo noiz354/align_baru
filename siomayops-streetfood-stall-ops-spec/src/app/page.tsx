@@ -1,5 +1,5 @@
 import { authorize, createAuthPort, type SessionContext } from "@/server/auth/port";
-import { getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError } from "@/features/hq/dashboard";
+import { authorizeHqScope, getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError, type AuthorizedHqScope } from "@/features/hq/dashboard";
 import DashboardClient from "./_dashboard/DashboardClient";
 import DashboardState from "./_dashboard/States";
 
@@ -23,7 +23,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const params = await searchParams;
   const session = await createAuthPort().resolveSession();
   if (!session) return <DashboardState kind="unauthenticated"/>;
-  if (!can(session, "hq:view")) return <DashboardState kind="forbidden"/>;
+  // Scope and capability are resolved together, fail closed: a role without hq:view, a scope that
+  // belongs to another organization, or a scope the reader cannot resolve all land here.
+  let scope: AuthorizedHqScope;
+  try { scope = authorizeHqScope(session); } catch { return <DashboardState kind="forbidden"/>; }
 
   const date = first(params.date) ?? getDefaultDashboardDay();
   if (!isRealDay(date)) return <DashboardState kind="invalid"/>;
@@ -32,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   try {
     // The whole authorized outlet list is requested so search/status filtering can stay in the browser
     // without a refetch; scope is applied on the server before anything is returned.
-    const model = getHqDashboard({ scope: session.scope, businessDay: date, outletId, limit: 100 });
+    const model = getHqDashboard({ scope, businessDay: date, outletId, limit: 100 });
     const role = session.roles[0] ?? "OPERATOR";
     const label = ROLE_LABEL[role] ?? role;
     return <DashboardClient model={model} viewer={{ roleLabel: label, initials: label.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase(), canExport: can(session, "hq:export") }}/>;

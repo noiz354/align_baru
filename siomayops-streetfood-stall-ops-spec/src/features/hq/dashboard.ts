@@ -1,4 +1,6 @@
+import { authorize, type SessionContext } from "@/server/auth/port";
 import { memoryStore, type StoredSale } from "@/server/db/memory-store";
+import { openScopedReader } from "@/server/db/repository";
 import { DEFAULT_BUSINESS_DAY_CONFIG, toBusinessDay, type BusinessDay } from "@/shared/time/business-day";
 import type { Scope } from "@/shared/types/scope";
 
@@ -78,8 +80,35 @@ export interface HqDashboardReadModel {
   readonly pagination: { readonly limit: number; readonly nextCursor: string | null; readonly total: number };
 }
 
+/**
+ * Authorization scope for the dashboard, produced only by `authorizeHqScope()`.
+ *
+ * The session is the only source of scope: the read model cannot be called with a hand-written
+ * scope object, and the brand cannot be forged at runtime (a missing or ambiguous scope is a DENY,
+ * never a wider fallback — docs/security/PERMISSIONS.md §1).
+ */
+declare const AUTHORIZED_HQ_SCOPE: unique symbol;
+export type AuthorizedHqScope = Scope & { readonly [AUTHORIZED_HQ_SCOPE]: "hq:dashboard" };
+
+/**
+ * Resolve a session into a dashboard-safe scope, fail closed.
+ *
+ *  1. the session scope must belong to the session organization;
+ *  2. the role must hold `hq:view` for that scope (existing `authorize()` port);
+ *  3. the scope must be resolvable by the scoped reader, so `region` and incomplete
+ *     `area`/`stall`/`self` scopes are denied instead of silently returning an empty page.
+ */
+export function authorizeHqScope(session: SessionContext): AuthorizedHqScope {
+  if (session.scope.organizationId !== session.organizationId) {
+    throw Object.assign(new Error("Session scope does not belong to the session organization"), { code: "FORBIDDEN" });
+  }
+  authorize(session, "hq:view", session.scope);
+  openScopedReader(session.scope);
+  return session.scope as AuthorizedHqScope;
+}
+
 export interface DashboardQuery {
-  readonly scope: Scope;
+  readonly scope: AuthorizedHqScope;
   readonly businessDay: BusinessDay;
   readonly outletId?: string;
   readonly areaId?: string;
@@ -342,6 +371,7 @@ function getOutletSummaries(scope: Scope, day: BusinessDay, locations: ReturnTyp
   const expensesByOutlet = new Map<string, number>();
   for (const expense of memoryStore.expenses.values()) {
     if (expense.organizationId !== scope.organizationId) continue;
+    if (expense.reviewStatus === "REJECTED") continue; // data-map §3.4
     const shift = memoryStore.shifts.get(expense.shiftId);
     if (!shift || shift.businessDay !== day) continue;
     const locationId = locationIdForExpense(expense);
@@ -442,6 +472,9 @@ export function getHqDashboard(input: DashboardQuery): HqDashboardReadModel {
   const transactionCount = completed.length;
   const expenseRows = Array.from(memoryStore.expenses.values()).filter((expense) => {
     if (expense.organizationId !== input.scope.organizationId) return false;
+    // Data-map rule (§3.4): a rejected expense is not a cost of the day. The record itself stays
+    // visible (it is never deleted); only the aggregate excludes it.
+    if (expense.reviewStatus === "REJECTED") return false;
     const shift = memoryStore.shifts.get(expense.shiftId);
     if (!shift || shift.businessDay !== input.businessDay) return false;
     const locationId = locationIdForExpense(expense);
@@ -501,7 +534,7 @@ export interface HqOutletDetail {
   readonly nextCursor: string | null;
 }
 
-export function getHqOutletDetail(input: { scope: Scope; businessDay: BusinessDay; outletId: string; cursor?: string; limit?: number }): HqOutletDetail {
+export function getHqOutletDetail(input: { scope: AuthorizedHqScope; businessDay: BusinessDay; outletId: string; cursor?: string; limit?: number }): HqOutletDetail {
   const dashboard = getHqDashboard({ scope: input.scope, businessDay: input.businessDay, outletId: input.outletId, limit: 200 });
   const outlet = dashboard.outlets.find((row) => row.id === input.outletId);
   if (!outlet) throw new HqDashboardNotFoundError();
