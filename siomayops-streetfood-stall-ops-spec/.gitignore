@@ -17,3 +17,6 @@ build/
 evidence/
 exports/
 *.pem
+
+# runtime file-backed store (regenerated on first boot)
+data/
