@@ -17,3 +17,6 @@ build/
 evidence/
 exports/
 *.pem
+
+# local dev store (memory-store persistence)
+data/db.json
