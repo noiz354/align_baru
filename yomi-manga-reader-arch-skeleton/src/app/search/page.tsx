@@ -2,7 +2,12 @@
  * Search (`/search`).
  *
  * Requirements: FR-SEARCH-001…005, NFR-A11Y-002. Tasks: T-SEARCH-004 (UI), T-SEARCH-006 (states).
- * Data: T-SEARCH-001 (`GET /api/v1/search`). Ranking: T-SEARCH-003.
+ * Data: T-SEARCH-001 (`GET /api/search`). Ranking: T-SEARCH-003.
+ *
+ * (This header used to say `GET /api/v1/search`. That route was never created:
+ * the contract names the endpoint `/api/search` (API_CONTRACT §2.2), and a
+ * second route to the same rows would be a second surface to guard, rate-limit
+ * and keep in sync. Corrected in F-011-S2 — one route, not both.)
  *
  * ── Why there is no search box yet ─────────────────────────────────────────
  * A search box is a promise that typing in it does something. T-SEARCH-004 depends on

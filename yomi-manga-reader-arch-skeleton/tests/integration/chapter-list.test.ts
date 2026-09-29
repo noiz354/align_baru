@@ -125,6 +125,11 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
     const deps: ApiV1Deps = {
       catalog: harness.service,
       chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
+      // Not under test here: the search service rides this seam because the
+      // /api/search route shares it, so every literal needs a member even when
+      // the suite under test never calls it. An empty answer, not a throw —
+      // a throw would turn an unrelated suite into a search test.
+      search: { search: async () => ({ items: [], nextCursor: null }) },
       resolveCaller: async () => caller,
       logger: silentLogger(),
     };
@@ -256,6 +261,11 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
     const deps: ApiV1Deps = {
       catalog: harness.service,
       chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
+      // Not under test here: the search service rides this seam because the
+      // /api/search route shares it, so every literal needs a member even when
+      // the suite under test never calls it. An empty answer, not a throw —
+      // a throw would turn an unrelated suite into a search test.
+      search: { search: async () => ({ items: [], nextCursor: null }) },
       resolveCaller: async () => ANON,
       logger: silentLogger(),
     };
@@ -280,6 +290,11 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
     const deps: ApiV1Deps = {
       catalog: harness.service,
       chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
+      // Not under test here: the search service rides this seam because the
+      // /api/search route shares it, so every literal needs a member even when
+      // the suite under test never calls it. An empty answer, not a throw —
+      // a throw would turn an unrelated suite into a search test.
+      search: { search: async () => ({ items: [], nextCursor: null }) },
       resolveCaller: async () => ANON,
       logger: silentLogger(),
     };
@@ -335,6 +350,11 @@ describeDb('INT-CHAP-001 (T-CATALOG-007) chapter list — the HTTP boundary', ()
     const deps: ApiV1Deps = {
       catalog: wrapped,
       chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
+      // Not under test here: the search service rides this seam because the
+      // /api/search route shares it, so every literal needs a member even when
+      // the suite under test never calls it. An empty answer, not a throw —
+      // a throw would turn an unrelated suite into a search test.
+      search: { search: async () => ({ items: [], nextCursor: null }) },
       resolveCaller: async () => READER,
       logger: silentLogger(),
     };

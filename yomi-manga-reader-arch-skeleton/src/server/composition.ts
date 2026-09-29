@@ -30,6 +30,7 @@
  */
 import { createCatalogService, type CatalogService } from '../features/catalog';
 import { createLibraryService, type LibraryService } from '../features/library';
+import { createSearchService, type SearchService } from '../features/search/search.service';
 import {
   createResumeService,
   type HistoryRepository,
@@ -43,6 +44,7 @@ import {
   createReaderProgressRepository,
 } from './db/repositories/progress.repository';
 import { createGenreTagVocabularyPort } from './db/repositories/vocabulary.repository';
+import { createSearchRepository } from './db/repositories/search.repository';
 import { createHistoryRepository } from './db/repositories/history.repository';
 import {
   createBookmarkRepository,
@@ -77,6 +79,17 @@ export interface CatalogComposition {
    * it hands the reader chapter navigation for free. → F-006-S2, F-007-S1
    */
   readonly chapters: ChapterRepository;
+  /**
+   * The search service (T-SEARCH-001, F-011-S1).
+   *
+   * It lives in the CATALOG composition because that is the public-data root:
+   * search reads published titles, aliases, creators and tags — the same rows the
+   * catalog reads, through the same pool, with no session anywhere near it. The
+   * `/api/search` route takes it from the `/api/v1` seam for exactly that reason
+   * (see that route's header for why it shares the seam rather than growing a
+   * third registry).
+   */
+  readonly search: SearchService;
   /** The process logger, so a route reports through the real one. */
   readonly logger: Logger;
   /** Drains the database pool (DEPLOYMENT.md §5). */
@@ -140,6 +153,8 @@ export async function createCatalogComposition(source?: EnvSource): Promise<Cata
       vocabulary: createGenreTagVocabularyPort(db),
     }),
     chapters,
+    // T-SEARCH-001: the public search service, on the public-data composition.
+    search: createSearchService({ search: createSearchRepository(db) }),
     logger,
     close: () => releaseDb(db),
   };

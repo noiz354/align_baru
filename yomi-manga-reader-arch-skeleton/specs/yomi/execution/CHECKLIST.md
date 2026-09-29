@@ -442,19 +442,19 @@ Completion evidence:
 
 ### F-011-S1 — `createSearchService`: validation and cursor codec
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete / N/A
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete / N/A
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `q` trimmed, 1..120; empty → no search; >120 → 4xx **before** any query runs
@@ -466,28 +466,42 @@ Completion evidence:
 **Files:** `src/features/search/search.service.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-011-S1+S2 (one commit: the cursor contract spans all three layers,
+  so splitting manufactures a seam in the work where there is none in the code)
+- Tests: 711 → **741 passed (741)**, 30 new (15 service, 11 route, 4 composed).
+- Commands: 6 mutations, all caught · full regression gates · `next build`
+- Notes: the service binds the cursor to the query that minted it — a position
+  without its query is a wrong page waiting to happen, and the repository never
+  sees the query the cursor is USED with. Malformed → CATALOG_PAGE_INVALID;
+  well-formed but foreign → SEARCH_QUERY_INVALID; never a repair into page 1.
+  `GET /api/search` is anonymous, no-store, 429 with Retry-After at 30/min/IP
+  (in-process window, documented as single-instance scope; unknown IPs share one
+  bucket, degrading to global 30/min rather than no limit). The URL mismatch is
+  resolved by correction: the page claimed `/api/v1/search`, the contract names
+  `/api/search`, no second route. The route shares the `/api/v1` seam — one
+  public composition, not a third registry. `search-e2e.test.ts` wires the REAL
+  service over the REAL repository and drives the REAL route: a cursor the
+  repository cannot decode passes the three mocked suites and fails the fourth.
+  `as never` on fakes was hiding the wiring; the five the linter flagged are
+  gone. `PLANNED_STUB_PORTS` failed the build twice in this slice until trimmed.
 
 ---
 
 ### F-011-S2 — `GET /api/search`, anonymous allowed
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification / N/A
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification / N/A
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - replaces the throwing `api/search/route.ts`; the `T-SEARCH-003` throw is gone
@@ -500,10 +514,24 @@ Completion evidence:
 **Files:** `src/app/api/search/route.ts`
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-011-S1+S2 (one commit: the cursor contract spans all three layers,
+  so splitting manufactures a seam in the work where there is none in the code)
+- Tests: 711 → **741 passed (741)**, 30 new (15 service, 11 route, 4 composed).
+- Commands: 6 mutations, all caught · full regression gates · `next build`
+- Notes: the service binds the cursor to the query that minted it — a position
+  without its query is a wrong page waiting to happen, and the repository never
+  sees the query the cursor is USED with. Malformed → CATALOG_PAGE_INVALID;
+  well-formed but foreign → SEARCH_QUERY_INVALID; never a repair into page 1.
+  `GET /api/search` is anonymous, no-store, 429 with Retry-After at 30/min/IP
+  (in-process window, documented as single-instance scope; unknown IPs share one
+  bucket, degrading to global 30/min rather than no limit). The URL mismatch is
+  resolved by correction: the page claimed `/api/v1/search`, the contract names
+  `/api/search`, no second route. The route shares the `/api/v1` seam — one
+  public composition, not a third registry. `search-e2e.test.ts` wires the REAL
+  service over the REAL repository and drives the REAL route: a cursor the
+  repository cannot decode passes the three mocked suites and fails the fourth.
+  `as never` on fakes was hiding the wiring; the five the linter flagged are
+  gone. `PLANNED_STUB_PORTS` failed the build twice in this slice until trimmed.
 
 ---
 

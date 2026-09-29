@@ -58,8 +58,8 @@ export function resolveCaller(request: Request): Promise<CallerContext> {
  * {@link apiV1DepsWith}; this only supplies the factory.
  */
 async function buildApiV1Deps(): Promise<ApiV1Deps> {
-  const { catalog, chapters, logger } = await createCatalogComposition();
-  return { catalog, chapters, resolveCaller, logger };
+  const { catalog, chapters, search, logger } = await createCatalogComposition();
+  return { catalog, chapters, search, resolveCaller, logger };
 }
 
 /**

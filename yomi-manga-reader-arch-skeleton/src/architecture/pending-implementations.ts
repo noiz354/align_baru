@@ -55,8 +55,10 @@ export const PLANNED_STUB_PORTS: readonly PendingPort[] = [
   { file: '../middleware.ts', task: 'T-AUTH-007' },
 
   // ── search (F-010/011/012) ─────────────────────────────────────────────────
-  { file: '../features/search/search.service.ts', task: 'T-SEARCH-001' },
-  { file: '../app/api/search/route.ts', task: 'T-SEARCH-003' },
+  // `search.service.ts` (T-SEARCH-001) and `api/search/route.ts` (T-SEARCH-003)
+  // left this list in F-011, when both stopped throwing — and `check-claims.mjs`
+  // failed the build on the stale entries, which is the point: the inventory
+  // cannot outlive the code it describes.
   { file: '../app/search/page.tsx', task: 'T-SEARCH-003' },
   { file: '../app/search/page.tsx', task: 'T-SEARCH-001' },
 

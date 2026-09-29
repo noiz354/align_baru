@@ -47,6 +47,7 @@
 import type { CallerContext } from '../../../shared/contracts';
 import type { CatalogService } from '../../../features/catalog';
 import type { ChapterRepository } from '../../../features/chapters';
+import type { SearchService } from '../../../features/search/search.service';
 import type { Logger } from '../../../server/telemetry/logger';
 
 /** Everything an `/api/v1` route handler is allowed to reach for. */
@@ -59,6 +60,17 @@ export interface ApiV1Deps {
    * direct-database path that also carried the P0 in its sibling. → F-006-S2
    */
   readonly chapters: ChapterRepository;
+  /**
+   * The search service (T-SEARCH-001, F-011-S1).
+   *
+   * It is read by `/api/search`, which is NOT a `/api/v1` path — but it takes its
+   * deps from this seam anyway, because the alternative is a third registry and a
+   * second catalog composition for the same public rows. The seam is already the
+   * "public data, one composition, lazy once per process" joint; search is public
+   * data. The `/api` members' seam would be the wrong home: its bundle is built
+   * for session-scoped reads, and search must work with no session at all.
+   */
+  readonly search: SearchService;
   /**
    * Resolves the CALLER from the verified session, or null for anonymous.
    * T-AUTH-007 owns the real implementation; until then the registry carries

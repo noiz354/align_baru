@@ -95,6 +95,9 @@ describeDb('INT-CALLER-001 (T-CATALOG-009) the /api/v1 caller resolver', () => {
     const deps: ApiV1Deps = {
       catalog: service,
       chapters: harness.chapters as unknown as ApiV1Deps['chapters'],
+      // Not under test here (see the same comment in the catalog suites): the
+      // search service rides this seam, so the literal needs the member.
+      search: { search: async () => ({ items: [], nextCursor: null }) },
       resolveCaller,
       logger: silentLogger(),
     };

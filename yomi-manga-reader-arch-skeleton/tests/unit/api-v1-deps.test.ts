@@ -44,6 +44,10 @@ function stubDeps(): ApiV1Deps {
     // only observes that the registered bundle is the one returned, so the port
     // is a stub here rather than a real one — nothing in the file exercises it.
     chapters: {} as ApiV1Deps['chapters'],
+    // Not under test here: the search service rides this seam because the
+    // /api/search route shares it, so every literal needs a member even when
+    // the suite under test never calls it.
+    search: { search: async () => ({ items: [], nextCursor: null }) },
     resolveCaller: async () => null,
     logger: SILENT_LOGGER,
   };
