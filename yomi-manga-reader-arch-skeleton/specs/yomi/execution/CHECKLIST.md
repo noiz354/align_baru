@@ -962,19 +962,19 @@ Completion evidence:
 
 ### F-016-S1/S2 — `AdminService`: manga and chapter CRUD
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - `createAdminService` no longer throws `T-ADMIN-001`
@@ -988,10 +988,19 @@ Completion evidence:
   is a P0 regression this plan would introduce
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-016-S1+S2 (one commit: the operations share ports, audit and gate)
+- Tests: 747 → **766 passed (766)**, 19 new.
+- Commands: 6 mutations, all caught · full regression gates · `next build`
+- Notes: separate admin ports (read ports stay read; admin reads are unscoped
+  and every read-port fake survives). The service checks admin itself —
+  AUTH_FORBIDDEN first line of every method — because until routes land it IS
+  the only layer. Publish stamps once, keeps the stamp on unpublish, never moves
+  it on re-publish. Unknown ids are §6 codes checked before the write. Every
+  mutation audits once with small summaries, never a synopsis. No route, page
+  or form — the diff is the proof. Deletes/covers/users/stats/viewer stay
+  throwing with their task IDs, out of scope on purpose. A block comment
+  containing `*/` (a glob path) closed itself early and produced three parse
+  errors from one keystroke.
 
 ---
 
