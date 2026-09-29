@@ -13,6 +13,9 @@ build/
 .env.local
 .env.*.local
 
+# runtime persistence of the pilot store (src/server/db/memory-store.ts) — generated, never committed
+/data/
+
 # evidence and exports must never be committed
 evidence/
 exports/

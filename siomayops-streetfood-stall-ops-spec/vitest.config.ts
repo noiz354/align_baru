@@ -7,6 +7,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // The UI integration tests render real components (tests/ui). Next.js supplies the automatic JSX
+  // runtime in the app; Vitest needs it declared so those components compile the same way here.
+  esbuild: {
+    jsx: "automatic",
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
