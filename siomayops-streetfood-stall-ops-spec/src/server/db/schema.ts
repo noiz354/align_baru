@@ -192,6 +192,24 @@ export const trafficVideoAssets = pgTable("traffic_video_assets", {
   index("traffic_video_assets_expiry_idx").on(t.expiresAt),
 ]);
 
+export const siteConditionObservations = pgTable("site_condition_observations", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  operatorId: uuid("operator_id").notNull(),
+  shiftId: uuid("shift_id").notNull(),
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  groundCondition: text("ground_condition").notNull(),
+  shelterStatus: text("shelter_status").notNull(),
+  shelterNote: text("shelter_note"),
+  relocationDecisionNote: text("relocation_decision_note"),
+  clientRequestId: uuid("client_request_id").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("site_condition_observations_org_client_unique").on(t.organizationId, t.clientRequestId),
+  index("site_condition_observations_operator_location_time_idx").on(t.organizationId, t.operatorId, t.sellingLocationId, t.observedAt),
+]);
+
 export const menuCategories = pgTable("menu_categories", {
   id: uuid("id").primaryKey(),
   organizationId: orgId,

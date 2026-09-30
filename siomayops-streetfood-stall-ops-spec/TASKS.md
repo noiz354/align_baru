@@ -1041,6 +1041,15 @@ Manual QA · Definition of Done (DoD).
 - **Tests:** unit and integration tests for camera/upload gates, size/type/duration validation, auth/scope, count/band validation, history isolation, idempotency, cleanup and analytics redaction; browser proof remains required.
 - **Dependencies:** active operator outlet context and private media storage; production release blocked on approved DPIA, real private storage, scheduled purge plus backup expiry evidence.
 
+## T-SITE-001 — Weather & site suitability
+
+- **Status:** NOT DONE — weather source, browser acceptance, production persistence and retention gates remain incomplete.
+- **Requirements:** FR-SITE-001..003; canonical prompt `docs/product/end-to-end-pages/12-weather-site-suitability.md`.
+- **Scope:** `/operator/site-condition`; current active-site context; manual wet/dry and shelter observation; bounded shelter/relocation decision notes; recent site observations; clearly scoped traffic and shift sales; transparent weather-unavailable state and non-binding observation-only cue.
+- **Invariants:** no fabricated weather; no third-party weather calls or GPS forwarding; current shift/site derived server-side; notes are bounded and excluded from telemetry; cue is not a forecast, safety certification, or automatic move.
+- **Tests:** adapter missing-weather fallback, cue freshness/decision rules, auth/scope, validation, idempotency, persistence/history and analytics redaction; browser proof remains required.
+- **Dependencies:** active location/shift context; Page 11 traffic is optional and remains production-gated; production release requires an approved weather provider/data flow, real auth/database and verifiable scheduled retention/backup controls.
+
 ## T-INC-001 — Incident capture
 
 - **Requirements:** FR-INC-001..002, FR-INC-004

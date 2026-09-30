@@ -96,6 +96,7 @@ file never claims more certainty than the plan has.
 | T-LOC-004 | FR-LOCATION-004, FR-LOCATION-005, FR-LOCATION-006, FR-LOCATION-014, NFR-PRIVACY-003, NFR-PRIVACY-011 | valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission. |
 | T-LOC-005 | FR-HQ-003, FR-LOCATION-007 | reason validation; interval closure; concurrent move+close; offline ordering. |
 | T-TRAFFIC-001 | FR-TRAFFIC-001, NFR-PRIVACY-012 | unit/integration: opt-in and production gate, silent ≤10-second upload, manual count/band, auth/scope, no operator/shift linkage, idempotency, 24-hour purge/backup policy, analytics redaction; browser: camera only after tap, stop at 10 seconds, upload/status/history UX. |
+| T-SITE-001 | FR-SITE-001..003 | unit: freshness/cue rules and weather-unavailable adapter; integration: active-site/self authorization, validation, idempotency, persistence, same-site history, audit/analytics redaction; runtime: saved observation reload/restart; browser proof pending. |
 | T-OFF-001 | FR-SALE-002, NFR-OFFLINE-001, NFR-OFFLINE-002, NFR-OFFLINE-003, NFR-OFFLINE-004, NFR-OFFLINE-005 | integration: batch ordering, dependency-gap deferral, duplicate replay; browser: lock behaviour. |
 | T-HQ-001 | FR-HQ-001, FR-HQ-002, FR-HQ-003, FR-LOCATION-009 | integration: freshness fields; e2e: HQ sees a stall within 60 s of shift start. |
 | T-MENU-001 | FR-MENU-001, FR-MENU-002 | integration: import, retirement guard, package composition. |
