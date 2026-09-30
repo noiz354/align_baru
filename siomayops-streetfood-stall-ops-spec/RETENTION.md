@@ -57,6 +57,12 @@
 *Durations marked "e.g." are placeholders to be confirmed with legal/commercial advice before
 production. The architecture must make changing them a configuration change, not a rewrite.*
 
+**Page 15 boundary:** conversation audio and transcripts are not accepted or stored. No retention
+period is defined for them; the microphone remains prohibited and the recorder page is
+informational only. Do not borrow the retention periods for incident photos or Page 11 silent video.
+A separate policy/DPIA and verified primary/backup deletion design are prerequisites to proposing
+any audio processing.
+
 ---
 
 ## 3. Deletion mechanics (planned)

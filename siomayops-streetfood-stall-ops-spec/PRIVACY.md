@@ -43,8 +43,10 @@ restricted access, short retention, no analytics use.
    operator-explicit still-photo capture for evidence/incident and (b) the narrowly scoped Page 11
    silent traffic sample governed by ADR-0040: one explicit tap, maximum 10 seconds, private upload,
    no identity recognition/computer vision, no third-party processor or training, and raw-video
-   deletion within 24 hours. Microphone access remains prohibited. Production capture is disabled
-   until the DPIA/privacy approval and verified primary/backup purge gates pass.
+   deletion within 24 hours. Microphone access remains prohibited. The Page 15 recorder route is
+   informational only: it does not prompt, capture, upload, or retain audio. Production capture is
+   disabled until a separate audio purpose/policy review, DPIA/privacy approval, and verified
+   primary/backup purge gates pass.
 3. **No contact-book access, no SMS reading, no installed-app inventory.**
 4. **Customer data is optional**: a sale never requires identifying the customer.
 5. **Free-text fields are bounded** and never used to induce speculation about third parties.
@@ -64,6 +66,7 @@ restricted access, short retention, no analytics use.
 | Location reporting | Transparency + shift-bounded design; operator can see all their own reports |
 | One-shot GPS assist | Clear notice before capture; explicit tap for each optional fix; no background collection; manual reporting remains available. This is not described as employment consent; preliminary DPIA review is pending. |
 | Page 11 traffic video | Clear notice and explicit capture tap; ≤10 seconds and silent; manual count/band entry; no identity/face recognition, computer vision, training, or external processor. Keep production disabled pending DPIA/privacy-owner approval and verified deletion (including backups). This is not described as employment consent. |
+| Page 15 conversation audio/transcript | Not permitted under current policy. The page is informational only; no microphone access, consent capture, audio/transcript processing, or retention is available. Requires separate purpose/legal-basis/worker safeguards, DPIA and storage/deletion approval before any proposal to enable. |
 | Loyalty (customer) | Explicit opt-in with purposes (accrual, redemption, campaign messages as separate purpose); withdrawal mechanism; no pre-ticked boxes |
 | Campaign messages | Separate opt-in from loyalty accrual |
 | Incident evidence | Collected for resolution; not reused for analytics or training |

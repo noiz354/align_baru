@@ -27,6 +27,7 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **Loyalty (VS-11):** T-LOY-001..003 — consent-first, single-use rewards (INV-06), concurrent redemption exactly one succeeds, ALREADY_REDEEMED non-punitive, no self-award, online-required check, ledger with rules version via audit
 - **Communication+Alerts (VS-12):** T-COMM-001, T-ALERT-001 — notifications API, alerts, inbox
 - **Incidents (VS-13):** T-INC-001..002 — PARTIAL pilot only: Task 13 operator capture and Task 14 scoped HQ fact review/note/status path exist; evidence media, production auth/storage/retention, full owner/SLA/escalation workflow and browser acceptance remain open.
+- **Conversation recording (Page 15):** NOT IMPLEMENTED; informational unavailable route only. Microphone access remains denied; no audio/transcript/annotation/linkage storage, retention policy, transcription service or consent/DPIA approval exists.
 - **Performance (VS-14):** T-PERF-001..002 — performance metrics, contextual, normalized
 - **Recognition (VS-15):** T-REC-001..002 — transparent multi-factor, no revenue-only leaderboard, no hidden scoring
 - **Offline Hardening (VS-16):** T-OFF-002..004 — offline banner with pending count, per-record sync states (LOCAL_ONLY, PENDING, SYNCING, SYNCED, REJECTED, DEFERRED), rejected explanation with next step, digital disabled with clear message while offline, cash selling possible without confirmation dialogs, service worker shell (sw.ts notes Serwist planned but not wired per ADR, acceptable)
