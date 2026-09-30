@@ -8,7 +8,7 @@ export type AuditAction =
   | "expense.submitted" | "expense.reviewed" | "expense.rejected" | "expense.escalated" | "expense.flagged"
   | "stock.movement" | "stock.count_submitted" | "stock.transfer"
   | "price.policy_published" | "price.override_requested" | "price.override_applied" | "price.acknowledged"
-  | "menu.item_upserted" | "menu.availability_changed"
+  | "menu.item_upserted" | "menu.item_status_changed" | "menu.availability_changed"
   | "operator.created" | "operator.status_changed" | "operator.capabilities_changed" | "assignment.created"
   | "incident.submitted" | "incident.transitioned"
   | "loyalty.identified" | "loyalty.earned" | "loyalty.redeemed" | "loyalty.consent_withdrawn"

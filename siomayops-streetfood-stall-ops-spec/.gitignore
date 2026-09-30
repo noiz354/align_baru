@@ -21,7 +21,7 @@ evidence/
 exports/
 *.pem
 
-# runtime file-backed store (regenerated on first boot)
+# Local development/runtime persistence (never commit operational records)
 data/
 
 # npm lockfile (project uses pnpm-lock.yaml)

@@ -13,10 +13,36 @@ const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-00000000
 
 export async function publishPricePolicy(input: {
   menuItemId: string; scope: "ORG" | "AREA" | "LOCATION"; scopeId: string;
-  unitPrice: Money; effectiveFrom: Date; effectiveTo?: Date; reason: string; approvedByUserId?: string; organizationId?: string; createdBy?: string;
+  unitPrice: Money; effectiveFrom: Date; effectiveTo?: Date; reason: string; approvedByUserId?: string; organizationId?: string; createdBy?: string; createdByRole?: string;
 }): Promise<{ readonly pricePolicyId: string }> {
   const orgId = input.organizationId || DEFAULT_ORG;
-  // Check overlapping identical specificity? For simplicity, allow but warn
+  const menuItem = memoryStore.menuItems.get(input.menuItemId);
+  if (!menuItem || menuItem.organizationId !== orgId) throw Object.assign(new Error("Product not found"), { code: "NOT_FOUND", status: 404 });
+  if (!Number.isSafeInteger(input.unitPrice.amountMinor) || input.unitPrice.amountMinor <= 0 || input.unitPrice.currency !== "IDR") {
+    throw Object.assign(new Error("Price must be a positive integer IDR amount"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+  const reason = input.reason.trim();
+  if (reason.length < 3 || reason.length > 300) throw Object.assign(new Error("A reason of 3–300 characters is required"), { code: "VALIDATION_FAILED", status: 400 });
+  if (Number.isNaN(input.effectiveFrom.getTime()) || (input.effectiveTo && (Number.isNaN(input.effectiveTo.getTime()) || input.effectiveTo <= input.effectiveFrom))) {
+    throw Object.assign(new Error("Price policy effective dates are invalid"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+  if (input.scope === "ORG" && input.scopeId !== orgId) throw Object.assign(new Error("Organization price scope does not match the session"), { code: "FORBIDDEN", status: 403 });
+  if (input.scope === "AREA") {
+    const areaExists = Array.from(memoryStore.stalls.values()).some((stall) => stall.organizationId === orgId && stall.areaId === input.scopeId)
+      || Array.from(memoryStore.sellingLocations.values()).some((location) => location.organizationId === orgId && location.areaId === input.scopeId);
+    if (!areaExists) throw Object.assign(new Error("Area not found"), { code: "NOT_FOUND", status: 404 });
+  }
+  if (input.scope === "LOCATION" && memoryStore.sellingLocations.get(input.scopeId)?.organizationId !== orgId) {
+    throw Object.assign(new Error("Selling location not found"), { code: "NOT_FOUND", status: 404 });
+  }
+  const sameScope = Array.from(memoryStore.pricePolicies.values()).filter((policy) => policy.organizationId === orgId
+    && policy.menuItemId === input.menuItemId && policy.scope === input.scope && policy.scopeId === input.scopeId);
+  if (sameScope.some((policy) => policy.effectiveFrom.getTime() === input.effectiveFrom.getTime())) {
+    throw Object.assign(new Error("A price policy already exists at this scope and effective time"), { code: "CONFLICT", status: 409 });
+  }
+  const previous = sameScope
+    .filter((policy) => policy.effectiveFrom < input.effectiveFrom && (!policy.effectiveTo || policy.effectiveTo > input.effectiveFrom))
+    .sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime())[0];
   const id = generateId();
   const now = new Date();
   memoryStore.pricePolicies.set(id, {
@@ -38,13 +64,15 @@ export async function publishPricePolicy(input: {
     organizationId: orgId,
     actorKind: "HQ_USER",
     actorId: input.createdBy,
+    actorRole: input.createdByRole,
     action: "price.policy_published",
     subjectKind: "price_policy",
     subjectId: id,
-    reason: input.reason,
+    reason,
     correlationId: generateId(),
     occurredAt: now,
-    afterSummary: { menuItemId: input.menuItemId, scope: input.scope, price: input.unitPrice.amountMinor },
+    beforeSummary: { menuItemId: input.menuItemId, scope: input.scope, scopeId: input.scopeId, unitPriceMinor: previous?.unitPriceMinor ?? null, priorPolicyId: previous?.id ?? null },
+    afterSummary: { menuItemId: input.menuItemId, scope: input.scope, scopeId: input.scopeId, unitPriceMinor: input.unitPrice.amountMinor, effectiveFrom: input.effectiveFrom.toISOString(), effectiveTo: input.effectiveTo?.toISOString() ?? null },
   });
   return { pricePolicyId: id };
 }

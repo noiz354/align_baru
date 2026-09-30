@@ -9,7 +9,7 @@ import { completeSale } from "../sales";
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export async function createCashPayment(input: {
-  saleId: string; amount: Money; cashReceived: Money; clientPaymentId: string; organizationId?: string;
+  saleId: string; amount: Money; cashReceived: Money; clientPaymentId: string; organizationId?: string; actorId?: string;
 }): Promise<{ paymentId: string; status: string; change: Money }> {
   const orgId = input.organizationId || DEFAULT_ORG;
   const existingId = memoryStore.paymentByClientId.get(input.clientPaymentId);
@@ -70,6 +70,7 @@ export async function createCashPayment(input: {
   await writeAuditEvent({
     organizationId: orgId,
     actorKind: "OPERATOR",
+    actorId: input.actorId,
     action: "payment.recorded",
     subjectKind: "payment",
     subjectId: paymentId,
