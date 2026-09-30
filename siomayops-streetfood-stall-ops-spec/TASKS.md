@@ -1052,22 +1052,23 @@ Manual QA · Definition of Done (DoD).
 
 ## T-INC-001 — Incident capture
 
-- **Requirements:** FR-INC-001..002, FR-INC-004
-- **Goal:** Fast incident reporting with categories, severity hint, location/shift linkage, optional evidence, offline support.
+- **Status:** PARTIAL — Page 13 neutral online capture and self-scoped API are implemented; acceptance and release gates remain open.
+- **Requirements:** FR-INC-001..002, FR-INC-004, FR-INC-011..013
+- **Goal:** Fast neutral report capture with optional operator urgency hint/amount, server-derived shift/location, self-only history, and no unsupported evidence claims.
 - **ADR:** ADR-0027 (neutrality posture)
-- **Product Docs:** `INCIDENTS.md`
-- **Modules:** `src/features/incidents`
-- **Dependencies:** T-SHIFT-001, T-EXP-004 (uploads)
-- **Behavior:** report → OPEN with system severity assignment; P1 safety categories escalate immediately.
-- **Invariants:** no fault fields; owner's own words are quoted, not structured as accusation; offline reports preserved.
-- **Finance:** links to expenses/payments when relevant. **Security:** evidence access control.
-- **Privacy:** third-party data minimisation; short evidence retention.
-- **Offline:** queued; P1 flagged as "delayed sync" with the measured delay.
-- **Concurrency:** duplicates idempotent by `clientIncidentId`.
-- **Failures:** invalid category rejected; app must never claim to be an emergency channel.
-- **Tests:** integration: severity assignment, offline queue, evidence access, idempotency.
-- **Manual QA:** file a P1 offline and verify delayed-sync flagging.
-- **DoD:** incidents are captured in seconds and handled in a lifecycle.
+- **Product Docs:** `INCIDENTS.md`, `docs/integration/13-security-incident-ground-truth.md`, `docs/integration/13-security-incident-architecture.md`
+- **Modules:** `src/features/incidents`, `/operator/incidents/new`, `/api/v1/incidents`
+- **Dependencies:** T-SHIFT-001; T-EXP-004 is not used for incident evidence in this pilot.
+- **Behavior:** report → `SUBMITTED`; no assigned severity, legal finding, automatic escalation or owner is claimed. Actor/org and optional current shift/site are server-derived.
+- **Invariants:** neutral report categories; no client scope fields or involved-person identity; direct cross-operator/cross-tenant detail returns 404; bounded narratives excluded from audit summaries and telemetry.
+- **Finance:** optional amount is an operator-reported IDR value/context only, not verified financial data. **Security:** evidence upload is unavailable.
+- **Privacy:** reporter-only history; production retention/deletion and durable auth/storage controls remain unverified.
+- **Offline:** existing `submitIncident` queue path must remain intact; contract mapping and device-time semantics still need dedicated verification.
+- **Concurrency:** scoped duplicate idempotency by `clientIncidentId`; tests cover same-key replay and changed content.
+- **Failures:** invalid category/time/amount/key rejected; app must never claim to be an emergency channel.
+- **Tests:** `tests/unit/incident-report.test.ts` and `tests/integration/incident-report-api.test.ts`; offline, persistence restart, migration and runtime/browser acceptance remain open.
+- **Manual QA:** operator browser acceptance and direct URL authorization proof pending.
+- **DoD:** NOT MET until open evidence and production gates in `docs/integration/13-security-incident-gap-report.md` are closed.
 
 ## T-INC-002 — Incident lifecycle and escalation
 

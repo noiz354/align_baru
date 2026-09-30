@@ -35,8 +35,8 @@
 | R-08 | Shifts, assignments, operator status history | Medium-long (e.g. 24–36 months) | Operational | Fairness disputes, planning, payroll-adjacent questions | Purge with aggregates kept |
 | R-09 | Location reports (raw) | **Short** (e.g. 90 days) | Personal (movement) | Coverage and dispute window only | Purge; aggregates (per location/day) retained longer |
 | R-10 | Location aggregates (occupancy, coverage) | Long | Derived, non-personal | Planning | Retain |
-| R-11 | Incident records | Medium (e.g. 24 months) | Operational/personal | Safety learning, disputes | Purge |
-| R-12 | Incident evidence photos | Short (e.g. 90 days post-resolution) | Sensitive | Resolution only | Object deletion; incident summary retained |
+| R-11 | Incident records (incl. bounded narrative, reported amount/context, event time and optional shift/site links) | Medium (e.g. 24 months) | Operational/personal | Safety learning, disputes | Purge; Page 13 pilot has no production purge job or verified enforcement |
+| R-12 | Incident evidence photos | Short (e.g. 90 days post-resolution) | Sensitive | Resolution only | Object deletion; incident summary retained; Page 13 currently accepts no evidence and creates no evidence rows |
 | R-13 | Customer loyalty accounts + transactions | Active + short grace (e.g. 12 months inactivity) | Personal | Programme operation | Delete/anonymise; redemption references in sales detached |
 | R-14 | Reward instances | Same as loyalty window | Personal-adjacent | Anti-fraud (double spend) | Purge |
 | R-15 | Messages (operational) | Medium (e.g. 24 months) | Operational | Dispute/learning | Purge |

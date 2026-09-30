@@ -241,6 +241,7 @@ export async function applySyncBatch(input: {
               severity: p.severity,
               description: p.description,
               clientIncidentId: rec.clientId,
+              recordedAtDevice: new Date(rec.recordedAtDevice),
               organizationId: input.organizationId,
               operatorId: input.actorId,
             });

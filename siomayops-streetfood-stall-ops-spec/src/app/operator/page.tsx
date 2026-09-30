@@ -40,6 +40,9 @@ export default function OperatorPage() {
         <a href="/operator/site-condition" style={{ display: "inline-flex", alignItems: "center", minHeight: 48, borderRadius: 10, padding: "0 16px", background: "#175b3c", color: "#fff", fontWeight: 750, textDecoration: "none" }}>
           Kondisi cuaca & lokasi
         </a>
+        <a href="/operator/incidents/new" style={{ display: "inline-flex", alignItems: "center", minHeight: 48, borderRadius: 10, padding: "0 16px", background: "#8b392e", color: "#fff", fontWeight: 750, textDecoration: "none" }}>
+          Laporkan kejadian
+        </a>
       </div>
 
       <div style={{ marginTop: 24 }}>

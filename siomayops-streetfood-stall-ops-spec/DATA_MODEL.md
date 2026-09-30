@@ -1,7 +1,7 @@
 # DATA MODEL
 
 **Document ID:** DOC-DATA-MODEL
-**Status:** Phase 0 — entity investigation and minimal core model (**no schema implemented**)
+**Status:** Reference model; selected slices have schema implementations. For Page 13 incident fields and limitations, see `docs/integration/13-security-incident-architecture.md`.
 **Related:** `DOMAIN.md`, `DOMAIN` invariants, `docs/adr/ADR-0032-identifier-strategy.md`, `RETENTION.md`
 
 ---
@@ -63,8 +63,8 @@ one with 24 tables each of which has an invariant attached.
 | LoyaltyTransaction | EXTEND | Earn/redeem records (no algorithm in Phase 0). |
 | Reward | EXTEND | Definition. |
 | RewardInstance | EXTEND | Single-use entitlement (anti-double-redeem). |
-| Incident | EXTEND | Report + lifecycle. |
-| IncidentEvidence | OPTIONAL | Photos. |
+| Incident | EXTEND | Page 13 online capture pilot stores neutral report, optional urgency hint/amount, server-derived current shift/location and self-scoped status; lifecycle/review workflow is incomplete. |
+| IncidentEvidence | OPTIONAL | Not implemented: no upload or object reference is accepted by Page 13. |
 | Message | EXTEND | Operational message, threaded. |
 | MessageThread | EXTEND | Topic binding (area/stall/shift/incident). |
 | OperationalAlert | EXTEND | Actionable alert objects. |
@@ -162,6 +162,11 @@ SiteConditionObservation(id, organization_id, operator_id, shift_id, selling_loc
                           observed_at, ground_condition, shelter_status, shelter_note?,
                           relocation_decision_note?, client_request_id)
 
+Incident(id, organization_id, operator_id, shift_id?, selling_location_id?, category,
+         description, occurred_at?, severity_hint?, amount_minor?, amount_context?,
+         status, client_incident_id?, created_at, updated_at)
+-- unique (organization_id, operator_id, client_incident_id); no evidence or involved-party identity fields
+
 AuditEvent(id, organization_id, actor_id, actor_role, action, entity_type,
            entity_id, occurred_at, previous_value_json, new_value_json, reason,
            request_id, ip_hash?, user_agent?)
@@ -185,6 +190,8 @@ SellingLocation 1─* TrafficSample; TrafficSample 0..1─1 temporary TrafficVid
 TrafficSample has no operator_id or shift_id; video metadata has no operator_id or shift_id
 Shift 1─* SiteConditionObservation *─1 SellingLocation
 SiteConditionObservation stores operator/shift provenance; read results expose no actor identifiers
+Operator 1─* Incident; Incident 0..1─1 Shift and 0..1─1 SellingLocation (Page 13 pilot)
+Incident read projection is reporter-self only; no incident evidence/person-identity relation is implemented
 No WeatherSnapshot table/provider exists until a source and privacy/data-flow review are approved
 Everything *─1 Organization
 ```

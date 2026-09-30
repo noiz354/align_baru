@@ -1,7 +1,7 @@
 # INCIDENTS
 
 **Document ID:** DOC-INCIDENTS
-**Status:** Phase 0 (specification; **no incident logic implemented**)
+**Status:** Policy/specification plus a partial operator-report capture pilot; evidence storage, production persistence/auth, offline durability and full lifecycle remain incomplete.
 **Related:** FR-INC-*, `STATE_MACHINE.md` §11, `NOTIFICATIONS.md`, `RUNBOOK.md`, `PRIVACY.md`
 
 ---
@@ -31,14 +31,19 @@ Two things to hold at once:
 | `ACCIDENT` | Physical accident (self, customer, third party) | **P1** | Immediate |
 | `HEALTH_SAFETY_ISSUE` | Hygiene, contamination risk, injury risk | **P1** | Immediate |
 | `FORCED_RELOCATION` | Operator reports being made to move | **P1** | Immediate, neutral recording |
-| `THEFT` | Theft of money, stock, or equipment | **P1/P2** | Immediate |
+| `UNOFFICIAL_PAYMENT_REPORTED` | Operator reports that a payment was requested or made outside the stated process | Operator-selected hint | No automatic finding/escalation |
+| `SECURITY_CONCERN_REPORTED` | Operator reports a security-related concern | Operator-selected hint | No automatic finding/escalation |
+| `THEFT` | Item or money reported missing/taken; not a finding about a person | **P1/P2** | No automatic finding/escalation |
 | `OTHER` | Anything else (note required) | P3 | No |
 
 Severity: `P1` (safety/loss affecting a person or the day) · `P2` (operational disruption
 needing same-day action) · `P3` (record and address in normal flow).
 
 **Neutrality rule:** `FORCED_RELOCATION` records *what the operator reported*. The system does
-not conclude who asked, or why, and does not name parties in any automated output.
+not conclude who asked, or why, and does not name parties in any automated output. The Page 13
+operator-report pilot uses `UNOFFICIAL_PAYMENT_REPORTED` and `SECURITY_CONCERN_REPORTED` as neutral
+report categories; they are not findings, accusations, legal classifications, or automatic
+escalation triggers.
 
 ---
 
@@ -78,6 +83,17 @@ interface Incident {
 
 **Deliberately absent fields:** "who was at fault", "was the payment legal", "suspected
 offender name". Such fields would encode assumptions the platform must not make.
+
+### Page 13 capture pilot (implemented subset)
+
+The online pilot stores `categoryCode`, bounded `description`, `occurredAt`, server receipt time,
+optional operator-selected `severityHint`, optional paired integer `amountMinor` and
+`amountContext` (`REQUESTED` / `PAID` / `UNCLEAR`), and a server-derived optional active `shiftId`
+and `sellingLocationId`. If the operator has no current shift/location, the report remains
+submittable and unlinked. The report starts as `SUBMITTED`; the hint does not set an assigned
+severity or invoke an SLA/escalation. The operator-facing read API is self-scoped. No involved-party
+identity field or evidence upload/reference is accepted. Production database migration and durable
+retention are not yet verified; see `docs/integration/13-security-incident-gap-report.md`.
 
 ---
 

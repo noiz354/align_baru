@@ -101,6 +101,7 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | Page 11 raw traffic video | Private first-party ingestion service only; no HQ, supervisor, auditor, analytics or training access; raw media and replicas are purged within 24 hours (ADR-0040 / R-26) |
 | Page 11 manual count/band result | Stored without operator or shift identifiers; operational read models expose only approved aggregate views; never use for individual performance or discipline (ADR-0040 / R-27) |
 | Page 12 site-condition observations | Available only through the authorized operator self context at the current site; response omits actor IDs; bounded notes are not logged; 90-day local purge is opportunistic, not production-grade (FR-SITE-001 / R-28) |
+| Page 13 incident reports | New operator report/list/detail API is operator-self and organization scoped; direct access to another reporter's ID returns 404; output omits actor IDs; narrative and amount are excluded from telemetry. Existing aggregate HQ read surface is separate; production policy enforcement and retention remain unverified (FR-INC-011 / T-INC-001) |
 | Audit before/after summaries | Field-minimised at write time; never a shadow copy of personal data |
 | Payment provider references | Visible to HQ_FINANCE and AUDITOR; masked elsewhere |
 
