@@ -1,7 +1,7 @@
 # API — Contract Catalogue
 
 **Document ID:** DOC-API
-**Status:** Phase 0 — contracts only (**no handlers implemented**)
+**Status:** Contract catalogue with selected implemented vertical slices; handler status is documented per slice.
 **Base path:** `/api/v1` · **Format:** JSON over HTTPS · **Auth:** session cookie (planned)
 **Related:** `ARCHITECTURE.md` §6, `OFFLINE.md`, `EVENTS.md`, ADR-0013, ADR-0014, ADR-0034
 
@@ -338,6 +338,30 @@ they export data.
 
 ## 18. Skeleton mapping
 
-Each contract above has a route shell under `src/app/api/v1/.../route.ts` that validates input
-with a Zod schema from `src/shared/contracts` and then throws
-`new Error("Not implemented: T-XXX-XXX")`. No handler logic exists in Phase 0.
+Contracts above describe the intended API surface. Runtime implementation is slice-specific: implemented handlers are listed in the relevant page integration documents. Other planned endpoints may still be skeletons; do not infer runtime support from a contract alone.
+
+---
+
+## Implemented page slice — Transactions (2026-09-30)
+
+The `/transactions` page currently uses these handlers; details and known limitations are recorded in `docs/integration/05-transactions-architecture.md`.
+
+### `GET /api/v1/transactions`
+
+- Requires an authenticated session and `sale:view`.
+- Supports optional `businessDay=YYYY-MM-DD`, `stallId`, `status`, `limit` (1–100), and `offset` (0–100000).
+- Scope filtering is server-side. Output contains structured IDR minor-unit totals, timestamps, status/payment summary, authorized outlet options, and pagination metadata.
+- Current runtime persistence is file-backed `memoryStore`; it is not the planned PostgreSQL query adapter.
+
+### `GET /api/v1/transactions/{transactionId}`
+
+- Requires `sale:view`; returns `404` for absent or out-of-scope transactions.
+- Returns persisted sale lines with immutable unit-price snapshots and persisted payment records.
+
+### `POST /api/v1/transactions`
+
+- Requires session permissions `sale:create` and `payment:cash`, an open shift in the caller's server-derived scope, and a non-empty `Idempotency-Key`.
+- Input: `{ shiftId, clientSaleId, clientPaymentId, lines: [{ menuItemId, quantity }], cashReceivedMinor }` (optional `occurredAtDevice`, ISO UTC).
+- Server resolves prices from active policies, computes integer IDR totals, validates cash, and persists sale + cash payment + stock completion + audit events through the existing features.
+- Output: `{ data: { transactionId, status, totalMinor, changeMinor, currency: "IDR" } }`.
+- This is online cash only. Digital payments, correction, and void are deliberately not exposed by this page. A payment rejection can leave a persisted `DRAFT` sale because the current file-backed features do not share a SQL transaction boundary.

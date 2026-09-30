@@ -17,3 +17,6 @@ build/
 evidence/
 exports/
 *.pem
+
+# Local development/runtime persistence (never commit operational records)
+data/

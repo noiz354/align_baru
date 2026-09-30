@@ -6,6 +6,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 export type OrganizationId = string;
@@ -429,7 +430,11 @@ class MemoryStore {
 export const memoryStore = new MemoryStore();
 
 // --- Persistence layer (file-backed) ---
-const DB_PATH = path.join(process.cwd(), "data", "db.json");
+const DB_PATH = process.env.SIOMAYOPS_DATA_FILE
+  ? path.resolve(process.env.SIOMAYOPS_DATA_FILE)
+  : process.env.NODE_ENV === "test"
+    ? path.join(os.tmpdir(), `siomayops-test-${process.pid}.json`)
+    : path.join(process.cwd(), "data", "db.json");
 
 function dateReviver(_key: string, value: any) {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {

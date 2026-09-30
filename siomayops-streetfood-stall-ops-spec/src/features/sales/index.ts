@@ -5,6 +5,8 @@ import { computeSaleTotalFromSnapshots } from "../../domain/sale/totals";
 import { resolvePriceForSale } from "../pricing";
 import { writeAuditEvent } from "../audit";
 
+export * from "./transactions";
+
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export interface CreateSaleInput {
@@ -32,6 +34,9 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
   const existingSaleId = memoryStore.saleByClientId.get(input.clientSaleId);
   if (existingSaleId) {
     const existing = memoryStore.sales.get(existingSaleId);
+    if (existing && existing.organizationId !== orgId) {
+      throw Object.assign(new Error("Client sale id is already assigned"), { code: "CONFLICT" });
+    }
     if (existing) {
       const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === existing.id);
       return {
