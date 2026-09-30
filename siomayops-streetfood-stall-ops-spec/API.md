@@ -329,7 +329,23 @@ This section documents the implemented local pilot, not the broader aspirational
 
 Authenticated operator self-only detail read. A report outside the current operator/organization scope returns `404` (including direct-URL access); responses are uncached and omit actor IDs. This endpoint does not expose a reviewer/HQ detail surface.
 
-**Not implemented:** production session authentication, a verified durable database migration/retention job, full incident lifecycle and HQ detail workflow, safety notification/escalation, evidence storage/deletion, and browser acceptance. See the Page 13 gap report for the release gates.
+**Not implemented:** production session authentication, a verified durable database migration/retention job, full owner/SLA/notification workflow, incident evidence storage/deletion, and browser acceptance. See the Page 13 and Page 14 gap reports for release gates.
+
+### Page 14 — HQ incident review (`/hq/incidents/[id]`)
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /api/v1/hq/incidents/inbox` | Authenticated `OWNER`, `HQ_OPS`, or `AREA_SUPERVISOR` with `incident:view`; latest 100 bounded summaries. `AREA_SUPERVISOR` is filtered by server-derived incident area. Response omits narratives, raw actor IDs and evidence references. |
+| `GET /api/v1/hq/incidents/{incidentId}` | Same read roles; returns real incident facts, derived reporter/outlet/location names, at most 50 chronological audit-history entries, allowed next statuses and explicit `{ evidence: { status: "UNSUPPORTED", items: [] } }`. Missing, cross-tenant and out-of-area records return `404`. `Cache-Control: no-store`. |
+| `POST /api/v1/hq/incidents/{incidentId}/review` | `OWNER`, `HQ_OPS`, or matching `AREA_SUPERVISOR` with `incident:resolve`. Input `{ clientReviewId, status?, note? }`; status-only and note-only are supported, but `RESOLVED`/`CLOSED` require a bounded factual note. No evidence key/URL is accepted. |
+
+**Validation/idempotency:** strict request schema; note 10–1,000 trimmed characters; allowed status transition only; `Idempotency-Key` must equal `clientReviewId`. Same-key replay does not append a second audit event; changed body under the same key is rejected.
+
+**Persistence/audit:** report facts are read from the existing incident record. Status changes and note-only follow-ups append `AuditEvent` records (`incident.transitioned` / `incident.review_note_added`); review history is an audit projection, not a separate mutable table. Current implementation uses the local file-backed memory store, not a deployed SQL migration or production transaction.
+
+**Analytics:** `incident_reviewed`, coarse `incident_review_note_added`, `incident_status_changed`, and `incident_review_failed` use the existing structured logger. No narrative, amount, identity, or evidence metadata is emitted. `incident_evidence_opened` is not emitted because evidence review is unsupported.
+
+**Not implemented:** evidence metadata/media authorization, upload/download, production storage/retention, owner/SLA/escalation/notification lifecycle, production auth and browser acceptance.
 
 ## 15. `POST /loyalty/customers/identify` — Identify Loyalty Customer
 

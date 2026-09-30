@@ -95,13 +95,14 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | --- | --- |
 | Operator phone number | Full number visible to the operator (self), their supervisor; masked (`+62 812••••789`) for other roles |
 | Customer phone hash / loyalty id | Never displayed to operators; Finance/Owner see a pseudonymous id, never the raw identifier |
-| Evidence photos (expense, incident) | Only roles in the review path (submitter, supervisor, HQ_FINANCE/HQ_OPS, AUDITOR) with short-lived signed URLs |
+| Evidence photos (expense, incident) | Target policy only; incident evidence is not accepted or readable in Pages 13–14. Never expose the generic fake presigner as a signed URL or proof of access control |
 | Selling-point coordinates | Available only to operationally scoped roles that need them |
 | Raw Page 10 GPS sample (latitude/longitude, accuracy, capture time) | Returned only to the owning operator for their own open-shift report; excluded from HQ map/read models, analytics, audit summaries and logs; scrubbed within 14 days per ADR-0039 / R-25 |
 | Page 11 raw traffic video | Private first-party ingestion service only; no HQ, supervisor, auditor, analytics or training access; raw media and replicas are purged within 24 hours (ADR-0040 / R-26) |
 | Page 11 manual count/band result | Stored without operator or shift identifiers; operational read models expose only approved aggregate views; never use for individual performance or discipline (ADR-0040 / R-27) |
 | Page 12 site-condition observations | Available only through the authorized operator self context at the current site; response omits actor IDs; bounded notes are not logged; 90-day local purge is opportunistic, not production-grade (FR-SITE-001 / R-28) |
-| Page 13 incident reports | New operator report/list/detail API is operator-self and organization scoped; direct access to another reporter's ID returns 404; output omits actor IDs; narrative and amount are excluded from telemetry. Existing aggregate HQ read surface is separate; production policy enforcement and retention remain unverified (FR-INC-011 / T-INC-001) |
+| Page 13 incident reports | Operator report/list/detail API is operator-self and organization scoped; direct access to another reporter's ID returns 404; output omits actor IDs; narrative and amount are excluded from telemetry. Production policy enforcement and retention remain unverified (FR-INC-011 / T-INC-001) |
+| Page 14 incident review | `OWNER`/`HQ_OPS` may review org scope; `AREA_SUPERVISOR` is restricted to the server-derived area. `HQ_FINANCE`, `AUDITOR` and `OPERATOR` cannot read this review API under current incident permissions. Out-of-tenant/area detail is `404`; review mutations require `incident:resolve`; evidence remains unavailable and no evidence URL is returned (T-INC-002) |
 | Audit before/after summaries | Field-minimised at write time; never a shadow copy of personal data |
 | Payment provider references | Visible to HQ_FINANCE and AUDITOR; masked elsewhere |
 

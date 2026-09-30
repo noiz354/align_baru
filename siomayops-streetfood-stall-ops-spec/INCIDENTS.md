@@ -145,6 +145,12 @@ follow-up artefact, not a rescue mechanism.
 Aggregations never name operators as suspects; operator involvement is visible within the
 incident scope only (privacy, dignity).
 
+**Page 14 implementation boundary:** `/hq/incidents` now reads a bounded, server-scoped inbox and
+links to `/hq/incidents/[id]`, which shows persisted report facts and audit-backed review history.
+HQ/area reviewers can add a factual note or take one of the supported status transitions. The
+surface does not assign an owner, start an SLA, notify responders, or process evidence media; see
+`docs/integration/14-incident-evidence-review-gap-report.md`.
+
 ---
 
 ## 7. Evidence handling
@@ -156,6 +162,13 @@ incident scope only (privacy, dignity).
 | Retention | Short (per `RETENTION.md`) unless linked to a legal/financial process |
 | Third parties in photos | Guidance: avoid capturing faces/plates where not needed; store minimally |
 | Deletion | Lawful deletion requests handled per `PRIVACY.md`; financial linkage may require retention of the incident record without the photo |
+
+**Implementation status (Pages 13–14):** all evidence rows above describe target policy, not an
+available feature. The operator report rejects evidence references; the HQ detail reports
+`UNSUPPORTED` with an empty evidence list and no open/download control. `src/server/storage/evidence-store.ts`
+is an in-memory fake presigner and is not used by incident routes. Do not attach, display, or
+claim review of photo, video, audio, or immutable evidence metadata until private durable storage,
+validated upload, scoped reads, retention, and deletion are implemented and approved.
 
 ---
 

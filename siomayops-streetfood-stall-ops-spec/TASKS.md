@@ -1072,22 +1072,23 @@ Manual QA · Definition of Done (DoD).
 
 ## T-INC-002 — Incident lifecycle and escalation
 
-- **Requirements:** FR-INC-003..006, `STATE_MACHINE.md` §11
-- **Goal:** OPEN → ACKNOWLEDGED → INVESTIGATING → RESOLVED → CLOSED with SLAs, owners, trends.
+- **Status:** PARTIAL — Task 14 adds scoped HQ detail, append-only follow-up notes and a limited status transition path; not a complete response workflow.
+- **Requirements:** FR-INC-003..006, `STATE_MACHINE.md` §11 and Page 14 review surface
+- **Goal:** Human review of real report facts, chronology and supported status/history, without fabricated evidence.
 - **ADR:** ADR-0026
-- **Product Docs:** `INCIDENTS.md` §4/§6
-- **Modules:** `src/features/incidents`, `src/features/hq`
-- **Dependencies:** T-INC-001, T-ALERT-001
-- **Behavior:** owner assignment, SLA timers, reopen with reason, trend analytics, equipment watchlist.
-- **Invariants:** lifecycle monotonic aside from audited reopen; resolution note required; no delete.
-- **Finance:** trend cost visibility (via linked expenses). **Security:** responder-scoped access.
-- **Privacy:** involved-person data restricted; never public.
-- **Offline:** HQ online; operator sees status changes on sync.
-- **Concurrency:** two responders ⇒ single owner (claim/lock semantics).
-- **Failures:** SLA breach raises an alert rather than silently ageing.
-- **Tests:** integration: transitions, SLA alerts, reopen audit, trend aggregation.
-- **Manual QA:** run a P1 through to resolution and check the audit trail.
-- **DoD:** incidents produce fixes, not just records.
+- **Product Docs:** `INCIDENTS.md` §4/§6/§7, Page 14 integration artifacts
+- **Modules:** `src/features/incidents`, `/hq/incidents/[id]`, `/api/v1/hq/incidents`
+- **Dependencies:** T-INC-001; T-ALERT-001 remains outstanding.
+- **Behavior:** reviewer may append a factual note or take an allowed status transition; resolving/closing requires a note. No owner assignment, SLA timer, safety alert, or incident-evidence media review is claimed.
+- **Invariants:** tenant/area scope is server-derived; status changes and notes append audit history; evidence metadata/media remains explicitly unsupported.
+- **Finance:** no linked-expense trend workflow. **Security:** HQ_OPS/OWNER and matching AREA_SUPERVISOR only; direct out-of-scope detail returns 404.
+- **Privacy:** no evidence content, actor IDs or free-text notes in analytics; free text is visible only in authorized incident review and audit history.
+- **Offline:** HQ review is online only.
+- **Concurrency:** status/review requests use idempotency; production transaction/claim guarantees are unverified.
+- **Failures:** invalid transitions, missing resolution notes and wrong-scope access are rejected.
+- **Tests:** domain/schema, role/area/tenant/direct-resource, audit, idempotency and telemetry-redaction tests exist; SLA/escalation tests do not.
+- **Manual QA:** actual browser review and authorized multi-role acceptance pending.
+- **DoD:** NOT MET until runtime/browser acceptance, production auth/storage/retention, evidence policy and remaining lifecycle requirements are closed.
 
 ---
 
