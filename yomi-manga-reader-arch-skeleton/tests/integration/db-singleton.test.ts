@@ -119,6 +119,24 @@ async function sessionsExceed(floor: number, probe: Db, ms = 3000): Promise<bool
   }
 }
 
+/** Let PostgreSQL publish connections opened by earlier tests before taking a baseline. */
+async function settledSessions(probe: Db, stableForMs = 1200, timeoutMs = 4000): Promise<number> {
+  let current = await readSessions(probe);
+  let stableSince = Date.now();
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 150));
+    const next = await readSessions(probe);
+    if (next !== current) {
+      current = next;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= stableForMs) {
+      return current;
+    }
+  }
+  return current;
+}
+
 describeDb('the process-wide database handle (INT-DB-SINGLETON, F-001-S1)', () => {
   it('gives two acquisitions the same handle — one pool, not two', async () => {
     const first = await acquireDb(env(DATABASE_URL as string));
@@ -263,7 +281,7 @@ describeDb('the session guard shares the pool (INT-DB-GUARD, F-001-S2)', () => {
     // A shared pool is already warm, as it would be in a live process, so any
     // connection the guard opens is a connection it should not have opened.
     const warm = await acquireDb(env(DATABASE_URL as string));
-    const floor = await readSessions(warm);
+    const floor = await settledSessions(warm);
 
     expect(await getSessionUser(request, warm)).toBeNull();
     expect(await getSessionUser(request)).toBeNull();
@@ -278,7 +296,10 @@ describeDb('the session guard shares the pool (INT-DB-GUARD, F-001-S2)', () => {
     // the guard acquires before checking for a cookie, every anonymous request
     // pays for a pool it never uses.
     const probe = await acquireDb(env(DATABASE_URL as string));
-    const floor = await readSessions(probe);
+    // Prior integration cases create and close disposable pools; wait for those
+    // backend sessions to reach PostgreSQL's cumulative counter before measuring
+    // this anonymous request path.
+    const floor = await settledSessions(probe);
     for (let i = 0; i < 4; i += 1) {
       expect(await getSessionUser(new Request('http://localhost:3000/discover'))).toBeNull();
     }
