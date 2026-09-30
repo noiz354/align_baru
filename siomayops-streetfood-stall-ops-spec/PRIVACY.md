@@ -66,7 +66,7 @@ restricted access, short retention, no analytics use.
 | Location reporting | Transparency + shift-bounded design; operator can see all their own reports |
 | One-shot GPS assist | Clear notice before capture; explicit tap for each optional fix; no background collection; manual reporting remains available. This is not described as employment consent; preliminary DPIA review is pending. |
 | Page 11 traffic video | Clear notice and explicit capture tap; ≤10 seconds and silent; manual count/band entry; no identity/face recognition, computer vision, training, or external processor. Keep production disabled pending DPIA/privacy-owner approval and verified deletion (including backups). This is not described as employment consent. |
-| Page 15 conversation audio/transcript | Not permitted under current policy. The page is informational only; no microphone access, consent capture, audio/transcript processing, or retention is available. Requires separate purpose/legal-basis/worker safeguards, DPIA and storage/deletion approval before any proposal to enable. |
+| Page 15–16 conversation audio/transcript/library | Not permitted under current policy. The recorder and library pages are informational only; no microphone access, consent capture, recording query, audio/transcript processing, or retention is available. Requires separate purpose/legal-basis/worker safeguards, DPIA and storage/deletion approval before any proposal to enable. |
 | Loyalty (customer) | Explicit opt-in with purposes (accrual, redemption, campaign messages as separate purpose); withdrawal mechanism; no pre-ticked boxes |
 | Campaign messages | Separate opt-in from loyalty accrual |
 | Incident evidence | Collected for resolution; not reused for analytics or training |

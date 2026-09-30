@@ -8,7 +8,7 @@
 
 ## 1. Security objectives
 
-Page 11 is the only browser camera exception: `/operator/traffic-sampling` receives `camera=(self)` while all other routes deny camera; microphone remains denied globally. The Page 15 `/operator/recordings/new` route is informational only and does not request microphone access. The production feature flag is closed pending DPIA and verified 24-hour primary/backup purge. Uploaded clips have no read/download endpoint.
+Page 11 is the only browser camera exception: `/operator/traffic-sampling` receives `camera=(self)` while all other routes deny camera; microphone remains denied globally. The Page 15 `/operator/recordings/new` and Page 16 `/recordings` routes are informational only: neither requests microphone access or reads recording data, and no recordings library API exists. The production feature flag is closed pending DPIA and verified 24-hour primary/backup purge. Uploaded clips have no read/download endpoint.
 
 
 | # | Objective | Why it matters here |
