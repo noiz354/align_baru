@@ -1,7 +1,7 @@
 # IMPLEMENTATION STATUS — SiomayOps Streetfood Stall Ops
 
-**Date:** 2026-09-27
-**Branch:** arena/01a0e0dc-align-baru
+**Date:** 2026-09-30
+**Branch:** arena/01a0efb1-align-baru
 **Source:** https://github.com/noiz354/align_baru/tree/main/siomayops-streetfood-stall-ops-spec
 
 ## Tasks Discovered: 70
@@ -28,6 +28,7 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **Communication+Alerts (VS-12):** T-COMM-001, T-ALERT-001 — notifications API, alerts, inbox
 - **Incidents (VS-13):** T-INC-001..002 — PARTIAL pilot only: Task 13 operator capture and Task 14 scoped HQ fact review/note/status path exist; evidence media, production auth/storage/retention, full owner/SLA/escalation workflow and browser acceptance remain open.
 - **Conversation recording (Page 15):** NOT IMPLEMENTED; informational unavailable route only. Microphone access remains denied; no audio/transcript/annotation/linkage storage, retention policy, transcription service or consent/DPIA approval exists.
+- **Recordings library (Page 16):** NOT DONE; `/recordings` is an informational unavailable page only. No recording list/search/detail, storage, transcript, incident link, retention/delete flow, recording-specific authorization, or Page 16 analytics exists. See `docs/integration/16-recordings-library-gap-report.md` and the architecture/ground-truth records. Task 16 remains blocked on Page 15 policy approval and actual persisted recordings.
 - **Performance (VS-14):** T-PERF-001..002 — performance metrics, contextual, normalized
 - **Recognition (VS-15):** T-REC-001..002 — transparent multi-factor, no revenue-only leaderboard, no hidden scoring
 - **Offline Hardening (VS-16):** T-OFF-002..004 — offline banner with pending count, per-record sync states (LOCAL_ONLY, PENDING, SYNCING, SYNCED, REJECTED, DEFERRED), rejected explanation with next step, digital disabled with clear message while offline, cash selling possible without confirmation dialogs, service worker shell (sw.ts notes Serwist planned but not wired per ADR, acceptable)
@@ -42,7 +43,7 @@ Core implementation exists across VS-0..VS-19, but implementation entries are no
 - domain: money, pricing/resolution, sale/totals, payment/states, expense/review, inventory/variance, location/report, operators/status, loyalty/reward
 - server: db/memory-store (with evidenceAssets, notifications, shiftClosings), db/idempotency, db/repository (scope checks INV-11), auth/port (extended actions, ROLE_PERMISSIONS), payments/provider (fake adapter, prod stub with comprehensive comments), payments/webhook-verifier, telemetry
 - features: operators, stalls, locations, shifts, menu, pricing, sales, payments, expenses, inventory, loyalty, incidents, audit, offline, performance, recognition, hq, notifications
-- app: pages (/, /shift, /sell, /stock, /expenses, /closing, /hq, /hq/expenses, /hq/incidents, /hq/verification, /alerts, /locations, /operator, /evidence, /menu), api/v1 (shifts, sales, payments/cash/digital, expenses, stock-reports, incidents, loyalty, sync/batches, webhooks/payments/[provider], price-acknowledgements, restock-requests, hq/*, menu/items, locations, operators/me, evidence, notifications, audit, config/thresholds, payments, shifts list, sales list, stock/movements, stock/positions)
+- app: pages (/, /shift, /sell, /stock, /expenses, /closing, /hq, /hq/expenses, /hq/incidents, /hq/verification, /alerts, /locations, /operator, /operator/recordings/new, /recordings, /evidence, /menu), api/v1 (shifts, sales, payments/cash/digital, expenses, stock-reports, incidents, loyalty, sync/batches, webhooks/payments/[provider], price-acknowledgements, restock-requests, hq/*, menu/items, locations, operators/me, evidence, notifications, audit, config/thresholds, payments, shifts list, sales list, stock/movements, stock/positions)
 - shared: money, time, types/ids (MenuItemId added), ui/tokens, ui/TapTarget, ui/OfflineBanner, contracts
 - tests: unit (money, pricing-resolution, sale-totals, shift-expected-cash, payment-states, expense-review, loyalty-redemption, stock-variance, override-policy) — 51 tests, integration (idempotency, audit-append-only, payments-honesty, authorization, closing-immutability, sales-replay, stock-derivation, loyalty-concurrency) — 37 tests, browser (tap-budget, offline-states) — 13 tests, e2e (cash-sale, hq-coverage, offline-day) — 7 tests logic, total 101+ tests passing
 
