@@ -4,7 +4,7 @@
  * All tables carry organization_id and appropriate constraints per DATA_MODEL.md and ADR-0031/0032.
  */
 
-import { pgTable, uuid, text, integer, timestamp, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, boolean, jsonb, doublePrecision, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Helper for common columns
 const orgId = uuid("organization_id").notNull();
@@ -144,6 +144,10 @@ export const locationReports = pgTable("location_reports", {
   trigger: text("trigger").notNull(),
   reasonForMove: text("reason_for_move"),
   note: text("note"),
+  gpsLatitude: doublePrecision("gps_latitude"),
+  gpsLongitude: doublePrecision("gps_longitude"),
+  gpsAccuracyMeters: doublePrecision("gps_accuracy_meters"),
+  gpsCapturedAt: timestamp("gps_captured_at", { withTimezone: true }),
   arrivedAt: timestamp("arrived_at", { withTimezone: true }).notNull(),
   departedAt: timestamp("departed_at", { withTimezone: true }),
   clientReportId: uuid("client_report_id").notNull(),
@@ -151,6 +155,7 @@ export const locationReports = pgTable("location_reports", {
 }, (t) => [
   uniqueIndex("location_reports_org_client_unique").on(t.organizationId, t.clientReportId),
   index("location_reports_shift_idx").on(t.shiftId),
+  index("location_reports_gps_captured_idx").on(t.gpsCapturedAt),
 ]);
 
 export const menuCategories = pgTable("menu_categories", {

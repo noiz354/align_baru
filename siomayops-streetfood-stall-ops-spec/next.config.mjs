@@ -17,6 +17,12 @@ const nextConfig = {
         ],
       },
       {
+        source: "/operator/location",
+        headers: [
+          { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=()" },
+        ],
+      },
+      {
         source: "/api/(.*)",
         headers: [
           { key: "Cache-Control", value: "no-store" },

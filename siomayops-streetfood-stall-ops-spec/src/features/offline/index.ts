@@ -115,6 +115,7 @@ export async function applySyncBatch(input: {
                 note: p.note,
                 clientReportId: rec.clientId,
                 organizationId: input.organizationId,
+                operatorId: input.actorId,
               });
               results.push({ clientId: rec.clientId as any, outcome: "ACCEPTED", serverId: res.locationReportId as any });
             } catch (e: any) {

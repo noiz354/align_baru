@@ -22,11 +22,11 @@ Enforced by tooling:
 | Measure | Value |
 | --- | --- |
 | Functional requirements (`FR-*`) | 227 |
-| Non-functional requirements (`NFR-*`) | 78 |
-| Total stable requirement ids | 305 |
+| Non-functional requirements (`NFR-*`) | 79 |
+| Total stable requirement ids | 306 |
 | P0 (pilot-blocking) | 131 |
 | P1 (before scale-out) | 88 |
-| P2 (later, designed now) | 86 |
+| P2 (later, designed now) | 87 |
 | P0 requirements with task coverage | 131 / 131 |
 | Tasks in `TASKS.md` | 70 |
 | ADR records | 38 |
@@ -60,7 +60,7 @@ Enforced by tooling:
 | `AUDIT` | 8 | SECURITY.md, ADR-0026 | T-AUTHZ-001, T-FOUND-003, T-SALE-004 | integration/audit-append-only | QA-A |
 | `CUST` | 5 | PAYMENTS.md, LOYALTY.md | T-PAY-002, T-SALE-001 | integration/payments-honesty | QA-C |
 | `SEC` | 12 | SECURITY.md, THREAT_MODEL.md | T-AUTHZ-001, T-EXP-004, T-FOUND-003, T-FOUND-004, T-FOUND-005, T-PAY-003, T-SEC-001, T-SEC-002 | integration/authorization | QA-T |
-| `PRIVACY` | 10 | PRIVACY.md, RETENTION.md | T-LOC-004, T-LOY-001, T-OPS-001 | integration/dsar (with T-OPS-001) | QA-A |
+| `PRIVACY` | 11 | PRIVACY.md, RETENTION.md | T-LOC-004, T-LOY-001, T-OPS-001 | integration/dsar (with T-OPS-001) | QA-A |
 | `REL` | 6 | ARCHITECTURE.md §10, DEPLOYMENT.md | T-OPS-002, T-OPS-003 | e2e/failover rehearsal (with T-OPS-003) | QA-T |
 | `OFFLINE` | 10 | OFFLINE.md | T-CLOSE-003, T-OFF-001, T-OFF-002, T-OFF-003, T-OFF-004, T-PAY-002, T-SALE-003 | integration/sales-replay, browser/offline-states, e2e/offline-day | QA-O |
 | `OBS` | 8 | OBSERVABILITY.md | T-OBS-001, T-OBS-002 | integration/telemetry (with T-OBS-001) | QA-T |
@@ -92,7 +92,7 @@ file never claims more certainty than the plan has.
 | T-LOC-003 | FR-HQ-002, FR-LOCATION-009 | integration: scope, gap computation with seeded data. |
 | T-SHIFT-001 | FR-OPERATOR-005, FR-SHIFT-001, FR-SHIFT-002, FR-SHIFT-003, FR-SHIFT-004, FR-SHIFT-005, FR-SHIFT-016 | integration: double start, suspended operator, restricted location, offline replay; unit: state transitions. |
 | T-SHIFT-002 | FR-SHIFT-003, FR-STOCK-004 | integration: duplicate report, unknown item note, derived position integrity. |
-| T-LOC-004 | FR-LOCATION-004, FR-LOCATION-005, FR-LOCATION-006, FR-LOCATION-014, NFR-PRIVACY-003 | valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission. |
+| T-LOC-004 | FR-LOCATION-004, FR-LOCATION-005, FR-LOCATION-006, FR-LOCATION-014, NFR-PRIVACY-003, NFR-PRIVACY-011 | valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission. |
 | T-LOC-005 | FR-HQ-003, FR-LOCATION-007 | reason validation; interval closure; concurrent move+close; offline ordering. |
 | T-OFF-001 | FR-SALE-002, NFR-OFFLINE-001, NFR-OFFLINE-002, NFR-OFFLINE-003, NFR-OFFLINE-004, NFR-OFFLINE-005 | integration: batch ordering, dependency-gap deferral, duplicate replay; browser: lock behaviour. |
 | T-HQ-001 | FR-HQ-001, FR-HQ-002, FR-HQ-003, FR-LOCATION-009 | integration: freshness fields; e2e: HQ sees a stall within 60 s of shift start. |

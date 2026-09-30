@@ -91,7 +91,7 @@ tools/             scripts (release checklist, id/requirement census)
 | `vitest.config.ts`, `playwright.config.ts` | Vitest 4 (+ Browser Mode) and Playwright (ADR-0023). Every suite is TODO-only. |
 | `docker-compose.yml`, `Dockerfile`, `.env.example` | Local PostgreSQL 18 (+ optional MinIO) and a non-functional image shell; placeholders only. |
 | `.github/workflows/ci.yml` | Runs the three integrity tools below. Install/lint/test steps activate at VS-0. |
-| `tools/check-stubs.mjs` | Fails if a stub names a non-existent task, a PLANNED/REJECTED dependency is imported, geolocation APIs appear, or an exported function contains logic. |
+| `tools/check-stubs.mjs` | Fails if a stub names a non-existent task, a PLANNED/REJECTED dependency is imported, geolocation is used outside ADR-0039's one-shot helper, or an exported function contains logic. |
 | `tools/check-docs.mjs` | Fails on dangling document references or an ADR that is missing from / unlisted in the index. |
 | `tools/census.mjs` | Counts requirement ids, tasks, ADRs and stubs; fails if any cited requirement id is absent from `PRD.md` or any **P0** requirement lacks task coverage. |
 | `tools/gen-traceability.py` | Regenerates `docs/TRACEABILITY.md` from `PRD.md` + `TASKS.md`. |

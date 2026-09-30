@@ -2,6 +2,9 @@ import { memoryStore } from "../../server/db/memory-store";
 import type { BusinessDay } from "../../shared/time";
 import { money, type Money } from "../../shared/money/money";
 
+export * from "./operations-map";
+export * from "./operations-map-analytics";
+
 export interface ReadModelEnvelope<T> {
   readonly computedAt: Date;
   readonly sourceWatermark?: string;

@@ -96,7 +96,7 @@ VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
 - Cross-operator data access denied via scope checks (INV-11)
 - Sensitive logging avoided (no credentials, PII masked, provider refs masked for non-finance)
 - Secret leakage prevented (webhook secret env, no browser exposure)
-- Security headers implemented (next.config.mjs): DENY frame, nosniff, strict-origin, no geolocation/camera/mic, HSTS, CSP
+- Security headers implemented (next.config.mjs): DENY frame, nosniff, strict-origin, geolocation disabled except explicit `/operator/location` one-shot route, camera/mic disabled, HSTS, CSP
 - Audit logs all privileged actions with actor, action, subject, correlationId
 
 ## Observability Status
@@ -150,7 +150,7 @@ VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
 - package.json: pinned real versions next 15.4.2 react 19.1.0 zod 3.24.1 drizzle-orm 0.44.3 pg 8.13.0 pino 9.6.0 otel 1.9.0/0.57.0 typescript 5.7.3 drizzle-kit 0.31.4 vitest 3.1.1 @playwright/test 1.50.0 tailwindcss 4.0.0, removed invalid @vitest/browser-playwright
 - tsconfig.json: exactOptionalPropertyTypes false, allowJs true, incremental true, esModuleInterop true, next plugin
 - vitest.config.ts: added resolve alias @ -> ./src for unit/integration tests
-- next.config.mjs: security headers (X-Frame DENY, nosniff, Referrer strict, Permissions-Policy no geolocation/camera/mic, HSTS, CSP, no-store for /api)
+- next.config.mjs: security headers (X-Frame DENY, nosniff, Referrer strict, Permissions-Policy geolocation disabled by default with `/operator/location` self-only exception, camera/mic disabled, HSTS, CSP, no-store for /api)
 - src/shared/types/ids.ts: added MenuItemId export
 - src/server/db/memory-store.ts: added active boolean to StoredOperator, evidenceAssets Map, notifications Map, shiftClosings Map, clear() extended
 - src/features/expenses/index.ts: expense as any to allow REVIEW_REQUIRED mutation, flag logic

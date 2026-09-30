@@ -35,6 +35,28 @@
 
 ---
 
+## 1a. `GET /operators/me/location` — Current Operator Location Context
+
+| Field | Value |
+| --- | --- |
+| **Requirement ID** | FR-LOCATION-004, FR-LOCATION-006, NFR-PRIVACY-011 |
+| **Actor** | Operator (self only) |
+| **Authentication** | Session required |
+| **Authorization** | `location:view`; target is the session operator's self scope; only that operator's active shift and current-area selling points are returned |
+| **Input** | None; organization, operator, shift, stall, and area are derived from the session and server records |
+| **Output** | `{ generatedAt, gpsCaptureEnabled, activeShift?, currentLocation?, gpsSample?, locationChoices[] }`; precise GPS fields are returned only to the owning operator and only for their open report |
+| **Validation** | No active shift returns explicit empty state; multiple active shifts return `409`; suspended/inactive operator cannot use the flow |
+| **Caching** | `Cache-Control: private, no-store` |
+
+## 1b. `POST /operators/me/location/events` — Page 10 Coarse Events
+
+| Field | Value |
+| --- | --- |
+| **Actor / authorization** | Authenticated operator, `location:view`, self scope |
+| **Input** | Strict enum-only event: `location_capture_started`, `location_permission_denied` with `reason=denied`, or client-observed `location_save_failed` with `reason=network` |
+| **Output** | `{ accepted: true }` |
+| **Privacy** | No coordinates, accuracy, capture time, outlet/operator/shift/report IDs, free text, or browser error string. A safe `location_page_viewed` event is emitted on successful context reads; server write outcomes are emitted separately. |
+
 ## 1. `POST /shifts` — Start Shift
 
 | Field | Value |
@@ -59,15 +81,15 @@
 | **Requirement ID** | FR-LOCATION-004, FR-LOCATION-006, FR-LOCATION-011 |
 | **Actor** | Operator (own shift) |
 | **Authentication** | Session required |
-| **Authorization** | scope = `self`; shift must be `OPEN`/`ACTIVE`/`PAUSED` and belong to the actor |
-| **Input** | `{ sellingLocationId, reportedAt, reason?: LocationUpdateReason, note?, clientReportId }` |
-| **Output** | `{ reportId, sellingLocationId, arrivedAt, previousReportClosedAt, locationStatusAdvisory? }` |
-| **Validation** | location exists and is not `INACTIVE`; `reportedAt` not in the future beyond clock skew; one open report per shift |
-| **Errors** | `409 CONFLICT` (already at this location — returns existing report) · `403` (not your shift) · `412` (shift not active) |
-| **Idempotency** | Required: `clientReportId` |
-| **Rate limiting** | 20/min per operator |
-| **Audit** | `LocationSelected` audit event; location history row created |
-| **Offline** | **[OFFLINE-OK]** Queued; history order preserved by `reportedAt` on the device; server rejects back-dating beyond a configured window |
+| **Authorization** | `location:report`; shift must be `OPEN`/`PENDING_SYNC`, in the session organization, and owned by the session operator; the selling point must belong to the shift stall's area |
+| **Input** | `{ sellingLocationId, trigger, reasonForMove?, note?, clientReportId, gpsSample?: { latitude, longitude, accuracyMeters, capturedAt } }`; GPS sample is optional, one-shot, advisory, and submitted only with this explicit report |
+| **Output** | `{ locationReportId, gpsSampleStored }` |
+| **Validation** | Selling point must exist in the session organization and not be `INACTIVE`; `MOVE_SITE` requires a reason; coordinates/accuracy are bounded and capture time must be within five minutes of server time; report actor is never client-supplied |
+| **Errors** | `400 VALIDATION_FAILED` · `403 FORBIDDEN` (not your shift/outside operation area) · `404 NOT_FOUND` · `409 CONFLICT` · `412 PRECONDITION_FAILED` |
+| **Idempotency** | Required: `Idempotency-Key` must equal `clientReportId`; report alias replay is also constrained to the same organization, operator, and shift |
+| **Audit** | `location.reported` or `location.gps_sample_saved`; summaries omit coordinates and accuracy |
+| **Retention** | GPS fields are scrubbed after 14 days by the current adapter on process start and Page 10 reads/writes. A reliable production scheduled purge and backup-expiry verification remain production gates (R-25). |
+| **Offline** | Manual offline reports may use the existing sync path, but that path does not persist GPS samples; Page 10 does not durably queue raw GPS in the browser. |
 
 ## 3. `POST /shifts/{shiftId}/location-changes` — Change Location (move)
 

@@ -109,8 +109,9 @@ SellingLocation(id, organization_id, area_id, name, address_text, lat, lng,
 Shift(id, organization_id, operator_id, stall_id, business_day,
       started_at, ended_at, start_location_id, end_location_id,
       opening_cash, status, planned_start_at?, planned_end_at?)
-LocationReport(id, organization_id, shift_id, selling_location_id,
-               reported_at, reason, note, client_report_id)
+LocationReport(id, organization_id, shift_id, stall_id, operator_id, selling_location_id,
+               arrived_at, departed_at, reason, note, client_report_id,
+               optional gps_sample(latitude, longitude, accuracy_meters, captured_at); GPS fields expire under R-25)
 
 MenuItem(id, organization_id, category_id, name, portion_note, active,
          stock_item_id?, is_component, sort_order)

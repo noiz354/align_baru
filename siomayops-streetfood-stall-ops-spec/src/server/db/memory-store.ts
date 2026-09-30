@@ -79,6 +79,13 @@ export interface StoredShift {
   updatedAt: Date;
 }
 
+export interface StoredGpsSample {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+  capturedAt: Date;
+}
+
 export interface StoredLocationReport {
   id: string;
   organizationId: string;
@@ -89,6 +96,7 @@ export interface StoredLocationReport {
   trigger: "ARRIVED" | "CONFIRM_UNCHANGED" | "MOVE_SITE" | "STEPPED_AWAY" | "DEPARTED";
   reasonForMove?: string;
   note?: string;
+  gpsSample?: StoredGpsSample;
   arrivedAt: Date;
   departedAt?: Date;
   clientReportId: string;
@@ -843,10 +851,30 @@ function ensureSeed() {
   if (seeded) persistStore();
 }
 
-// Initialize persistence
+export const GPS_SAMPLE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Scrub only the precise GPS fields; retain the operational selling-point report. */
+export function purgeExpiredGpsSamples(now = new Date()): number {
+  const cutoff = now.getTime() - GPS_SAMPLE_RETENTION_MS;
+  let purged = 0;
+  for (const [id, report] of memoryStore.locationReports) {
+    if (!report.gpsSample) continue;
+    const capturedAt = report.gpsSample.capturedAt;
+    const timestamp = capturedAt instanceof Date ? capturedAt.getTime() : Number.NaN;
+    if (!Number.isFinite(timestamp) || timestamp <= cutoff) {
+      const { gpsSample: _expiredSample, ...operationalReport } = report;
+      memoryStore.locationReports.set(id, operationalReport);
+      purged += 1;
+    }
+  }
+  return purged;
+}
+
+// Initialize persistence and opportunistically scrub expired GPS fields on every process start.
 const loaded = loadStore();
 wrapMapsForPersist();
 ensureSeed();
+purgeExpiredGpsSamples();
 if (!loaded) persistStore();
 
 // Helpers

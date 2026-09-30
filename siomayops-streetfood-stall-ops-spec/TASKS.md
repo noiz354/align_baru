@@ -319,21 +319,21 @@ Manual QA · Definition of Done (DoD).
 
 ## T-LOC-004 — Report selling location
 
-- **Requirements:** FR-LOCATION-004..006, FR-LOCATION-014, NFR-PRIVACY-003
-- **Goal:** Eventually allow an active operator to explicitly report the current selling location for their stall.
-- **ADR:** ADR-0007
-- **Product Docs:** `LOCATIONS.md` §4/§6, `API.md` §2
+- **Requirements:** FR-LOCATION-004..006, FR-LOCATION-014, NFR-PRIVACY-003, NFR-PRIVACY-011
+- **Goal:** Allow an active operator to report the current selling location for their active shift, with optional one-shot GPS assistance.
+- **ADR:** ADR-0007, ADR-0039
+- **Product Docs:** `LOCATIONS.md` §4/§6, `API.md` §1a/§1b/§2
 - **Modules:** `src/features/locations`, `src/domain/location`
 - **Dependencies:** T-SHIFT-001
-- **Behavior:** create a `LocationReport` with arrivedAt; close the previous interval; emit `LocationSelected`; HQ board updates.
+- **Behavior:** create/update the current `LocationReport` with server arrivedAt; close the previous interval on a move; derive organization/operator/shift/stall from the authorized session and server records; optionally attach the explicitly tapped GPS sample; HQ board continues to use selling-point reports only.
 - **Invariants:** operator must have an active shift; stall must belong to the assigned operation; location must not be INACTIVE; report is timestamped; previous history is preserved.
 - **Finance:** none. **Security:** self-scope.
-- **Privacy:** **do not activate continuous background tracking**; no `watchPosition`; reports exist only during shifts; optional one-shot assist is operator-initiated and never stored as a trail.
-- **Offline:** queued with device time; one open report per shift enforced at sync.
+- **Privacy:** **do not activate continuous/background tracking**; no `watchPosition`; reports exist only during shifts. Under ADR-0039, an optional one-shot fix may be attached to each explicitly submitted location report, retained no more than 14 days, and can form only a sparse shift-bound sequence; it is advisory and never used for attendance, discipline, or performance scoring.
+- **Offline:** manual reports may use the existing sync path; Page 10 does not durably queue GPS samples, and sync must not persist a sample. One open report per shift is enforced server-side.
 - **Concurrency:** two reports for the same location ⇒ idempotent (returns the existing open report).
 - **Failures:** back-dating beyond a configured window is rejected; unknown location id rejected.
-- **Tests:** valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission.
-- **Manual QA:** QA-S-01, QA-S-02.
+- **Tests:** valid location; unauthorized/cross-operator shift; cross-area location; inactive shift; duplicate/idempotent report; invalid/stale GPS sample; self-scoped read; expired-sample purge; GPS denied manual fallback; offline resubmission does not retain GPS.
+- **Manual QA:** QA-S-01, QA-S-02 plus `/operator/location` one-shot, denied-permission, reload/persistence and mobile-viewport checks.
 - **DoD:** HQ can see "where is this stall selling now" from reports alone.
 
 ## T-LOC-005 — Change location with reason
