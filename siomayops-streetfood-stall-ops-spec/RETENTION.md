@@ -52,6 +52,7 @@
 | R-25 | Explicit one-shot GPS samples attached to location reports (coordinates, accuracy, captured time) | **Maximum 14 days after capture** | Precise personal work-location data | Operator-confirmed location report only | Purge GPS fields; retain the selling-point report under R-09; no GPS-specific legal-hold extension without new privacy review |
 | R-26 | Raw Page 11 human-traffic video (silent, ≤10 seconds) | **Maximum 24 hours from upload** | Personal data of operators/incidental bystanders | Upload-gated first-party temporary evidence; never training or HQ review | Irreversibly delete primary object and every replica/backup within the same 24-hour ceiling; no legal-hold extension without a new privacy review; production blocked until deletion is verifiable |
 | R-27 | Manual traffic count/band and coarse sample metadata (no operator/shift key) | Working default **90 days**, subject to privacy-owner/DPO review | Operational aggregate; re-identification risk remains | Local traffic planning only; never individual performance, attendance or discipline | Purge sample-level rows at expiry; retain only reviewed non-identifying aggregate if justified; no video/object key retained after R-26 purge |
+| R-28 | Page 12 site-condition observations, including wet/dry, shelter and bounded notes | Working maximum **90 days**, subject to privacy-owner review | Operator-linked operational context | Active-site operational decision support only; no performance/discipline use | Pilot opportunistic purge removes row and idempotency index; production requires a scheduled, verifiable purge and backup-expiry policy |
 
 *Durations marked "e.g." are placeholders to be confirmed with legal/commercial advice before
 production. The architecture must make changing them a configuration change, not a rewrite.*
@@ -79,6 +80,7 @@ jobs/retention/daily
  ├── purge GPS sample fields older than R-25 (do not delete the linked R-09 report)
  ├── purge raw traffic video and replicas by R-26; detach media metadata from manual traffic results
  ├── purge sample-level traffic count/band records by R-27
+ ├── purge site-condition observations and bounded notes by R-28
  ├── purge location reports older than R-09
  ├── purge expense evidence older than R-06 (object delete first, then row clear)
  ├── purge incident evidence older than R-12

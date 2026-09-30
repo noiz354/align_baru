@@ -186,6 +186,9 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | FR-LOCATION-012 | The system shall retain location reports per `RETENTION.md` and automatically purge coordinate detail beyond the retention window while keeping aggregated coverage. | P1 | VS-17 |
 | FR-LOCATION-013 | The system shall allow HQ to merge or split selling points with an audit trail, preserving historical references. | P2 | VS-12 |
 | FR-LOCATION-014 | The system shall display a location's recent history (who sold there, when, with what outcome) to authorised roles only, and never to customers. | P1 | VS-12 |
+| FR-SITE-001 | During an active operator shift, the system shall allow a manual current-site observation of ground wet/dry state, shelter availability/notes, and an optional relocation decision note; the note does not move the shift or selling point. | P1 | Page 12 / T-SITE-001 |
+| FR-SITE-002 | The operator site-condition page shall show server-derived location/shift context, bounded same-site observations, and only source-labelled traffic/sales data that the current read model supports; missing weather data shall be shown as unavailable, never fabricated. | P1 | Page 12 / T-SITE-001 |
+| FR-SITE-003 | Any site-condition cue shall be deterministic, explainable, based only on a fresh persisted operator observation until an approved weather provider exists, and non-binding; it shall not claim a forecast or automatically relocate an operator. | P1 | Page 12 / T-SITE-001 |
 
 ### 7.4 Shifts and handover — `FR-SHIFT`, `FR-HANDOVER`
 

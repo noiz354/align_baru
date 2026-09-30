@@ -102,6 +102,23 @@ export interface StoredLocationReport {
   createdAt: Date;
 }
 
+export type StoredSiteGroundCondition = "DRY" | "WET";
+export type StoredSiteShelterStatus = "AVAILABLE" | "NOT_AVAILABLE" | "UNKNOWN";
+export interface StoredSiteConditionObservation {
+  id: string;
+  organizationId: string;
+  operatorId: string;
+  shiftId: string;
+  sellingLocationId: string;
+  observedAt: Date;
+  groundCondition: StoredSiteGroundCondition;
+  shelterStatus: StoredSiteShelterStatus;
+  shelterNote?: string;
+  relocationDecisionNote?: string;
+  clientRequestId: string;
+  createdAt: Date;
+}
+
 export type StoredTrafficBand = "QUIET" | "STEADY" | "BUSY" | "VERY_BUSY";
 export interface StoredTrafficSample {
   id: string;
@@ -393,6 +410,8 @@ class MemoryStore {
   sellingLocations = new Map<string, StoredSellingLocation>();
   shifts = new Map<string, StoredShift>();
   locationReports = new Map<string, StoredLocationReport>();
+  siteConditionObservations = new Map<string, StoredSiteConditionObservation>();
+  siteConditionObservationByClientId = new Map<string, string>();
   trafficSamples = new Map<string, StoredTrafficSample>();
   trafficVideoAssets = new Map<string, StoredTrafficVideoAsset>();
   trafficSampleByClientId = new Map<string, string>();
@@ -436,6 +455,8 @@ class MemoryStore {
     this.sellingLocations.clear();
     this.shifts.clear();
     this.locationReports.clear();
+    this.siteConditionObservations.clear();
+    this.siteConditionObservationByClientId.clear();
     this.trafficSamples.clear();
     this.trafficVideoAssets.clear();
     this.trafficSampleByClientId.clear();
@@ -532,6 +553,8 @@ function persistStore() {
       sellingLocations: Array.from(memoryStore.sellingLocations.entries()),
       shifts: Array.from(memoryStore.shifts.entries()),
       locationReports: Array.from(memoryStore.locationReports.entries()),
+      siteConditionObservations: Array.from(memoryStore.siteConditionObservations.entries()),
+      siteConditionObservationByClientId: Array.from(memoryStore.siteConditionObservationByClientId.entries()),
       trafficSamples: Array.from(memoryStore.trafficSamples.entries()),
       trafficVideoAssets: Array.from(memoryStore.trafficVideoAssets.entries()),
       trafficSampleByClientId: Array.from(memoryStore.trafficSampleByClientId.entries()),
@@ -599,6 +622,8 @@ function loadStore(): boolean {
       populateMap(memoryStore.sellingLocations, data.sellingLocations);
       populateMap(memoryStore.shifts, data.shifts);
       populateMap(memoryStore.locationReports, data.locationReports);
+      populateMap(memoryStore.siteConditionObservations, data.siteConditionObservations);
+      populateMap(memoryStore.siteConditionObservationByClientId, data.siteConditionObservationByClientId);
       populateMap(memoryStore.trafficSamples, data.trafficSamples);
       populateMap(memoryStore.trafficVideoAssets, data.trafficVideoAssets);
       populateMap(memoryStore.trafficSampleByClientId, data.trafficSampleByClientId);
@@ -649,7 +674,7 @@ function loadStore(): boolean {
 function wrapMapsForPersist() {
   if (globalForStore.__siomayopsWrapped) return;
   const mapKeys: (keyof MemoryStore)[] = [
-    "operators","stalls","assignments","sellingLocations","shifts","locationReports","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
+    "operators","stalls","assignments","sellingLocations","shifts","locationReports","siteConditionObservations","siteConditionObservationByClientId","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
     "menuCategories","menuItems","pricePolicies","priceAcknowledgements","sales","saleItems",
     "payments","paymentCallbacks","expenses","stockItems","stockMovements","stockSnapshots",
     "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","alerts",

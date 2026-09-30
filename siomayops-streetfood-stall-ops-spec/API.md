@@ -68,6 +68,15 @@
 
 The application flag defaults off in non-production. This checkout hard-rejects all Page 11 mutations in production regardless of environment flags; there is no current production enablement path. A future production release must add explicit privacy approval and verified primary/backup deletion controls; flags are not evidence by themselves. Production authentication and a database migration are not available in this checkout.
 
+## 1d. Page 12 — `/operators/me/site-condition`
+
+| Endpoint | Actor / contract | Persistence / privacy |
+| --- | --- | --- |
+| `GET /operators/me/site-condition` | Authenticated `OPERATOR`, `site-condition:view`, self session; current shift/site are server-derived. | Returns the active-site context, up to five same-site operator observations, up to five same-location traffic estimates when Page 11 is enabled, and up to five sales filtered by the persisted active-shift and selling-location IDs. The transaction lookup is bounded to the newest 100 scoped current-business-day rows. Weather returns `UNAVAILABLE / PROVIDER_NOT_CONFIGURED`; no provider request or weather value is fabricated. `Cache-Control: private, no-store`. |
+| `POST /operators/me/site-condition` | Authenticated `OPERATOR`, `site-condition:create`; strict `{ clientRequestId, groundCondition, shelterStatus, shelterNote?, relocationDecisionNote? }`; `Idempotency-Key` must equal `clientRequestId`. Organization, actor, shift, and location are derived from the session/current context. | Creates an audited file-backed site observation for the current active location. Replay returns the original observation; a changed payload or changed shift is a conflict. Notes are bounded and omitted from logs/audit summaries. The optional relocation decision is a note only and does not move a shift. |
+
+The displayed cue is derived only from the newest same-site persisted observation: records older than 60 minutes produce `INSUFFICIENT_DATA`; fresh wet ground without shelter produces `REVIEW_SHELTER`; other wet ground produces `WET_GROUND_CAUTION`; dry ground produces `NO_RELOCATION_CUE`. It is not a numerical suitability score, forecast, safety certification, or relocation command. No weather adapter is configured; external weather processing is not performed. Site observations use the 90-day working retention in R-28, with opportunistic local cleanup only; there is no production scheduler, deployed migration, or backup-deletion proof.
+
 ## 1. `POST /shifts` — Start Shift
 
 | Field | Value |

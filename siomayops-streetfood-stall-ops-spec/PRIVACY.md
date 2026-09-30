@@ -19,6 +19,7 @@ implementing regulations still pending (obligations apply regardless).
 | Operator location (reported selling position) | Operators | Coverage, logistics, safety | Legitimate operational interest + transparency | **Shift-bound only**, explicit reporting only |
 | One-shot GPS sample (coordinates, accuracy, capture time) | Operators | Assist confirmation of an explicitly selected selling point | Legitimate operational interest + clear notice; preliminary DPIA required | One user-tapped fix per explicit report, optional/advisory/shift-bound; may form a sparse short-term work-location sequence; purge GPS fields within 14 days (ADR-0039 / R-25) |
 | Short human-traffic video sample (silent, ≤10 seconds) | Operators and incidental bystanders | Temporary first-party evidence for a manually entered foot-traffic estimate | Legitimate operational interest + point-of-capture notice; DPIA and privacy-owner/DPO approval required before production | User tap only; no audio, face/person recognition, computer vision, external processor or training; private raw object ≤24 hours, no HQ clip access; result metadata has no operator/shift key; verify backup purge |
+| Manual site-condition observation (wet/dry, shelter status, short notes) | Operators | Current-site safety/operational context | Legitimate operational interest + notice; privacy-owner review of retention pending | Writes require the active shift and its current site; reads expose only current-site observations to an operator authorized at that site; bounded notes must not include names/contact data; 90-day working retention under R-28; no weather provider or background location access |
 | Customer identifier (phone hash, QR token, device token) | Customers | Loyalty accrual/redemption | **Explicit consent** (opt-in, withdrawable) | Optional; hash where possible; masking by default |
 | Sales & payment records | Operators, customers (indirect) | Financial integrity, audit | Contract/legal obligation | Customer linkage is optional/opaque |
 | Expense records (incl. notes, evidence) | Operators, third parties (incidental) | Reimbursement visibility, review | Contract/legitimate interest | Notes bounded; evidence optional and short-lived |
@@ -50,6 +51,7 @@ restricted access, short retention, no analytics use.
 6. **Logs contain no PII by default**: phone numbers masked, no evidence contents, no customer
    identifiers; errors carry request IDs, not payloads.
 7. **Exports are scoped, masked where possible, and audited.**
+8. **Site observations are explicit operator reports, not inferred weather.** They are bound to the active shift/current site, use bounded non-identifying notes, and are not sent to an external weather provider; the source remains unavailable until privacy/data-flow approval.
 
 ---
 

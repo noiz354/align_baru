@@ -34,6 +34,7 @@ one with 24 tables each of which has an invariant attached.
 | StallEquipment | EXTEND | Simple list; low risk. |
 | SellingLocation (SellingPoint) | CORE | Mangkal point. |
 | LocationAssignment / LocationReport | CORE | Per-shift location reports (history = the report list). |
+| SiteConditionObservation | EXTEND | Explicit active-shift wet/dry and shelter observation with bounded optional notes; no weather facts/provider data. |
 | Shift | CORE | Central unit of accountability. |
 | ShiftHandover | EXTEND | Mid-day transfer record. |
 | ShiftClosing | CORE | Closing submission (later slice, modelled now). |
@@ -157,6 +158,10 @@ TrafficSample(id, organization_id, selling_location_id, sampled_at_hour, estimat
 TrafficVideoAsset(id, organization_id, selling_location_id, sample_id?, uploaded_at,
                   expires_at, content_type, byte_size, duration_ms, private_storage_key)
 
+SiteConditionObservation(id, organization_id, operator_id, shift_id, selling_location_id,
+                          observed_at, ground_condition, shelter_status, shelter_note?,
+                          relocation_decision_note?, client_request_id)
+
 AuditEvent(id, organization_id, actor_id, actor_role, action, entity_type,
            entity_id, occurred_at, previous_value_json, new_value_json, reason,
            request_id, ip_hash?, user_agent?)
@@ -178,6 +183,9 @@ StockItem 1─* StockMovement *─1 Shift (optional)
 Operator 1─* Shift *─1 Stall
 SellingLocation 1─* TrafficSample; TrafficSample 0..1─1 temporary TrafficVideoAsset
 TrafficSample has no operator_id or shift_id; video metadata has no operator_id or shift_id
+Shift 1─* SiteConditionObservation *─1 SellingLocation
+SiteConditionObservation stores operator/shift provenance; read results expose no actor identifiers
+No WeatherSnapshot table/provider exists until a source and privacy/data-flow review are approved
 Everything *─1 Organization
 ```
 
@@ -221,7 +229,7 @@ Everything *─1 Organization
 | Payment dedupe | unique `(provider, provider_reference)`; unique `(organization_id, dedupe_key)` on callbacks |
 | Audit | Append-only; index on `(entity_type, entity_id, occurred_at)` and `(actor_id, occurred_at)` |
 | Raw payloads | `jsonb` (callbacks) with size guard; encrypted at rest at the platform level |
-| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest; raw traffic media ≤24 hours and sample rows provisionally 90 days |
+| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest; raw traffic media ≤24 hours, traffic samples and site observations provisionally 90 days |
 | Archival | Partition-by-business-day or archive tables once volumes justify; triggers documented in `OPERATIONS.md` |
 | PII | Operator phone, customer phone/token: minimised, access-scoped, masked in logs and exports by default |
 
