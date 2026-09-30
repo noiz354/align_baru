@@ -49,8 +49,9 @@ are new ADRs that supersede them.
 | [0037](docs/adr/ADR-0037-retention-and-deletion.md) | Retention, deletion, and archival strategy | Accepted | VS-17 | Compliance |
 | [0038](docs/adr/ADR-0038-feature-flags-slice-gating.md) | Feature flags and vertical-slice gating | Accepted | VS-0 | Process |
 | [0039](docs/adr/ADR-0039-persisted-one-shot-gps-assist.md) | Persisted one-shot GPS assist for explicit shift location reports | Accepted | Page 10 / T-LOC-004 | Privacy/Location |
+| [0040](docs/adr/ADR-0040-gated-human-traffic-video-sampling.md) | Gated human traffic video sampling | Accepted with production gates | Page 11 / T-TRAFFIC-001 | Privacy/Video |
 
-**Total ADRs:** 39 (all accepted; ADR-0007 is superseded in part by ADR-0039). Production GPS capture remains blocked pending the DPIA and retention gates in ADR-0039.
+**Total ADRs:** 40 (all accepted; ADR-0007 is superseded in part by ADR-0039. ADR-0040 records the approved Page 11 design with production gates). Production GPS and traffic-video capture remain blocked pending their DPIA and retention gates.
 
 Nested records live in `docs/adr/` (index: [`docs/adr/INDEX.md`](docs/adr/INDEX.md)) using the filenames
 linked above; that index is a navigational duplicate and this file is canonical.

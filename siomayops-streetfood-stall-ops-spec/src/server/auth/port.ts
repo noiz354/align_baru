@@ -27,7 +27,7 @@ export type Action =
   | "incident:submit" | "incident:resolve" | "incident:view"
   | "loyalty:identify" | "loyalty:redeem" | "loyalty:manage"
   | "hq:read" | "hq:view" | "hq:export" | "audit:read" | "audit:view" | "config:manage" | "config:view"
-  | "evidence:upload" | "evidence:view" | "notification:view";
+  | "evidence:upload" | "evidence:view" | "traffic-sample:view" | "traffic-sample:create" | "notification:view";
 
 export interface AuthPort {
   resolveSession(): Promise<SessionContext | null>;
@@ -145,7 +145,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Action>> = {
     "loyalty:identify", "loyalty:redeem",
     "price:acknowledge",
     "menu:view",
-    "evidence:upload", "evidence:view", "notification:view",
+    "evidence:upload", "evidence:view", "traffic-sample:view", "traffic-sample:create", "notification:view",
   ]),
 };
 

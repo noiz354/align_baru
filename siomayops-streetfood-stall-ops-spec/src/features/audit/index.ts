@@ -10,7 +10,7 @@ export type AuditAction =
   | "price.policy_published" | "price.override_requested" | "price.override_applied" | "price.acknowledged"
   | "menu.item_upserted" | "menu.item_status_changed" | "menu.availability_changed"
   | "operator.created" | "operator.status_changed" | "operator.capabilities_changed" | "assignment.created"
-  | "incident.submitted" | "incident.transitioned"
+  | "incident.submitted" | "incident.transitioned" | "traffic.sample_recorded"
   | "loyalty.identified" | "loyalty.earned" | "loyalty.redeemed" | "loyalty.consent_withdrawn"
   | "authz.denied" | "auth.session_revoked" | "auth.device_revoked"
   | "config.changed" | "export.created" | "retention.executed";

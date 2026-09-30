@@ -103,6 +103,35 @@ export interface StoredLocationReport {
   createdAt: Date;
 }
 
+export type StoredTrafficBand = "QUIET" | "STEADY" | "BUSY" | "VERY_BUSY";
+export interface StoredTrafficSample {
+  id: string;
+  organizationId: string;
+  sellingLocationId: string;
+  /** Deliberately coarse (hour bucket); no operatorId or shiftId by design. */
+  sampledAt: Date;
+  estimatedCount: number;
+  trafficBand: StoredTrafficBand;
+  note?: string;
+  clientRequestId: string;
+  videoAssetId?: string;
+  videoStatus: "NOT_PROVIDED" | "UPLOADED" | "DELETED";
+  createdAt: Date;
+}
+export interface StoredTrafficVideoAsset {
+  id: string;
+  organizationId: string;
+  sellingLocationId: string;
+  sampleId?: string;
+  uploadedAt: Date;
+  expiresAt: Date;
+  contentType: "video/webm";
+  byteSize: number;
+  durationMs: number;
+  clientRequestId: string;
+  storageKey: string;
+}
+
 export interface StoredMenuCategory {
   id: string;
   organizationId: string;
@@ -362,6 +391,10 @@ class MemoryStore {
   sellingLocations = new Map<string, StoredSellingLocation>();
   shifts = new Map<string, StoredShift>();
   locationReports = new Map<string, StoredLocationReport>();
+  trafficSamples = new Map<string, StoredTrafficSample>();
+  trafficVideoAssets = new Map<string, StoredTrafficVideoAsset>();
+  trafficSampleByClientId = new Map<string, string>();
+  trafficVideoByClientId = new Map<string, string>();
   menuCategories = new Map<string, StoredMenuCategory>();
   menuItems = new Map<string, StoredMenuItem>();
   pricePolicies = new Map<string, StoredPricePolicy>();
@@ -401,6 +434,10 @@ class MemoryStore {
     this.sellingLocations.clear();
     this.shifts.clear();
     this.locationReports.clear();
+    this.trafficSamples.clear();
+    this.trafficVideoAssets.clear();
+    this.trafficSampleByClientId.clear();
+    this.trafficVideoByClientId.clear();
     this.menuCategories.clear();
     this.menuItems.clear();
     this.pricePolicies.clear();
@@ -464,6 +501,10 @@ function persistStore() {
       sellingLocations: Array.from(memoryStore.sellingLocations.entries()),
       shifts: Array.from(memoryStore.shifts.entries()),
       locationReports: Array.from(memoryStore.locationReports.entries()),
+      trafficSamples: Array.from(memoryStore.trafficSamples.entries()),
+      trafficVideoAssets: Array.from(memoryStore.trafficVideoAssets.entries()),
+      trafficSampleByClientId: Array.from(memoryStore.trafficSampleByClientId.entries()),
+      trafficVideoByClientId: Array.from(memoryStore.trafficVideoByClientId.entries()),
       menuCategories: Array.from(memoryStore.menuCategories.entries()),
       menuItems: Array.from(memoryStore.menuItems.entries()),
       pricePolicies: Array.from(memoryStore.pricePolicies.entries()),
@@ -513,6 +554,10 @@ function loadStore(): boolean {
     if (data.sellingLocations) memoryStore.sellingLocations = new Map(data.sellingLocations);
     if (data.shifts) memoryStore.shifts = new Map(data.shifts);
     if (data.locationReports) memoryStore.locationReports = new Map(data.locationReports);
+    if (data.trafficSamples) memoryStore.trafficSamples = new Map(data.trafficSamples);
+    if (data.trafficVideoAssets) memoryStore.trafficVideoAssets = new Map(data.trafficVideoAssets);
+    if (data.trafficSampleByClientId) memoryStore.trafficSampleByClientId = new Map(data.trafficSampleByClientId);
+    if (data.trafficVideoByClientId) memoryStore.trafficVideoByClientId = new Map(data.trafficVideoByClientId);
     if (data.menuCategories) memoryStore.menuCategories = new Map(data.menuCategories);
     if (data.menuItems) memoryStore.menuItems = new Map(data.menuItems);
     if (data.pricePolicies) memoryStore.pricePolicies = new Map(data.pricePolicies);
@@ -551,7 +596,7 @@ function loadStore(): boolean {
 // Wrap map mutations to auto-persist
 function wrapMapsForPersist() {
   const mapKeys: (keyof MemoryStore)[] = [
-    "operators","stalls","assignments","sellingLocations","shifts","locationReports",
+    "operators","stalls","assignments","sellingLocations","shifts","locationReports","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
     "menuCategories","menuItems","pricePolicies","priceAcknowledgements","sales","saleItems",
     "payments","paymentCallbacks","expenses","stockItems","stockMovements","stockSnapshots",
     "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","alerts",
@@ -852,6 +897,9 @@ function ensureSeed() {
 }
 
 export const GPS_SAMPLE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+export const TRAFFIC_VIDEO_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const TRAFFIC_SAMPLE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
 
 /** Scrub only the precise GPS fields; retain the operational selling-point report. */
 export function purgeExpiredGpsSamples(now = new Date()): number {

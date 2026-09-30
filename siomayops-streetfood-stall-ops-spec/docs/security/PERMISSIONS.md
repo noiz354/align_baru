@@ -62,6 +62,7 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | Start / suspend shift (`shift:start`, `shift:suspend`) | — | — | — | — | R | S | — | R | — |
 | Handover (`shift:handover`) | — | — | — | — | A (confirm) | S (confirm) | — | R | — |
 | Selling-point location report (`location:report`) | — | R | — | — | R | S | — | R | — |
+| Traffic sample view/create (`traffic-sample:view`, `traffic-sample:create`) | — | — | — | — | — | S | — | — | — |
 | Raw one-shot GPS sample on Page 10 (`location:view`, self-owned open report only) | — | — | — | — | — | S | — | — | — |
 | Create / void sale (`sale:create`, `sale:void`) | — | — | — | — | R | S | — | R | — |
 | Cash payment (`payment:cash`) | — | — | — | — | R | S | — | R | — |
@@ -96,6 +97,8 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | Evidence photos (expense, incident) | Only roles in the review path (submitter, supervisor, HQ_FINANCE/HQ_OPS, AUDITOR) with short-lived signed URLs |
 | Selling-point coordinates | Available only to operationally scoped roles that need them |
 | Raw Page 10 GPS sample (latitude/longitude, accuracy, capture time) | Returned only to the owning operator for their own open-shift report; excluded from HQ map/read models, analytics, audit summaries and logs; scrubbed within 14 days per ADR-0039 / R-25 |
+| Page 11 raw traffic video | Private first-party ingestion service only; no HQ, supervisor, auditor, analytics or training access; raw media and replicas are purged within 24 hours (ADR-0040 / R-26) |
+| Page 11 manual count/band result | Stored without operator or shift identifiers; operational read models expose only approved aggregate views; never use for individual performance or discipline (ADR-0040 / R-27) |
 | Audit before/after summaries | Field-minimised at write time; never a shadow copy of personal data |
 | Payment provider references | Visible to HQ_FINANCE and AUDITOR; masked elsewhere |
 

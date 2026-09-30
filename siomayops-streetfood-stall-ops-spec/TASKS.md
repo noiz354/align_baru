@@ -1032,6 +1032,15 @@ Manual QA · Definition of Done (DoD).
 
 ---
 
+## T-TRAFFIC-001 — Human traffic video sampling
+
+- **Status:** NOT DONE — implementation and privacy/runtime evidence pending.
+- **Requirements:** FR-TRAFFIC-001, NFR-PRIVACY-012, ADR-0040, R-26, R-27.
+- **Scope:** `/operator/traffic-sampling`; authenticated current-outlet context; explicit silent video capture ≤10 seconds; private upload/status; manual count/band and bounded note; sample history and privacy-safe aggregate analytics.
+- **Invariants:** no camera on page load; no audio, identity/face recognition, CV, third-party processor or model training; HQ cannot access raw clips; raw objects and backups are deleted within 24 hours; result rows are not keyed to operator/shift; production flag remains off until DPIA/privacy approval and purge/backup deletion are verified.
+- **Tests:** unit and integration tests for camera/upload gates, size/type/duration validation, auth/scope, count/band validation, history isolation, idempotency, cleanup and analytics redaction; browser proof remains required.
+- **Dependencies:** active operator outlet context and private media storage; production release blocked on approved DPIA, real private storage, scheduled purge plus backup expiry evidence.
+
 ## T-INC-001 — Incident capture
 
 - **Requirements:** FR-INC-001..002, FR-INC-004

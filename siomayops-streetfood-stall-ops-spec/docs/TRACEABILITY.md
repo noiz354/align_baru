@@ -40,6 +40,7 @@ Enforced by tooling:
 | `OPERATOR` | 12 | OPERATORS.md, docs/security/PERMISSIONS.md | T-AUTHZ-001, T-FOUND-005, T-OP-001, T-OP-002, T-PERF-002, T-SEC-001, T-SHIFT-001, T-STALL-002 | integration/authorization | QA-A |
 | `STALL` | 8 | STALLS.md | T-STALL-001, T-STALL-002 | integration/authorization | QA-A |
 | `LOCATION` | 14 | LOCATIONS.md | T-HQ-001, T-LOC-001, T-LOC-002, T-LOC-003, T-LOC-004, T-LOC-005 | integration/authorization | QA-O |
+| `TRAFFIC` | 1 | `docs/product/end-to-end-pages/11-human-traffic-sampling.md` | T-TRAFFIC-001 | unit/integration/privacy/browser | QA-O |
 | `SHIFT` | 16 | docs/product/SHIFTS.md, SETTLEMENT.md | T-CLOSE-001, T-CLOSE-002, T-CLOSE-003, T-SALE-004, T-SHIFT-001, T-SHIFT-002 | unit/shift-expected-cash, e2e/cash-sale | QA-S |
 | `HANDOVER` | 5 | docs/product/SHIFTS.md §7 | — | e2e/offline-day | QA-S |
 | `MENU` | 7 | MENU.md | T-MENU-001, T-MENU-002, T-OFF-004 | browser/tap-budget | QA-K |
@@ -94,6 +95,7 @@ file never claims more certainty than the plan has.
 | T-SHIFT-002 | FR-SHIFT-003, FR-STOCK-004 | integration: duplicate report, unknown item note, derived position integrity. |
 | T-LOC-004 | FR-LOCATION-004, FR-LOCATION-005, FR-LOCATION-006, FR-LOCATION-014, NFR-PRIVACY-003, NFR-PRIVACY-011 | valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission. |
 | T-LOC-005 | FR-HQ-003, FR-LOCATION-007 | reason validation; interval closure; concurrent move+close; offline ordering. |
+| T-TRAFFIC-001 | FR-TRAFFIC-001, NFR-PRIVACY-012 | unit/integration: opt-in and production gate, silent ≤10-second upload, manual count/band, auth/scope, no operator/shift linkage, idempotency, 24-hour purge/backup policy, analytics redaction; browser: camera only after tap, stop at 10 seconds, upload/status/history UX. |
 | T-OFF-001 | FR-SALE-002, NFR-OFFLINE-001, NFR-OFFLINE-002, NFR-OFFLINE-003, NFR-OFFLINE-004, NFR-OFFLINE-005 | integration: batch ordering, dependency-gap deferral, duplicate replay; browser: lock behaviour. |
 | T-HQ-001 | FR-HQ-001, FR-HQ-002, FR-HQ-003, FR-LOCATION-009 | integration: freshness fields; e2e: HQ sees a stall within 60 s of shift start. |
 | T-MENU-001 | FR-MENU-001, FR-MENU-002 | integration: import, retirement guard, package composition. |

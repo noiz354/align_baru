@@ -418,6 +418,7 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | FR-INC-008 | The system shall allow a safety incident to trigger an immediate escalation path that does not depend on app notifications alone being read. | P1 | VS-13 |
 | FR-INC-009 | The system shall retain incident evidence per `RETENTION.md` and delete it on schedule. | P1 | VS-17 |
 | FR-INC-010 | The system shall allow an incident to be linked to a shift, sale, expense, payment or stock record for context. | P1 | VS-13 |
+| FR-TRAFFIC-001 | An operator may explicitly capture a silent video sample of at most 10 seconds and enter a manual human count/band; the raw clip is private, not processed for identity or computer vision, never used for training, purged within 24 hours, and result metadata is not keyed to operator or shift. Production stays disabled pending approved DPIA and verified purge/backup deletion. | P1 | Page 11 / T-TRAFFIC-001 |
 | FR-NOTIF-001 | The system shall model notifications as objects with type, severity, audience, subject, action link, created/read/acted timestamps. | P0 | VS-12 |
 | FR-NOTIF-002 | The system shall deliver in-app notifications as the primary channel, with email, push, or WhatsApp as optional channels enabled per organisation. | P0 | VS-14 |
 | FR-NOTIF-003 | The system shall allow each user to configure which notification types they receive on which channel, within organisation policy. | P1 | VS-14 |
@@ -479,6 +480,7 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | NFR-PRIVACY-009 | The system shall document data flows, purposes, recipients and retention before any new collection is added (privacy review gate). |
 | NFR-PRIVACY-010 | The system shall support cross-border processing only where lawful and documented, with the DPO/legal posture recorded. |
 | NFR-PRIVACY-011 | Optional GPS samples shall be captured only after an explicit operator tap during an active shift, attached to an explicit report, excluded from analytics, and purged within 14 days; no background/continuous collection is permitted. |
+| NFR-PRIVACY-012 | Traffic video shall be silent, operator-tap initiated, ≤10 seconds, first-party/private, identity-blind and not used for model training; raw media is deleted within 24 hours with backups, HQ cannot access clips, and result metadata has no operator/shift key. Capture remains production-disabled until DPIA/privacy approval and purge verification. |
 
 ### 8.3 Performance and reliability — `NFR-PERF`, `NFR-REL`
 
@@ -710,6 +712,7 @@ movement analysis; any metric whose only effect is pressure without a linked imp
 | AC-10 | Recognition uses documented multi-factor inputs with published weight ranges, sample-size gates, human review and an appeal path; revenue alone can never decide an award. |
 | AC-11 | Every money-affecting and permission-affecting action has an immutable audit row with actor, reason (where required) and correlation ID. |
 | AC-12 | An operator can see, and dispute, every record about themselves, and can access the privacy notice and their data rights path in the app. |
+| AC-13 | Traffic sampling can start only on an explicit operator tap, records no audio or identity inference, limits clips to 10 seconds, deletes raw media within 24 hours including backups, and leaves operator/shift unlinked from result metadata; production remains off until the privacy and purge gates pass. |
 
 ## 13. Pilot and release criteria
 

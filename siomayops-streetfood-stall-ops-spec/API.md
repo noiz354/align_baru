@@ -12,7 +12,7 @@
 | Rule | Detail |
 | --- | --- |
 | Versioning | Path version `/api/v1`. Breaking changes ⇒ `/api/v2` alongside for one deprecation window. Additive fields are non-breaking. |
-| Content type | `application/json; charset=utf-8`; uploads via pre-signed URLs, not multipart through the API. |
+| Content type | `application/json; charset=utf-8`; uploads normally use pre-signed URLs. Page 11 currently uses a same-origin multipart pilot route only while production is disabled; it must move to the approved private object-storage adapter before release. |
 | Authentication | Session cookie (HttpOnly, Secure, SameSite=Lax) issued by the auth library. Phase 0: none implemented; `AuthPort` shell only. |
 | Authorization | Every operation passes `authorize(actor, action, scope)`. Scope ∈ {org, region, area, stall, self}. Denials ⇒ `403 FORBIDDEN` + audit. |
 | Idempotency | **All** mutating endpoints require `Idempotency-Key`. Replay returns the original response with `idempotentReplay: true`. |
@@ -56,6 +56,17 @@
 | **Input** | Strict enum-only event: `location_capture_started`, `location_permission_denied` with `reason=denied`, or client-observed `location_save_failed` with `reason=network` |
 | **Output** | `{ accepted: true }` |
 | **Privacy** | No coordinates, accuracy, capture time, outlet/operator/shift/report IDs, free text, or browser error string. A safe `location_page_viewed` event is emitted on successful context reads; server write outcomes are emitted separately. |
+
+## 1c. Page 11 — `/operators/me/traffic-sampling` and traffic samples
+
+| Endpoint | Actor / contract | Persistence / privacy |
+| --- | --- | --- |
+| `GET /operators/me/traffic-sampling` | Authenticated `OPERATOR`, `traffic-sample:view`, self scope; no caller-selected organization, operator, shift, or location. Requires a current active shift/location. | Returns server-derived current outlet/session and up to 10 same-location prior estimates. Count metadata has no operator/shift key; time is rounded to UTC hour. `Cache-Control: private, no-store`. |
+| `POST /operators/me/traffic-sampling/events` | Authenticated `OPERATOR`, `traffic-sample:view`; strict enum-only page events; identity fields and additional properties rejected. | Pino allowlist only; no media, exact count, note, or scope identifiers. |
+| `POST /operators/me/traffic-samples/uploads` | Multipart `video` + declared `durationMs`; requires OPERATOR `traffic-sample:create` + `evidence:upload`, same active location, UUID `Idempotency-Key`; accepts only WebM, EBML signature, ≤10 MB, declared duration ≤10,000 ms. | First-party local private-disk pilot adapter, opaque media key, 24-hour expiry. There is no download/read API. Actual encoded WebM duration is **not independently verified** in this pilot; production stays disabled until server-side media inspection and durable primary/backup purge are implemented and verified. |
+| `POST /operators/me/traffic-samples` | JSON `{ clientRequestId, estimatedCount: 0..500, note?, videoUploadId? }`; requires OPERATOR `traffic-sample:create`; `Idempotency-Key` must equal `clientRequestId`; exact count is manually entered and band is derived server-side. | Persists file-backed sample metadata with location and coarse hour only; no operator/shift field. Raw media status is temporary and detached at purge. An anonymous system audit summary excludes exact count/note. |
+
+The application flag defaults off in non-production. This checkout hard-rejects all Page 11 mutations in production regardless of environment flags; there is no current production enablement path. A future production release must add explicit privacy approval and verified primary/backup deletion controls; flags are not evidence by themselves. Production authentication and a database migration are not available in this checkout.
 
 ## 1. `POST /shifts` — Start Shift
 
