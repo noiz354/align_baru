@@ -23,7 +23,7 @@ src/domain     → src/shared only (no framework, no I/O, no clock, no database)
 | `src/shared` | nothing internal | everything | Contracts and value types only |
 
 Enforcement: ESLint import restrictions in `eslint.config.mjs` (activated at VS-0, T-FOUND-001) plus
-the boundary checks in `tools/check-stubs.mjs` (forbidden imports and geolocation APIs).
+the boundary checks in `tools/check-stubs.mjs` (forbidden imports, plus the ADR-0039 one-shot geolocation allowlist).
 
 ## 2. Module inventory
 

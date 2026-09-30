@@ -1,25 +1,23 @@
 import { z } from "zod";
-import { uuidSchema, uuidV7Schema, moneySchema, instantSchema } from "./common";
+import { uuidSchema, moneySchema, instantSchema } from "./common";
+import { EXPENSE_CATEGORY_CODES } from "@/domain/expense/review";
 
 export const expenseSubmitRequestSchema = z.object({
   shiftId: uuidSchema,
-  categoryId: uuidSchema.optional(),
-  categoryCode: z.string().optional(),
-  description: z.string().min(3).max(300),
-  amount: moneySchema,
+  categoryCode: z.enum(EXPENSE_CATEGORY_CODES),
+  description: z.string().max(300).optional(),
+  amount: moneySchema.extend({ amountMinor: z.number().int().positive() }).strict(),
   paidFrom: z.enum(["CASH_BOX", "PERSONAL"]),
   operatorNote: z.string().max(500).optional(),
-  evidenceAssetId: uuidSchema.optional(),
-  clientExpenseId: uuidV7Schema,
-  recordedAtDevice: instantSchema.optional()
-});
+  clientExpenseId: uuidSchema,
+  recordedAtDevice: instantSchema.optional(),
+}).strict();
 export type ExpenseSubmitRequest = z.infer<typeof expenseSubmitRequestSchema>;
 
 export const expenseReviewRequestSchema = z.object({
-  expenseId: uuidSchema,
   decision: z.enum(["REVIEWED", "REJECTED", "ESCALATED"]),
-  reason: z.string().min(3).max(300)
-});
+  reason: z.string().trim().min(3).max(300),
+}).strict();
 
 export const MAX_EXPENSE_AMOUNT_MINOR = 50_000_000; // Rp 50.000.000 max per single operational expense
 

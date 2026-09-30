@@ -17,10 +17,13 @@ implementing regulations still pending (obligations apply regardless).
 | Operator identity (name, phone) | Operators | Account, shift accountability, contact | Contract/employment + legitimate operational interest | Only what is operationally needed; no ID documents, no photos required |
 | Operator work data (shifts, assignments, status) | Operators | Operations, payroll-adjacent reporting (external systems), fairness | Contract/legitimate interest | Shift-bounded; no activity surveillance |
 | Operator location (reported selling position) | Operators | Coverage, logistics, safety | Legitimate operational interest + transparency | **Shift-bound only**, explicit reporting only |
+| One-shot GPS sample (coordinates, accuracy, capture time) | Operators | Assist confirmation of an explicitly selected selling point | Legitimate operational interest + clear notice; preliminary DPIA required | One user-tapped fix per explicit report, optional/advisory/shift-bound; may form a sparse short-term work-location sequence; purge GPS fields within 14 days (ADR-0039 / R-25) |
+| Short human-traffic video sample (silent, ≤10 seconds) | Operators and incidental bystanders | Temporary first-party evidence for a manually entered foot-traffic estimate | Legitimate operational interest + point-of-capture notice; DPIA and privacy-owner/DPO approval required before production | User tap only; no audio, face/person recognition, computer vision, external processor or training; private raw object ≤24 hours, no HQ clip access; result metadata has no operator/shift key; verify backup purge |
+| Manual site-condition observation (wet/dry, shelter status, short notes) | Operators | Current-site safety/operational context | Legitimate operational interest + notice; privacy-owner review of retention pending | Writes require the active shift and its current site; reads expose only current-site observations to an operator authorized at that site; bounded notes must not include names/contact data; 90-day working retention under R-28; no weather provider or background location access |
 | Customer identifier (phone hash, QR token, device token) | Customers | Loyalty accrual/redemption | **Explicit consent** (opt-in, withdrawable) | Optional; hash where possible; masking by default |
 | Sales & payment records | Operators, customers (indirect) | Financial integrity, audit | Contract/legal obligation | Customer linkage is optional/opaque |
 | Expense records (incl. notes, evidence) | Operators, third parties (incidental) | Reimbursement visibility, review | Contract/legitimate interest | Notes bounded; evidence optional and short-lived |
-| Incident records (incl. photos) | Operators, customers, third parties | Safety, dispute resolution | Legitimate interest / legal obligation | Access-restricted; retention-limited |
+| Incident records and review notes | Operators, customers, third parties, reviewers | Safety, dispute resolution and limited follow-up | Legitimate interest / legal obligation | Page 13 reporter self-read; Page 14 OWNER/HQ_OPS or matching AREA_SUPERVISOR review only. Collect neutral category, bounded narrative/event time/optional amount/context and server-derived shift/site; follow-up note in protected audit history; no involved-person identity field, no evidence upload, no free-text telemetry; production retention/access remain unverified |
 | Device metadata (device label, app version) | Operators | Support, audit | Legitimate interest | No hardware fingerprinting, no advertising identifiers |
 
 **No** processing of sensitive categories (health, biometrics, religion, etc.) is intended.
@@ -33,15 +36,25 @@ restricted access, short retention, no analytics use.
 
 1. **Location = explicit operational report, shift-bound.** No continuous or background
    collection, no passive logging, no reconstruction of movement outside reported positions
-   (NFR-PRIVACY-002/003/004, ADR-0007).
-2. **No camera or microphone access** except when the operator explicitly captures a photo for
-   evidence or an incident.
+   (NFR-PRIVACY-002/003/004, ADR-0007). ADR-0039 permits one optional GPS fix after an explicit
+   operator tap, attached to the submitted report, and requires GPS fields to be purged within 14
+   days; manual reporting remains available.
+2. **No continuous camera feeds or microphone access.** The only camera exceptions are (a) an
+   operator-explicit still-photo capture for evidence/incident and (b) the narrowly scoped Page 11
+   silent traffic sample governed by ADR-0040: one explicit tap, maximum 10 seconds, private upload,
+   no identity recognition/computer vision, no third-party processor or training, and raw-video
+   deletion within 24 hours. Microphone access remains prohibited. The Page 15 recorder route is
+   informational only: it does not prompt, capture, upload, or retain audio. Production capture is
+   disabled until a separate audio purpose/policy review, DPIA/privacy approval, and verified
+   primary/backup purge gates pass.
 3. **No contact-book access, no SMS reading, no installed-app inventory.**
 4. **Customer data is optional**: a sale never requires identifying the customer.
 5. **Free-text fields are bounded** and never used to induce speculation about third parties.
 6. **Logs contain no PII by default**: phone numbers masked, no evidence contents, no customer
    identifiers; errors carry request IDs, not payloads.
 7. **Exports are scoped, masked where possible, and audited.**
+8. **Site observations are explicit operator reports, not inferred weather.** They are bound to the active shift/current site, use bounded non-identifying notes, and are not sent to an external weather provider; the source remains unavailable until privacy/data-flow approval.
+9. **Page 13 incident reporting is a neutral account, not a finding.** Collect only the reporter's category, bounded factual narrative, event time, optional amount/context and server-derived active shift/site. Do not request names or identify alleged offenders; no evidence upload exists. Incident free text, amounts, actor identifiers and evidence metadata must not enter analytics/application logs. Production retention/access controls remain unverified.
 
 ---
 
@@ -51,6 +64,9 @@ restricted access, short retention, no analytics use.
 | --- | --- |
 | Operator operational data | Contract/legitimate operational interest; notice given at onboarding; not consent-dependent |
 | Location reporting | Transparency + shift-bounded design; operator can see all their own reports |
+| One-shot GPS assist | Clear notice before capture; explicit tap for each optional fix; no background collection; manual reporting remains available. This is not described as employment consent; preliminary DPIA review is pending. |
+| Page 11 traffic video | Clear notice and explicit capture tap; ≤10 seconds and silent; manual count/band entry; no identity/face recognition, computer vision, training, or external processor. Keep production disabled pending DPIA/privacy-owner approval and verified deletion (including backups). This is not described as employment consent. |
+| Page 15–16 conversation audio/transcript/library | Not permitted under current policy. The recorder and library pages are informational only; no microphone access, consent capture, recording query, audio/transcript processing, or retention is available. Requires separate purpose/legal-basis/worker safeguards, DPIA and storage/deletion approval before any proposal to enable. |
 | Loyalty (customer) | Explicit opt-in with purposes (accrual, redemption, campaign messages as separate purpose); withdrawal mechanism; no pre-ticked boxes |
 | Campaign messages | Separate opt-in from loyalty accrual |
 | Incident evidence | Collected for resolution; not reused for analytics or training |
@@ -80,8 +96,11 @@ restricted access, short retention, no analytics use.
 | Financial records (sales, payments, closings, expenses, adjustments) | Longest tier; required for financial integrity and disputes |
 | Audit events | Longest tier; immutable |
 | Shift/assignment records | Medium-long (operational + fairness) |
-| Location reports (raw) | **Short** (weeks); aggregates may persist |
+| GPS coordinates/accuracy/capture time attached to explicit reports | **Maximum 14 days**; purge GPS fields, retain the non-GPS report under R-09 |
+| Location reports (raw, selling-point ID and shift metadata) | **Short** (R-09; working example 90 days); aggregates may persist |
 | Incident evidence photos | **Short**; deleted after resolution unless legally held |
+| Raw Page 11 traffic clips | **Maximum 24 hours, including replicas/backups**; production remains disabled pending privacy approval and purge proof (R-26) |
+| Page 11 estimate metadata | Provisional 90 days, no direct operator/shift key, no individual performance use (R-27; DPO review pending) |
 | Customer loyalty data | While active + short grace period after last activity, then deleted/anonymised |
 | Device/telemetry logs | Short (days–weeks) with rotation |
 | Sentry/observability data | Scrub PII; short retention |
@@ -116,7 +135,7 @@ UU PDP permits transfers via adequacy, appropriate safeguards, or consent (Art. 
 | Item | Stance |
 | --- | --- |
 | DPO (PPDP) | Assignable role; required where processing scale triggers Art. 53 conditions (large-scale, sensitive, or regular systematic monitoring). Declaring "no systematic monitoring" is supported by ADR-0007. |
-| DPIA | Required for: loyalty programme launch, any analytics touching personal data, any new device capability (camera/GPS), and any new third-party processor. Template kept with this document. |
+| DPIA | Required for: loyalty programme launch, any analytics touching personal data, any new device capability (camera/GPS), and any new third-party processor. Page 10 has a preliminary DPIA at `docs/privacy/10-gps-location-dpia.md`; privacy-owner/DPO review is pending and production GPS capture must remain disabled until it is approved. |
 | Records of processing | Maintained as a living register derived from §1 |
 | Vendor register | Payment provider, hosting, object storage, push, observability, WhatsApp (if used) — purpose, data categories, location, safeguards |
 | Training | Annual privacy refresher for HQ roles with data access |
@@ -138,6 +157,8 @@ UU PDP permits transfers via adequacy, appropriate safeguards, or consent (Art. 
 | NFR-PRIVACY-008 | 72-hour breach notification supportable | Runbook + logging |
 | NFR-PRIVACY-009 | DPO assignable role | Governance |
 | NFR-PRIVACY-010 | Cross-border basis documented | Vendor register |
+| NFR-PRIVACY-011 | One-shot GPS sample is optional, operator-triggered, shift-bound, advisory, excluded from telemetry, and purged within 14 days | ADR-0039, R-25, preliminary DPIA; production enablement requires privacy-owner/DPO review |
+| NFR-PRIVACY-012 | Silent operator-triggered traffic clip ≤10 seconds; first-party/private, no recognition/CV/training/third party; raw clip deleted within 24 hours including backups; HQ cannot access clips; result metadata unkeyed to operator/shift | ADR-0040, R-26/R-27, preliminary DPIA; production disabled until privacy approval and purge verification |
 
 ---
 

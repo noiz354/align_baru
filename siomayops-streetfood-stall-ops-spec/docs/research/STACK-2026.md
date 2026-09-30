@@ -59,7 +59,7 @@ and records explicit **REJECTED** options with reasons so the decisions are revi
 | 6 | Schema migration tooling | drizzle-kit generated SQL (reviewed by human) | SELECTED | auto `db push`, Prisma Migrate |
 | 7 | Authentication | Better Auth (email+password, later passkeys) | PLANNED (VS-17) | Auth.js/NextAuth (maintenance-only), Clerk, Supabase Auth |
 | 8 | Authorization | In-app RBAC + scope checks (no external engine) | SELECTED | Casbin, OPA/Rego, Cerbos |
-| 9 | Geolocation | Manual map-pin + explicit "use my current position" button | PLANNED (VS-2) | continuous background GPS |
+| 9 | Geolocation | Manual selling-point report + optional tap-triggered one-shot sample under ADR-0039 | Page 10 implementation; one fix per explicit report, 14-day raw-sample limit | continuous/background GPS, `watchPosition` |
 | 10 | Maps | MapLibre GL JS + raster/vector tiles from a paid provider | OPTIONAL | Mapbox GL JS, Google Maps, Leaflet |
 | 11 | Payments (digital) | Provider-port only; **no gateway in Phase 0** | PLANNED (VS-6/17) | direct gateway integration now |
 | 12 | QRIS | Merchant-presented **static QRIS** recorded as a payment *method*, dynamic QR via provider later | PLANNED | fake "payment complete" simulation |

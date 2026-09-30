@@ -1,7 +1,7 @@
 # DATA MODEL
 
 **Document ID:** DOC-DATA-MODEL
-**Status:** Phase 0 — entity investigation and minimal core model (**no schema implemented**)
+**Status:** Reference model; selected slices have schema implementations. For Page 13 incident fields and limitations, see `docs/integration/13-security-incident-architecture.md`.
 **Related:** `DOMAIN.md`, `DOMAIN` invariants, `docs/adr/ADR-0032-identifier-strategy.md`, `RETENTION.md`
 
 ---
@@ -34,6 +34,7 @@ one with 24 tables each of which has an invariant attached.
 | StallEquipment | EXTEND | Simple list; low risk. |
 | SellingLocation (SellingPoint) | CORE | Mangkal point. |
 | LocationAssignment / LocationReport | CORE | Per-shift location reports (history = the report list). |
+| SiteConditionObservation | EXTEND | Explicit active-shift wet/dry and shelter observation with bounded optional notes; no weather facts/provider data. |
 | Shift | CORE | Central unit of accountability. |
 | ShiftHandover | EXTEND | Mid-day transfer record. |
 | ShiftClosing | CORE | Closing submission (later slice, modelled now). |
@@ -62,8 +63,8 @@ one with 24 tables each of which has an invariant attached.
 | LoyaltyTransaction | EXTEND | Earn/redeem records (no algorithm in Phase 0). |
 | Reward | EXTEND | Definition. |
 | RewardInstance | EXTEND | Single-use entitlement (anti-double-redeem). |
-| Incident | EXTEND | Report + lifecycle. |
-| IncidentEvidence | OPTIONAL | Photos. |
+| Incident | EXTEND | Page 13 report plus Page 14 scoped HQ detail/status/note pilot. Review history uses append-only AuditEvent; full lifecycle, production store and evidence relation remain incomplete. |
+| IncidentEvidence | OPTIONAL | Not implemented: no evidence metadata/object reference is accepted or reviewed on Pages 13–14. |
 | Message | EXTEND | Operational message, threaded. |
 | MessageThread | EXTEND | Topic binding (area/stall/shift/incident). |
 | OperationalAlert | EXTEND | Actionable alert objects. |
@@ -109,8 +110,9 @@ SellingLocation(id, organization_id, area_id, name, address_text, lat, lng,
 Shift(id, organization_id, operator_id, stall_id, business_day,
       started_at, ended_at, start_location_id, end_location_id,
       opening_cash, status, planned_start_at?, planned_end_at?)
-LocationReport(id, organization_id, shift_id, selling_location_id,
-               reported_at, reason, note, client_report_id)
+LocationReport(id, organization_id, shift_id, stall_id, operator_id, selling_location_id,
+               arrived_at, departed_at, reason, note, client_report_id,
+               optional gps_sample(latitude, longitude, accuracy_meters, captured_at); GPS fields expire under R-25)
 
 MenuItem(id, organization_id, category_id, name, portion_note, active,
          stock_item_id?, is_component, sort_order)
@@ -151,6 +153,20 @@ StockMovement(id, organization_id, stock_item_id, stall_id?, operator_id?,
 StockSnapshot(id, organization_id, shift_id, stock_item_id, phase (START|END),
               counted_quantity, expected_quantity?, variance_quantity?, reason?)
 
+TrafficSample(id, organization_id, selling_location_id, sampled_at_hour, estimated_count,
+              traffic_band, note?, client_request_id, video_asset_id?, video_status)
+TrafficVideoAsset(id, organization_id, selling_location_id, sample_id?, uploaded_at,
+                  expires_at, content_type, byte_size, duration_ms, private_storage_key)
+
+SiteConditionObservation(id, organization_id, operator_id, shift_id, selling_location_id,
+                          observed_at, ground_condition, shelter_status, shelter_note?,
+                          relocation_decision_note?, client_request_id)
+
+Incident(id, organization_id, operator_id, shift_id?, selling_location_id?, category,
+         description, occurred_at?, severity_hint?, amount_minor?, amount_context?,
+         status, client_incident_id?, created_at, updated_at)
+-- unique (organization_id, operator_id, client_incident_id); no evidence or involved-party identity fields
+
 AuditEvent(id, organization_id, actor_id, actor_role, action, entity_type,
            entity_id, occurred_at, previous_value_json, new_value_json, reason,
            request_id, ip_hash?, user_agent?)
@@ -170,6 +186,13 @@ Shift 1─1 ShiftClosing
 Sale  1─1 Payment (MVP: exactly one active payment per sale; more later via PaymentAttempt)
 StockItem 1─* StockMovement *─1 Shift (optional)
 Operator 1─* Shift *─1 Stall
+SellingLocation 1─* TrafficSample; TrafficSample 0..1─1 temporary TrafficVideoAsset
+TrafficSample has no operator_id or shift_id; video metadata has no operator_id or shift_id
+Shift 1─* SiteConditionObservation *─1 SellingLocation
+SiteConditionObservation stores operator/shift provenance; read results expose no actor identifiers
+Operator 1─* Incident; Incident 0..1─1 Shift and 0..1─1 SellingLocation (Page 13 pilot)
+Incident read projection is reporter-self only; no incident evidence/person-identity relation is implemented
+No WeatherSnapshot table/provider exists until a source and privacy/data-flow review are approved
 Everything *─1 Organization
 ```
 
@@ -213,7 +236,7 @@ Everything *─1 Organization
 | Payment dedupe | unique `(provider, provider_reference)`; unique `(organization_id, dedupe_key)` on callbacks |
 | Audit | Append-only; index on `(entity_type, entity_id, occurred_at)` and `(actor_id, occurred_at)` |
 | Raw payloads | `jsonb` (callbacks) with size guard; encrypted at rest at the platform level |
-| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest |
+| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest; raw traffic media ≤24 hours, traffic samples and site observations provisionally 90 days |
 | Archival | Partition-by-business-day or archive tables once volumes justify; triggers documented in `OPERATIONS.md` |
 | PII | Operator phone, customer phone/token: minimised, access-scoped, masked in logs and exports by default |
 

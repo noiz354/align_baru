@@ -5,6 +5,9 @@ import { getAuthorizedOutlets, type AuthorizedOutletInfo } from "../sales";
 import type { BusinessDay } from "../../shared/time";
 import { money, type Money } from "../../shared/money/money";
 
+export * from "./operations-map";
+export * from "./operations-map-analytics";
+
 export interface ReadModelEnvelope<T> {
   readonly computedAt: Date;
   readonly sourceWatermark?: string;
@@ -771,4 +774,3 @@ export async function getDashboardReadModel(
 
 // Server-side dashboard read model (T-HQ-002 read layer).
 export * from "./dashboard";
-

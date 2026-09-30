@@ -1,7 +1,7 @@
 # Role and Permission Matrix
 
 **Document ID:** DOC-SEC-PERMISSIONS
-**Status:** Phase 0 specification (no authorization code exists; `authorize()` throws `Not implemented: T-AUTHZ-001`)
+**Status:** Policy specification with selected slice enforcement; `authorize()` is implemented for the fake development actor, while production authentication/session resolution remains unavailable and fails closed.
 **Related:** `SECURITY.md` §3–§4, `OPERATORS.md`, `HQ.md`, ADR-0016, ADR-0031, NFR-SEC-007
 
 ---
@@ -61,7 +61,10 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | Location registry & status (`location:manage`) | F | F | — | — | A (own area) | R (propose) | R | R | — |
 | Start / suspend shift (`shift:start`, `shift:suspend`) | — | — | — | — | R | S | — | R | — |
 | Handover (`shift:handover`) | — | — | — | — | A (confirm) | S (confirm) | — | R | — |
-| Location report (`location:report`) | — | R | — | — | R | S | — | R | — |
+| Selling-point location report (`location:report`) | — | R | — | — | R | S | — | R | — |
+| Traffic sample view/create (`traffic-sample:view`, `traffic-sample:create`) | — | — | — | — | — | S | — | — | — |
+| Site-condition view/create (`site-condition:view`, `site-condition:create`) | — | — | — | — | — | S | — | — | — |
+| Raw one-shot GPS sample on Page 10 (`location:view`, self-owned open report only) | — | — | — | — | — | S | — | — | — |
 | Create / void sale (`sale:create`, `sale:void`) | — | — | — | — | R | S | — | R | — |
 | Cash payment (`payment:cash`) | — | — | — | — | R | S | — | R | — |
 | Digital payment create (`payment:digital`) | — | — | R | — | R | S | — | R | — |
@@ -92,8 +95,14 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
 | --- | --- |
 | Operator phone number | Full number visible to the operator (self), their supervisor; masked (`+62 812••••789`) for other roles |
 | Customer phone hash / loyalty id | Never displayed to operators; Finance/Owner see a pseudonymous id, never the raw identifier |
-| Evidence photos (expense, incident) | Only roles in the review path (submitter, supervisor, HQ_FINANCE/HQ_OPS, AUDITOR) with short-lived signed URLs |
-| Exact coordinates | Operationally scoped; not exposed to roles whose job does not require them; purged per `RETENTION.md` |
+| Evidence photos (expense, incident) | Target policy only; incident evidence is not accepted or readable in Pages 13–14. Never expose the generic fake presigner as a signed URL or proof of access control |
+| Selling-point coordinates | Available only to operationally scoped roles that need them |
+| Raw Page 10 GPS sample (latitude/longitude, accuracy, capture time) | Returned only to the owning operator for their own open-shift report; excluded from HQ map/read models, analytics, audit summaries and logs; scrubbed within 14 days per ADR-0039 / R-25 |
+| Page 11 raw traffic video | Private first-party ingestion service only; no HQ, supervisor, auditor, analytics or training access; raw media and replicas are purged within 24 hours (ADR-0040 / R-26) |
+| Page 11 manual count/band result | Stored without operator or shift identifiers; operational read models expose only approved aggregate views; never use for individual performance or discipline (ADR-0040 / R-27) |
+| Page 12 site-condition observations | Available only through the authorized operator self context at the current site; response omits actor IDs; bounded notes are not logged; 90-day local purge is opportunistic, not production-grade (FR-SITE-001 / R-28) |
+| Page 13 incident reports | Operator report/list/detail API is operator-self and organization scoped; direct access to another reporter's ID returns 404; output omits actor IDs; narrative and amount are excluded from telemetry. Production policy enforcement and retention remain unverified (FR-INC-011 / T-INC-001) |
+| Page 14 incident review | `OWNER`/`HQ_OPS` may review org scope; `AREA_SUPERVISOR` is restricted to the server-derived area. `HQ_FINANCE`, `AUDITOR` and `OPERATOR` cannot read this review API under current incident permissions. Out-of-tenant/area detail is `404`; review mutations require `incident:resolve`; evidence remains unavailable and no evidence URL is returned (T-INC-002) |
 | Audit before/after summaries | Field-minimised at write time; never a shadow copy of personal data |
 | Payment provider references | Visible to HQ_FINANCE and AUDITOR; masked elsewhere |
 
@@ -125,9 +134,10 @@ Legend: **F** = full within scope · **R** = read only · **A** = approve/review
   security signal, never as an individual performance signal.
 - Repeated denials from one actor trigger a security alert (not a business alert) per `RUNBOOK.md`.
 
-## 8. Tests (Phase 0: TODO only)
+## 8. Tests and remaining authorization coverage
 
-`tests/integration/authorization.test.ts` and per-route contract tests must prove, for every route
-and every role: allowed-in-scope succeeds, out-of-scope fails, cross-tenant fails, and every denial
-is audited. The matrix above is the source of truth for those tests; a route without a matrix row is
-a defect.
+Page 10 proves operator self-scope, same-organization ownership, cross-operator shift-write denial,
+area-bound selling-point choices, and coarse event-route authorization in
+`tests/integration/location-api.test.ts`. The repository-wide role × route matrix remains incomplete:
+production auth sessions are unavailable in this checkout, and every unimplemented route still needs
+its own allow/deny, cross-tenant, and audited-denial evidence. A route without a matrix row remains a defect.

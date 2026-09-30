@@ -62,8 +62,9 @@ records: the shift keeps the place it recorded (EC-32).
 
 The coverage card shows: reported / planned locations, idle locations with days idle, declared closures
 with reasons, dormant locations, restricted locations with expiry, and proposals pending review. It
-carries `computedAt` (target ≤15 min) and dims when stale. Drill-down lists the shift-level reports —
-never a movement trace, because no such data exists by design (ADR-0007).
+carries `computedAt` (target ≤15 min) and dims when stale. Drill-down lists shift-level reports,
+not raw GPS samples. Page 10 may persist sparse, operator-triggered fixes attached to those reports
+for at most 14 days under ADR-0039; it creates no background/live movement feed.
 
 ## 7. What this document deliberately excludes
 

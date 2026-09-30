@@ -17,7 +17,7 @@ Security/Privacy, Operations
 | Product specification (`PRD.md`) | Accepted | 227 FR + 78 NFR stable ids; 22 FR families; explicit boundaries in §9 |
 | Design (`DESIGN.md`, `docs/design/*`) | Accepted | Tap budgets, honest states, wording rules, ethics rules, page inventory |
 | Architecture (`ARCHITECTURE.md`, `docs/architecture/*`) | Accepted | Modular monolith, one deployable, 15 machine-checkable invariants |
-| Decisions (`ADR.md`, `docs/adr/*`) | Accepted | 38 accepted records; every area named in `ADR.md` has a record |
+| Decisions (`ADR.md`, `docs/adr/*`) | Accepted | 39 accepted records; every area named in `ADR.md` has a record |
 | Domain and data (`DOMAIN.md`, `DATA_MODEL.md`, `STATE_MACHINE.md`, `EVENTS.md`) | Accepted | 13 state machines; append-only movements; derived-vs-stored decided |
 | Contracts (`API.md`, `docs/operations/API-READ.md`) | Accepted | 16 write contracts + read catalogue; error taxonomy and idempotency rules fixed |
 | Offline (`OFFLINE.md`, ADR-0017, ADR-0033) | Accepted | Outbox, per-record results, quarantine, no offline digital success |
@@ -36,7 +36,7 @@ Security/Privacy, Operations
 | 2 | Can the system ever show unverified money as received? | No. `PAID` requires verified evidence or a recorded reconciliation; static QRIS is `PENDING_VERIFICATION` and labelled "Menunggu verifikasi"; verified and unverified amounts are separate fields everywhere | INV-06 + ARC-02, ADR-0012/0033, `PAYMENTS.md`, `docs/payments/QRIS.md` |
 | 3 | Can a price change rewrite history? | No. Sale lines store immutable unit-price snapshots; totals derive from snapshots; recomputation must reproduce stored totals exactly | INV-01/INV-08, ADR-0008/0010, `PRICING.md`, `SALES.md` |
 | 4 | Can a field expense be used to facilitate an irregular payment? | No. Recording is neutral (`UNVERIFIED_FIELD_EXPENSE`), no recipient/authority/purpose fields exist, no workflow accelerates or hides such payments, flags are record-level patterns reviewed by humans with no automatic consequence | ADR-0027, PRD §9.2, `docs/finance/EXPENSE-REVIEW.md`, FR-EXPENSE-003/012 |
-| 5 | Are operators surveilled? | No. Location exists only as explicit shift-bounded reports; no background capture, no timers, no third-party location SDK; `tools/check-stubs.mjs` fails the build if geolocation APIs appear outside the report module | ADR-0007, NFR-PRIVACY-003/004, INV-11 + ARC-06 |
+| 5 | Are operators surveilled? | No continuous surveillance. One fix per explicit Page 10 report can form a sparse shift-bounded sequence, is excluded from analytics, and is subject to R-25 (production purge job still required); no watch/timer/background capture | ADR-0007, ADR-0039, NFR-PRIVACY-003/004/011, INV-11 + ARC-06 |
 | 6 | Can a stock variance accuse someone? | No. Variance is neutral ("selisih"), `UNKNOWN` is always available, escalation needs two humans and a recorded conclusion, and no status/pay/schedule effect is reachable from variance | ADR-0030, `docs/finance/STOCK-VARIANCE.md`, FR-STOCK-007 |
 | 7 | Is recognition gameable or unfair? | Reduced to an acceptable level: multi-factor candidate inputs, no revenue-only measure, normalisation for traffic/duration/day/closures/stock, sample-size gates, published weights, human review, appeal path, no automatic penalty | ADR-0029, `docs/product/OPERATOR-RECOGNITION.md`, FR-PERF-002/004/005/009 |
 | 8 | Are duplicates and replays safe? | Yes, structurally: `Idempotency-Key` on every mutation, client UUIDv7 aliases unique per organisation, per-record sync outcomes, duplicate-aware constraints (reward redemption, closing, sale) | ADR-0013, INV-07/INV-14/INV-15, `API.md` §0 |
@@ -65,7 +65,7 @@ Domain invariants are the canonical register in `DOMAIN.md` §4 (`INV-01…INV-1
 | INV-13 stock position derived from movements | recompute-from-movements test (ARC-11) | T-STOCK-001/002 |
 | INV-14 tenant scoping and scope-mandatory repositories | schema test + signature/compile-time proof (ARC-08/ARC-09) | T-FOUND-001, T-AUTHZ-001 |
 | INV-15 idempotency keys unique per (organization, route, key) | unique index + replay contract tests (ARC-10) | T-FOUND-004 |
-| ARC-P0 stubs name real tasks; no forbidden imports or geolocation APIs | `tools/check-stubs.mjs` in CI | Phase-0 gate |
+| ARC-P0 stubs name real tasks; no forbidden imports; geolocation only in ADR-0039's one-shot helper | `tools/check-stubs.mjs` in CI | Phase-0 gate |
 
 ## 4. Failure-model review
 
@@ -106,7 +106,7 @@ the relevant ADR, so a future engineer can reopen it with new evidence rather th
 | Gate-2 | All 38 ADRs accepted and filed under `docs/adr/` with an index | ✅ |
 | Gate-3 | Every requirement id cited anywhere exists in `PRD.md` | ✅ `tools/census.mjs` |
 | Gate-4 | Every P0 requirement is task-covered | ✅ 131 / 131 |
-| Gate-5 | Every stub names a real task id; no forbidden imports; no geolocation APIs | ✅ `tools/check-stubs.mjs` |
+| Gate-5 | Every stub names a real task id; no forbidden imports; only the ADR-0039 one-shot helper can use geolocation | ✅ `tools/check-stubs.mjs` |
 | Gate-6 | No dangling document references; ADR index consistent | ✅ `tools/check-docs.mjs` |
 | Gate-7 | Forbidden capabilities are absent (fake payments, faked scoring, tracking, real auth, real provider) | ✅ none present in `src/**` |
 | Gate-8 | Open questions that block a P0 slice are assigned with owners | ✅ PRD §15 + slice-level OQ tables |

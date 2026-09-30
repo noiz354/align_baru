@@ -25,7 +25,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { acquireDb, closeDb, createDb, releaseDb, type Db } from '../../src/server/db/client';
 import { getSessionUser } from '../../src/server/auth/guard';
 import { createCatalogComposition, createLibraryComposition } from '../../src/server/composition';
-import { envSource } from './catalog.db-harness';
+import { envSource, openHarness } from './catalog.db-harness';
 import type { Env, EnvSource } from '../../src/shared/validation';
 
 const DATABASE_URL = process.env['DATABASE_URL'];
@@ -117,6 +117,24 @@ async function sessionsExceed(floor: number, probe: Db, ms = 3000): Promise<bool
     if (Date.now() > deadline) return false;
     await new Promise((r) => setTimeout(r, 150));
   }
+}
+
+/** Let PostgreSQL publish connections opened by earlier tests before taking a baseline. */
+async function settledSessions(probe: Db, stableForMs = 1200, timeoutMs = 4000): Promise<number> {
+  let current = await readSessions(probe);
+  let stableSince = Date.now();
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 150));
+    const next = await readSessions(probe);
+    if (next !== current) {
+      current = next;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= stableForMs) {
+      return current;
+    }
+  }
+  return current;
 }
 
 describeDb('the process-wide database handle (INT-DB-SINGLETON, F-001-S1)', () => {
@@ -250,38 +268,59 @@ describeDb('the session guard shares the pool (INT-DB-GUARD, F-001-S2)', () => {
     }
   });
 
+  function guardDatabaseUrl(namespace: string): string {
+    const url = new URL(DATABASE_URL as string);
+    url.pathname = `/t_catalog_${namespace}`;
+    return url.toString();
+  }
+
   it('opens no connection of its own, and takes an injected handle when given one', async () => {
-    // The guard used to `createDb` and `closeDb` on every call, so a members'
-    // request with a session cost THREE pools: catalog root, library root, guard.
-    // F-001-S1 removed the first two; this asserts the third is gone too, and that
-    // the injected-handle path works, since that is the seam a future
-    // SessionRepository will use.
-    const request = new Request('http://localhost:3000/api/library', {
-      headers: { cookie: 'session_token=definitely-not-a-real-token' },
-    });
+    // Use a dedicated database so unrelated suites' delayed pg_stat_database
+    // updates cannot be mistaken for a connection opened by this guard.
+    const namespace = 'session_guard_injected';
+    const harness = await openHarness(namespace);
+    const databaseUrl = guardDatabaseUrl(namespace);
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = databaseUrl;
+    try {
+      const request = new Request('http://localhost:3000/api/library', {
+        headers: { cookie: 'session_token=definitely-not-a-real-token' },
+      });
+      const warm = await acquireDb(env(databaseUrl));
+      const floor = await settledSessions(warm);
 
-    // A shared pool is already warm, as it would be in a live process, so any
-    // connection the guard opens is a connection it should not have opened.
-    const warm = await acquireDb(env(DATABASE_URL as string));
-    const floor = await readSessions(warm);
+      expect(await getSessionUser(request, warm)).toBeNull();
+      expect(await getSessionUser(request)).toBeNull();
+      for (let i = 0; i < 4; i += 1) await getSessionUser(request);
 
-    expect(await getSessionUser(request, warm)).toBeNull();
-    expect(await getSessionUser(request)).toBeNull();
-    for (let i = 0; i < 4; i += 1) await getSessionUser(request);
-
-    // Five guard calls, zero new connections.
-    expect(await sessionsExceed(floor, warm)).toBe(false);
+      // Five guard calls after warm-up, zero additional PostgreSQL sessions.
+      expect(await sessionsExceed(floor, warm)).toBe(false);
+    } finally {
+      await drainSharedPool();
+      await harness.close();
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousDatabaseUrl;
+    }
   });
 
   it('never touches the pool for a request with no token at all', async () => {
-    // The common case: an anonymous visit to /discover, /search or the reader. If
-    // the guard acquires before checking for a cookie, every anonymous request
-    // pays for a pool it never uses.
-    const probe = await acquireDb(env(DATABASE_URL as string));
-    const floor = await readSessions(probe);
-    for (let i = 0; i < 4; i += 1) {
-      expect(await getSessionUser(new Request('http://localhost:3000/discover'))).toBeNull();
+    const namespace = 'session_guard_anonymous';
+    const harness = await openHarness(namespace);
+    const databaseUrl = guardDatabaseUrl(namespace);
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = databaseUrl;
+    try {
+      const probe = await acquireDb(env(databaseUrl));
+      const floor = await settledSessions(probe);
+      for (let i = 0; i < 4; i += 1) {
+        expect(await getSessionUser(new Request('http://localhost:3000/discover'))).toBeNull();
+      }
+      expect(await sessionsExceed(floor, probe)).toBe(false);
+    } finally {
+      await drainSharedPool();
+      await harness.close();
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousDatabaseUrl;
     }
-    expect(await sessionsExceed(floor, probe)).toBe(false);
   });
 });

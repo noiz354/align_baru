@@ -1,16 +1,17 @@
-export type ExpenseCategoryCode =
-  | "UNVERIFIED_FIELD_EXPENSE" | "TRANSPORT" | "CLEANING" | "CONSUMABLE"
-  | "REPAIR_MINOR" | "PARKING" | "OTHER_OPERATIONAL";
+export const EXPENSE_CATEGORY_CODES = [
+  "UNVERIFIED_FIELD_EXPENSE", "TRANSPORT", "CLEANING", "CONSUMABLE",
+  "REPAIR_MINOR", "PARKING", "OTHER_OPERATIONAL",
+] as const;
 
+export type ExpenseCategoryCode = (typeof EXPENSE_CATEGORY_CODES)[number];
 export type ExpenseReviewState = "SUBMITTED" | "REVIEW_REQUIRED" | "REVIEWED" | "REJECTED" | "ESCALATED";
-
 export type ExpensePaidFrom = "CASH_BOX" | "PERSONAL";
 
 export interface ExpenseRecord {
   readonly expenseId: string;
   readonly shiftId: string;
   readonly categoryCode: ExpenseCategoryCode;
-  readonly description: string;
+  readonly description?: string;
   readonly amount: import("../../shared/money").Money;
   readonly paidFrom: ExpensePaidFrom;
   readonly operatorNote?: string;

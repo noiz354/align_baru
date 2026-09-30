@@ -21,8 +21,6 @@ evidence/
 exports/
 *.pem
 
-# runtime file-backed store (regenerated on first boot)
+# Runtime file-backed store; never commit operational records.
+/data/
 data/
-
-# npm lockfile (project uses pnpm-lock.yaml)
-package-lock.json

@@ -1,7 +1,7 @@
 # IMPLEMENTATION STATUS — SiomayOps Streetfood Stall Ops
 
-**Date:** 2026-09-27
-**Branch:** arena/01a0e0dc-align-baru
+**Date:** 2026-09-30
+**Branch:** arena/01a0efb1-align-baru
 **Source:** https://github.com/noiz354/align_baru/tree/main/siomayops-streetfood-stall-ops-spec
 
 ## Tasks Discovered: 70
@@ -26,7 +26,10 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **HQ Dashboard (VS-10):** T-HQ-002..003 — ten cards implemented: coverage, sales (verified vs unverified split), cash-position, verification-backlog, stock, incidents, expense-review, closings, locations, exceptions — all with computedAt, freshnessBand, drillDown, no merged money truth
 - **Loyalty (VS-11):** T-LOY-001..003 — consent-first, single-use rewards (INV-06), concurrent redemption exactly one succeeds, ALREADY_REDEEMED non-punitive, no self-award, online-required check, ledger with rules version via audit
 - **Communication+Alerts (VS-12):** T-COMM-001, T-ALERT-001 — notifications API, alerts, inbox
-- **Incidents (VS-13):** T-INC-001..002 — incident capture offline, lifecycle, escalation
+- **Incidents (VS-13):** T-INC-001..002 — PARTIAL pilot only: Task 13 operator capture and Task 14 scoped HQ fact review/note/status path exist; evidence media, production auth/storage/retention, full owner/SLA/escalation workflow and browser acceptance remain open.
+- **Conversation recording (Page 15):** NOT IMPLEMENTED; informational unavailable route only. Microphone access remains denied; no audio/transcript/annotation/linkage storage, retention policy, transcription service or consent/DPIA approval exists.
+- **Recordings library (Page 16):** NOT DONE; `/recordings` is an informational unavailable page only. No recording list/search/detail, storage, transcript, incident link, retention/delete flow, recording-specific authorization, or Page 16 analytics exists. See `docs/integration/16-recordings-library-gap-report.md` and the architecture/ground-truth records. Task 16 remains blocked on Page 15 policy approval and actual persisted recordings.
+- **Settings, users & access (Page 17):** NOT DONE; `/settings` is an informational unavailable page only. Production auth fails closed; user membership/role assignments and editable settings have no authoritative store or mutation flow. The thresholds endpoint returns code constants only. See `docs/integration/17-settings-access-gap-report.md` and related architecture/ground-truth records.
 - **Performance (VS-14):** T-PERF-001..002 — performance metrics, contextual, normalized
 - **Recognition (VS-15):** T-REC-001..002 — transparent multi-factor, no revenue-only leaderboard, no hidden scoring
 - **Offline Hardening (VS-16):** T-OFF-002..004 — offline banner with pending count, per-record sync states (LOCAL_ONLY, PENDING, SYNCING, SYNCED, REJECTED, DEFERRED), rejected explanation with next step, digital disabled with clear message while offline, cash selling possible without confirmation dialogs, service worker shell (sw.ts notes Serwist planned but not wired per ADR, acceptable)
@@ -34,14 +37,14 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **Observability (VS-18):** T-OBS-001..002 — OpenTelemetry pipeline (otel config, @opentelemetry/api, sdk-node), business metrics, error tracking, SLOs, runbook linkage, no PII in telemetry
 - **Production (VS-19):** T-OPS-002..004 — Dockerfile, docker-compose (Postgres 18), migrations via drizzle-kit, deployment docs, backups, go-live checklist
 
-## Vertical Slices Completed
-VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
+## Vertical Slice Implementation Notes
+Core implementation exists across VS-0..VS-19, but implementation entries are not equivalent to page acceptance or production readiness. Incident capture/review (T-INC-001..002) remains partial with the gates documented in the Page 13/14 gap reports.
 
 ## Modules Completed
 - domain: money, pricing/resolution, sale/totals, payment/states, expense/review, inventory/variance, location/report, operators/status, loyalty/reward
 - server: db/memory-store (with evidenceAssets, notifications, shiftClosings), db/idempotency, db/repository (scope checks INV-11), auth/port (extended actions, ROLE_PERMISSIONS), payments/provider (fake adapter, prod stub with comprehensive comments), payments/webhook-verifier, telemetry
 - features: operators, stalls, locations, shifts, menu, pricing, sales, payments, expenses, inventory, loyalty, incidents, audit, offline, performance, recognition, hq, notifications
-- app: pages (/, /shift, /sell, /stock, /expenses, /closing, /hq, /hq/expenses, /hq/incidents, /hq/verification, /alerts, /locations, /operator, /evidence, /menu), api/v1 (shifts, sales, payments/cash/digital, expenses, stock-reports, incidents, loyalty, sync/batches, webhooks/payments/[provider], price-acknowledgements, restock-requests, hq/*, menu/items, locations, operators/me, evidence, notifications, audit, config/thresholds, payments, shifts list, sales list, stock/movements, stock/positions)
+- app: pages (/, /shift, /sell, /stock, /expenses, /closing, /hq, /hq/expenses, /hq/incidents, /hq/verification, /alerts, /locations, /operator, /operator/recordings/new, /recordings, /settings, /evidence, /menu), api/v1 (shifts, sales, payments/cash/digital, expenses, stock-reports, incidents, loyalty, sync/batches, webhooks/payments/[provider], price-acknowledgements, restock-requests, hq/*, menu/items, locations, operators/me, evidence, notifications, audit, config/thresholds, payments, shifts list, sales list, stock/movements, stock/positions)
 - shared: money, time, types/ids (MenuItemId added), ui/tokens, ui/TapTarget, ui/OfflineBanner, contracts
 - tests: unit (money, pricing-resolution, sale-totals, shift-expected-cash, payment-states, expense-review, loyalty-redemption, stock-variance, override-policy) — 51 tests, integration (idempotency, audit-append-only, payments-honesty, authorization, closing-immutability, sales-replay, stock-derivation, loyalty-concurrency) — 37 tests, browser (tap-budget, offline-states) — 13 tests, e2e (cash-sale, hq-coverage, offline-day) — 7 tests logic, total 101+ tests passing
 
@@ -96,7 +99,7 @@ VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
 - Cross-operator data access denied via scope checks (INV-11)
 - Sensitive logging avoided (no credentials, PII masked, provider refs masked for non-finance)
 - Secret leakage prevented (webhook secret env, no browser exposure)
-- Security headers implemented (next.config.mjs): DENY frame, nosniff, strict-origin, no geolocation/camera/mic, HSTS, CSP
+- Security headers implemented (next.config.mjs): DENY frame, nosniff, strict-origin, geolocation disabled except explicit `/operator/location` one-shot route, camera/mic disabled, HSTS, CSP
 - Audit logs all privileged actions with actor, action, subject, correlationId
 
 ## Observability Status
@@ -150,7 +153,7 @@ VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
 - package.json: pinned real versions next 15.4.2 react 19.1.0 zod 3.24.1 drizzle-orm 0.44.3 pg 8.13.0 pino 9.6.0 otel 1.9.0/0.57.0 typescript 5.7.3 drizzle-kit 0.31.4 vitest 3.1.1 @playwright/test 1.50.0 tailwindcss 4.0.0, removed invalid @vitest/browser-playwright
 - tsconfig.json: exactOptionalPropertyTypes false, allowJs true, incremental true, esModuleInterop true, next plugin
 - vitest.config.ts: added resolve alias @ -> ./src for unit/integration tests
-- next.config.mjs: security headers (X-Frame DENY, nosniff, Referrer strict, Permissions-Policy no geolocation/camera/mic, HSTS, CSP, no-store for /api)
+- next.config.mjs: security headers (X-Frame DENY, nosniff, Referrer strict, Permissions-Policy geolocation disabled by default with `/operator/location` self-only exception, camera/mic disabled, HSTS, CSP, no-store for /api)
 - src/shared/types/ids.ts: added MenuItemId export
 - src/server/db/memory-store.ts: added active boolean to StoredOperator, evidenceAssets Map, notifications Map, shiftClosings Map, clear() extended
 - src/features/expenses/index.ts: expense as any to allow REVIEW_REQUIRED mutation, flag logic

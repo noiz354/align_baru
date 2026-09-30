@@ -1,7 +1,7 @@
 # RETENTION
 
 **Document ID:** DOC-RETENTION
-**Status:** Phase 0 (policy specification; **no retention jobs implemented**)
+**Status:** Policy specification; no production-grade scheduled retention job has verified deletion (pilot purgers exist for GPS/video, but are not release evidence)
 **Related:** ADR-0037, `PRIVACY.md`, `DATA_MODEL.md` §6, `OPERATIONS.md`
 
 ---
@@ -35,8 +35,8 @@
 | R-08 | Shifts, assignments, operator status history | Medium-long (e.g. 24–36 months) | Operational | Fairness disputes, planning, payroll-adjacent questions | Purge with aggregates kept |
 | R-09 | Location reports (raw) | **Short** (e.g. 90 days) | Personal (movement) | Coverage and dispute window only | Purge; aggregates (per location/day) retained longer |
 | R-10 | Location aggregates (occupancy, coverage) | Long | Derived, non-personal | Planning | Retain |
-| R-11 | Incident records | Medium (e.g. 24 months) | Operational/personal | Safety learning, disputes | Purge |
-| R-12 | Incident evidence photos | Short (e.g. 90 days post-resolution) | Sensitive | Resolution only | Object deletion; incident summary retained |
+| R-11 | Incident records (incl. bounded narrative, reported amount/context, event time and optional shift/site links) | Medium (e.g. 24 months) | Operational/personal | Safety learning, disputes | Purge; Page 13 pilot has no production purge job or verified enforcement |
+| R-12 | Incident evidence photos | Short (e.g. 90 days post-resolution) | Sensitive | Resolution only | Object deletion; incident summary retained; Pages 13–14 accept/review no evidence and create no evidence rows |
 | R-13 | Customer loyalty accounts + transactions | Active + short grace (e.g. 12 months inactivity) | Personal | Programme operation | Delete/anonymise; redemption references in sales detached |
 | R-14 | Reward instances | Same as loyalty window | Personal-adjacent | Anti-fraud (double spend) | Purge |
 | R-15 | Messages (operational) | Medium (e.g. 24 months) | Operational | Dispute/learning | Purge |
@@ -49,9 +49,19 @@
 | R-22 | Outbox events | Short after processing (e.g. 14 days) | Technical | Reliability | Purge |
 | R-23 | Backups | Rolling (e.g. 35 days) + monthly archives per R-01 | All | Recovery | Expire per policy |
 | R-24 | Exports (CSV/report artefacts) | Short (e.g. 30 days) | Sensitive | Delivery only | Object deletion; export action logged |
+| R-25 | Explicit one-shot GPS samples attached to location reports (coordinates, accuracy, captured time) | **Maximum 14 days after capture** | Precise personal work-location data | Operator-confirmed location report only | Purge GPS fields; retain the selling-point report under R-09; no GPS-specific legal-hold extension without new privacy review |
+| R-26 | Raw Page 11 human-traffic video (silent, ≤10 seconds) | **Maximum 24 hours from upload** | Personal data of operators/incidental bystanders | Upload-gated first-party temporary evidence; never training or HQ review | Irreversibly delete primary object and every replica/backup within the same 24-hour ceiling; no legal-hold extension without a new privacy review; production blocked until deletion is verifiable |
+| R-27 | Manual traffic count/band and coarse sample metadata (no operator/shift key) | Working default **90 days**, subject to privacy-owner/DPO review | Operational aggregate; re-identification risk remains | Local traffic planning only; never individual performance, attendance or discipline | Purge sample-level rows at expiry; retain only reviewed non-identifying aggregate if justified; no video/object key retained after R-26 purge |
+| R-28 | Page 12 site-condition observations, including wet/dry, shelter and bounded notes | Working maximum **90 days**, subject to privacy-owner review | Operator-linked operational context | Active-site operational decision support only; no performance/discipline use | Pilot opportunistic purge removes row and idempotency index; production requires a scheduled, verifiable purge and backup-expiry policy |
 
 *Durations marked "e.g." are placeholders to be confirmed with legal/commercial advice before
 production. The architecture must make changing them a configuration change, not a rewrite.*
+
+**Pages 15–16 boundary:** conversation audio and transcripts are not accepted or stored. No retention
+period is defined for them; the microphone remains prohibited, the recorder and library routes are
+informational only, and no recording data is listed or accessed. Do not borrow the retention periods
+for incident photos or Page 11 silent video. A separate policy/DPIA and verified primary/backup
+deletion design are prerequisites to proposing any audio processing.
 
 ---
 
@@ -73,6 +83,10 @@ production. The architecture must make changing them a configuration change, not
 
 ```text
 jobs/retention/daily
+ ├── purge GPS sample fields older than R-25 (do not delete the linked R-09 report)
+ ├── purge raw traffic video and replicas by R-26; detach media metadata from manual traffic results
+ ├── purge sample-level traffic count/band records by R-27
+ ├── purge site-condition observations and bounded notes by R-28
  ├── purge location reports older than R-09
  ├── purge expense evidence older than R-06 (object delete first, then row clear)
  ├── purge incident evidence older than R-12

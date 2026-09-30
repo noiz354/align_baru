@@ -30,4 +30,3 @@ export function Icon({ name, size = 18, stroke = 1.8 }: { name: IconName; size?:
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...common}>{paths[name]}</svg>;
 }
-

@@ -78,6 +78,8 @@ export interface StoredShift {
   updatedAt: Date;
 }
 
+export interface StoredGpsSample { latitude: number; longitude: number; accuracyMeters: number; capturedAt: Date; }
+
 export interface StoredLocationReport {
   id: string;
   organizationId: string;
@@ -88,10 +90,30 @@ export interface StoredLocationReport {
   trigger: "ARRIVED" | "CONFIRM_UNCHANGED" | "MOVE_SITE" | "STEPPED_AWAY" | "DEPARTED";
   reasonForMove?: string;
   note?: string;
+  gpsSample?: StoredGpsSample;
   arrivedAt: Date;
   departedAt?: Date;
   clientReportId: string;
   createdAt: Date;
+}
+
+export type StoredSiteGroundCondition = "DRY" | "WET";
+export type StoredSiteShelterStatus = "AVAILABLE" | "NOT_AVAILABLE" | "UNKNOWN";
+export interface StoredSiteConditionObservation {
+  id: string; organizationId: string; operatorId: string; shiftId: string; sellingLocationId: string;
+  observedAt: Date; groundCondition: StoredSiteGroundCondition; shelterStatus: StoredSiteShelterStatus;
+  shelterNote?: string; relocationDecisionNote?: string; clientRequestId: string; createdAt: Date;
+}
+export type StoredTrafficBand = "QUIET" | "STEADY" | "BUSY" | "VERY_BUSY";
+export interface StoredTrafficSample {
+  id: string; organizationId: string; sellingLocationId: string; sampledAt: Date; estimatedCount: number;
+  trafficBand: StoredTrafficBand; note?: string; clientRequestId: string; videoAssetId?: string;
+  videoStatus: "NOT_PROVIDED" | "UPLOADED" | "DELETED"; createdAt: Date;
+}
+export interface StoredTrafficVideoAsset {
+  id: string; organizationId: string; sellingLocationId: string; sampleId?: string; uploadedAt: Date;
+  expiresAt: Date; contentType: "video/webm"; byteSize: number; durationMs: number;
+  clientRequestId: string; storageKey: string;
 }
 
 export interface StoredMenuCategory {
@@ -215,6 +237,7 @@ export interface StoredExpense {
   flaggedReason?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
+  reviewReason?: string;
   clientExpenseId: string;
   incurredAt: Date;
   createdAt: Date;
@@ -329,9 +352,15 @@ export interface StoredIncident {
   id: string;
   organizationId: string;
   shiftId?: string;
+  sellingLocationId?: string;
   operatorId: string;
   category: string;
+  severityHint?: "P1" | "P2" | "P3";
   description: string;
+  occurredAt?: Date;
+  amountMinor?: number;
+  amountContext?: "REQUESTED" | "PAID" | "UNCLEAR";
+  clientIncidentId?: string;
   status: "SUBMITTED" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED" | "ESCALATED" | "CLOSED";
   createdAt: Date;
   updatedAt: Date;
@@ -356,6 +385,12 @@ class MemoryStore {
   sellingLocations = new Map<string, StoredSellingLocation>();
   shifts = new Map<string, StoredShift>();
   locationReports = new Map<string, StoredLocationReport>();
+  siteConditionObservations = new Map<string, StoredSiteConditionObservation>();
+  siteConditionObservationByClientId = new Map<string, string>();
+  trafficSamples = new Map<string, StoredTrafficSample>();
+  trafficVideoAssets = new Map<string, StoredTrafficVideoAsset>();
+  trafficSampleByClientId = new Map<string, string>();
+  trafficVideoByClientId = new Map<string, string>();
   menuCategories = new Map<string, StoredMenuCategory>();
   menuItems = new Map<string, StoredMenuItem>();
   pricePolicies = new Map<string, StoredPricePolicy>();
@@ -374,6 +409,7 @@ class MemoryStore {
   loyaltyAccounts = new Map<string, StoredLoyaltyAccount>();
   rewardInstances = new Map<string, StoredRewardInstance>();
   incidents = new Map<string, StoredIncident>();
+  incidentByClientId = new Map<string, string>();
   alerts = new Map<string, StoredAlert>();
   evidenceAssets = new Map<string, any>();
   notifications = new Map<string, any>();
@@ -395,6 +431,9 @@ class MemoryStore {
     this.sellingLocations.clear();
     this.shifts.clear();
     this.locationReports.clear();
+    this.siteConditionObservations.clear(); this.siteConditionObservationByClientId.clear();
+    this.trafficSamples.clear(); this.trafficVideoAssets.clear();
+    this.trafficSampleByClientId.clear(); this.trafficVideoByClientId.clear();
     this.menuCategories.clear();
     this.menuItems.clear();
     this.pricePolicies.clear();
@@ -413,6 +452,7 @@ class MemoryStore {
     this.loyaltyAccounts.clear();
     this.rewardInstances.clear();
     this.incidents.clear();
+    this.incidentByClientId.clear();
     this.alerts.clear();
     this.evidenceAssets.clear();
     this.notifications.clear();
@@ -487,6 +527,12 @@ function persistStore() {
       sellingLocations: Array.from(memoryStore.sellingLocations.entries()),
       shifts: Array.from(memoryStore.shifts.entries()),
       locationReports: Array.from(memoryStore.locationReports.entries()),
+      siteConditionObservations: Array.from(memoryStore.siteConditionObservations.entries()),
+      siteConditionObservationByClientId: Array.from(memoryStore.siteConditionObservationByClientId.entries()),
+      trafficSamples: Array.from(memoryStore.trafficSamples.entries()),
+      trafficVideoAssets: Array.from(memoryStore.trafficVideoAssets.entries()),
+      trafficSampleByClientId: Array.from(memoryStore.trafficSampleByClientId.entries()),
+      trafficVideoByClientId: Array.from(memoryStore.trafficVideoByClientId.entries()),
       menuCategories: Array.from(memoryStore.menuCategories.entries()),
       menuItems: Array.from(memoryStore.menuItems.entries()),
       pricePolicies: Array.from(memoryStore.pricePolicies.entries()),
@@ -505,6 +551,7 @@ function persistStore() {
       loyaltyAccounts: Array.from(memoryStore.loyaltyAccounts.entries()),
       rewardInstances: Array.from(memoryStore.rewardInstances.entries()),
       incidents: Array.from(memoryStore.incidents.entries()),
+      incidentByClientId: Array.from(memoryStore.incidentByClientId.entries()),
       alerts: Array.from(memoryStore.alerts.entries()),
       evidenceAssets: Array.from(memoryStore.evidenceAssets.entries()),
       notifications: Array.from(memoryStore.notifications.entries()),
@@ -550,6 +597,12 @@ function loadStore(): boolean {
       populateMap(memoryStore.sellingLocations, data.sellingLocations);
       populateMap(memoryStore.shifts, data.shifts);
       populateMap(memoryStore.locationReports, data.locationReports);
+      populateMap(memoryStore.siteConditionObservations, data.siteConditionObservations);
+      populateMap(memoryStore.siteConditionObservationByClientId, data.siteConditionObservationByClientId);
+      populateMap(memoryStore.trafficSamples, data.trafficSamples);
+      populateMap(memoryStore.trafficVideoAssets, data.trafficVideoAssets);
+      populateMap(memoryStore.trafficSampleByClientId, data.trafficSampleByClientId);
+      populateMap(memoryStore.trafficVideoByClientId, data.trafficVideoByClientId);
       populateMap(memoryStore.menuCategories, data.menuCategories);
       populateMap(memoryStore.menuItems, data.menuItems);
       populateMap(memoryStore.pricePolicies, data.pricePolicies);
@@ -568,6 +621,7 @@ function loadStore(): boolean {
       populateMap(memoryStore.loyaltyAccounts, data.loyaltyAccounts);
       populateMap(memoryStore.rewardInstances, data.rewardInstances);
       populateMap(memoryStore.incidents, data.incidents);
+      populateMap(memoryStore.incidentByClientId, data.incidentByClientId);
       populateMap(memoryStore.alerts, data.alerts);
       populateMap(memoryStore.evidenceAssets, data.evidenceAssets);
       populateMap(memoryStore.notifications, data.notifications);
@@ -596,10 +650,10 @@ function loadStore(): boolean {
 function wrapMapsForPersist() {
   if (globalForStore.__siomayopsWrapped) return;
   const mapKeys: (keyof MemoryStore)[] = [
-    "operators","stalls","assignments","sellingLocations","shifts","locationReports",
+    "operators","stalls","assignments","sellingLocations","shifts","locationReports","siteConditionObservations","siteConditionObservationByClientId","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
     "menuCategories","menuItems","pricePolicies","priceAcknowledgements","sales","saleItems",
     "payments","paymentCallbacks","expenses","stockItems","stockMovements","stockSnapshots",
-    "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","alerts",
+    "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","incidentByClientId","alerts",
     "evidenceAssets","notifications","shiftClosings","shiftByClientId","saleByClientId",
     "paymentByClientId","expenseByClientId","locationReportByClientId","closingByClientId","movementByClientId"
   ];
@@ -640,6 +694,7 @@ export function toJakartanBusinessDay(now: Date): string {
 }
 
 export function ensureSeed() {
+  if (process.env.NODE_ENV === "production") return;
   const ORG = "00000000-0000-7000-0000-000000000001";
   const AREA = "00000000-0000-7000-0000-000000000003";
   const OPERATOR = "00000000-0000-7000-0000-000000000010";
@@ -1126,12 +1181,32 @@ export function reloadStoreFromDisk(): boolean {
   return ok;
 }
 
+export const GPS_SAMPLE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+export const TRAFFIC_VIDEO_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const TRAFFIC_SAMPLE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+export function purgeExpiredGpsSamples(now = new Date()): number {
+  const cutoff = now.getTime() - GPS_SAMPLE_RETENTION_MS;
+  let purged = 0;
+  for (const [id, report] of memoryStore.locationReports) {
+    if (!report.gpsSample) continue;
+    const capturedAt = report.gpsSample.capturedAt;
+    const timestamp = capturedAt instanceof Date ? capturedAt.getTime() : Number.NaN;
+    if (!Number.isFinite(timestamp) || timestamp <= cutoff) {
+      const { gpsSample: _expired, ...operationalReport } = report;
+      memoryStore.locationReports.set(id, operationalReport);
+      purged += 1;
+    }
+  }
+  return purged;
+}
+
 // Initialize persistence
 wrapMapsForPersist();
 if (getDbPath()) {
   const loaded = loadStore();
   ensureSeed();
   if (!loaded) persistStore();
+purgeExpiredGpsSamples();
 }
 
 // Helpers

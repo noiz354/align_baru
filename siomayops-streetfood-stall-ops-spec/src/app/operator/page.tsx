@@ -33,6 +33,18 @@ export default function OperatorPage() {
         </div>
       ) : <p>Profil tidak ditemukan.</p>}
 
+      <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <a href="/operator/traffic-sampling" style={{ display: "inline-flex", alignItems: "center", minHeight: 48, borderRadius: 10, padding: "0 16px", background: "#0f766e", color: "#fff", fontWeight: 750, textDecoration: "none" }}>
+          Sampel arus pengunjung
+        </a>
+        <a href="/operator/site-condition" style={{ display: "inline-flex", alignItems: "center", minHeight: 48, borderRadius: 10, padding: "0 16px", background: "#175b3c", color: "#fff", fontWeight: 750, textDecoration: "none" }}>
+          Kondisi cuaca & lokasi
+        </a>
+        <a href="/operator/incidents/new" style={{ display: "inline-flex", alignItems: "center", minHeight: 48, borderRadius: 10, padding: "0 16px", background: "#8b392e", color: "#fff", fontWeight: 750, textDecoration: "none" }}>
+          Laporkan kejadian
+        </a>
+      </div>
+
       <div style={{ marginTop: 24 }}>
         <TapTarget minSize={44} label="Kembali" onClick={() => window.history.back()}>Kembali</TapTarget>
       </div>

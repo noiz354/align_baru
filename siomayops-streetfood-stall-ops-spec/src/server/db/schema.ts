@@ -4,7 +4,7 @@
  * All tables carry organization_id and appropriate constraints per DATA_MODEL.md and ADR-0031/0032.
  */
 
-import { pgTable, uuid, text, integer, timestamp, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, boolean, jsonb, doublePrecision, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Helper for common columns
 const orgId = uuid("organization_id").notNull();
@@ -144,6 +144,10 @@ export const locationReports = pgTable("location_reports", {
   trigger: text("trigger").notNull(),
   reasonForMove: text("reason_for_move"),
   note: text("note"),
+  gpsLatitude: doublePrecision("gps_latitude"),
+  gpsLongitude: doublePrecision("gps_longitude"),
+  gpsAccuracyMeters: doublePrecision("gps_accuracy_meters"),
+  gpsCapturedAt: timestamp("gps_captured_at", { withTimezone: true }),
   arrivedAt: timestamp("arrived_at", { withTimezone: true }).notNull(),
   departedAt: timestamp("departed_at", { withTimezone: true }),
   clientReportId: uuid("client_report_id").notNull(),
@@ -151,6 +155,59 @@ export const locationReports = pgTable("location_reports", {
 }, (t) => [
   uniqueIndex("location_reports_org_client_unique").on(t.organizationId, t.clientReportId),
   index("location_reports_shift_idx").on(t.shiftId),
+  index("location_reports_gps_captured_idx").on(t.gpsCapturedAt),
+]);
+
+export const trafficSamples = pgTable("traffic_samples", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  sampledAt: timestamp("sampled_at", { withTimezone: true }).notNull(),
+  estimatedCount: integer("estimated_count").notNull(),
+  trafficBand: text("traffic_band").notNull(),
+  note: text("note"),
+  clientRequestId: uuid("client_request_id").notNull(),
+  videoAssetId: uuid("video_asset_id"),
+  videoStatus: text("video_status").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("traffic_samples_org_client_unique").on(t.organizationId, t.clientRequestId),
+  index("traffic_samples_location_time_idx").on(t.organizationId, t.sellingLocationId, t.sampledAt),
+]);
+
+export const trafficVideoAssets = pgTable("traffic_video_assets", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  sampleId: uuid("sample_id"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  contentType: text("content_type").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  privateStorageKey: text("private_storage_key").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("traffic_video_assets_sample_unique").on(t.organizationId, t.sampleId),
+  index("traffic_video_assets_expiry_idx").on(t.expiresAt),
+]);
+
+export const siteConditionObservations = pgTable("site_condition_observations", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  operatorId: uuid("operator_id").notNull(),
+  shiftId: uuid("shift_id").notNull(),
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  groundCondition: text("ground_condition").notNull(),
+  shelterStatus: text("shelter_status").notNull(),
+  shelterNote: text("shelter_note"),
+  relocationDecisionNote: text("relocation_decision_note"),
+  clientRequestId: uuid("client_request_id").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("site_condition_observations_org_client_unique").on(t.organizationId, t.clientRequestId),
+  index("site_condition_observations_operator_location_time_idx").on(t.organizationId, t.operatorId, t.sellingLocationId, t.observedAt),
 ]);
 
 export const menuCategories = pgTable("menu_categories", {
@@ -437,14 +494,22 @@ export const incidents = pgTable("incidents", {
   id: uuid("id").primaryKey(),
   organizationId: orgId,
   shiftId: uuid("shift_id"),
+  sellingLocationId: uuid("selling_location_id"),
   operatorId: uuid("operator_id").notNull(),
   category: text("category").notNull(),
+  severityHint: text("severity_hint"),
   description: text("description").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }),
+  amountMinor: integer("amount_minor"),
+  amountContext: text("amount_context"),
+  clientIncidentId: uuid("client_incident_id"),
   status: text("status").notNull(),
   createdAt,
   updatedAt,
 }, (t) => [
+  uniqueIndex("incidents_org_operator_client_unique").on(t.organizationId, t.operatorId, t.clientIncidentId),
   index("incidents_org_idx").on(t.organizationId),
+  index("incidents_org_operator_created_idx").on(t.organizationId, t.operatorId, t.createdAt),
 ]);
 
 export const SCHEMA_IS_INTENTIONALLY_EMPTY_IN_PHASE_0 = false;

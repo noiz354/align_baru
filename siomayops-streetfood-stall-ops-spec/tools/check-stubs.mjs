@@ -5,7 +5,7 @@
  * Checks that the Phase 0 skeleton stays honest:
  *  1. every `Not implemented: T-XXX-XXX` names a real task in TASKS.md (or a documented alias);
  *  2. no source file under src/ imports a PLANNED/REJECTED dependency from STACK-2026.md;
- *  3. no source file under src/ uses background geolocation APIs (ADR-0007 / INV-07);
+ *  3. geolocation is limited to ADR-0039's one-shot helper; watch/background APIs remain rejected;
  *  4. every exported function under src/ either throws NotImplemented or is a pure constructor
  *     listed in PURE_ALLOWED below;
  *  5. every file under src/ carries a PHASE 0 marker.
@@ -29,9 +29,19 @@ const FORBIDDEN_IMPORTS = [
   "@tanstack/react-query", "drizzle-orm", "pg", "ioredis", "bullmq", "kafkajs", "graphql",
   "@prisma/client", "socket.io", "@sentry/node"
 ];
+const ONE_SHOT_GEOLOCATION_HELPER = "src/app/operator/location/geolocation.ts";
+const PAGE11_CAMERA_HELPER = "src/app/operator/traffic-sampling/capture.ts";
+const IMPLEMENTED_TASK_FILES = new Set([
+  "src/app/operator/traffic-sampling/page.tsx",
+  "src/app/operator/traffic-sampling/traffic-sampling-client.tsx",
+  "src/app/api/v1/operators/me/traffic-sampling/route.ts",
+  "src/app/api/v1/operators/me/traffic-sampling/events/route.ts",
+  "src/app/api/v1/operators/me/traffic-samples/route.ts",
+  "src/app/api/v1/operators/me/traffic-samples/uploads/route.ts",
+]);
 const FORBIDDEN_PATTERNS = [
-  { name: "background geolocation", re: /navigator\.geolocation|watchPosition/g },
-  { name: "continuous tracking loop", re: /setInterval\([^)]*position/gi }
+  { name: "background geolocation watch API", re: /watchPosition|clearWatch/i },
+  { name: "continuous tracking loop", re: /setInterval\([^)]*position/i }
 ];
 
 const problems = [];
@@ -65,11 +75,32 @@ function check(file) {
   for (const { name, re } of FORBIDDEN_PATTERNS) {
     if (re.test(src)) problems.push(`${rel}: uses ${name}, forbidden by ADR-0007 / INV-07`);
   }
+  const cameraReferences = src.match(/navigator\.mediaDevices/g) ?? [];
+  if (cameraReferences.length && rel !== PAGE11_CAMERA_HELPER) {
+    problems.push(`${rel}: camera access is allowed only in the explicit Page 11 capture helper`);
+  }
+  if (rel === PAGE11_CAMERA_HELPER && cameraReferences.length) {
+    const cameraCalls = src.match(/navigator\.mediaDevices(?:\?\.|\.)getUserMedia\s*\(/g) ?? [];
+    if (cameraCalls.length !== 1 || !/audio:\s*false/.test(src)) {
+      problems.push(`${rel}: Page 11 camera helper must have one camera call and explicitly disable audio`);
+    }
+  }
+
+  const geolocationReferences = src.match(/navigator\.geolocation/g) ?? [];
+  if (geolocationReferences.length && rel !== ONE_SHOT_GEOLOCATION_HELPER) {
+    problems.push(`${rel}: geolocation is allowed only in the ADR-0039 one-shot helper`);
+  }
+  if (rel === ONE_SHOT_GEOLOCATION_HELPER && geolocationReferences.length) {
+    const oneShotCalls = src.match(/\.getCurrentPosition\s*\(/g) ?? [];
+    if (geolocationReferences.length !== 1 || oneShotCalls.length !== 1) {
+      problems.push(`${rel}: must contain exactly one explicit getCurrentPosition call`);
+    }
+  }
 
   const fnRe = /export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g;
   for (const m of src.matchAll(fnRe)) {
     const name = m[1];
-    if (PURE_ALLOWED.includes(name)) continue;
+    if (PURE_ALLOWED.includes(name) || IMPLEMENTED_TASK_FILES.has(rel)) continue;
     const from = m.index ?? 0;
     const tail = src.slice(from, from + 1500);
     if (!tail.includes("Not implemented:")) {

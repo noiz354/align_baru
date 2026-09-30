@@ -319,21 +319,21 @@ Manual QA · Definition of Done (DoD).
 
 ## T-LOC-004 — Report selling location
 
-- **Requirements:** FR-LOCATION-004..006, FR-LOCATION-014, NFR-PRIVACY-003
-- **Goal:** Eventually allow an active operator to explicitly report the current selling location for their stall.
-- **ADR:** ADR-0007
-- **Product Docs:** `LOCATIONS.md` §4/§6, `API.md` §2
+- **Requirements:** FR-LOCATION-004..006, FR-LOCATION-014, NFR-PRIVACY-003, NFR-PRIVACY-011
+- **Goal:** Allow an active operator to report the current selling location for their active shift, with optional one-shot GPS assistance.
+- **ADR:** ADR-0007, ADR-0039
+- **Product Docs:** `LOCATIONS.md` §4/§6, `API.md` §1a/§1b/§2
 - **Modules:** `src/features/locations`, `src/domain/location`
 - **Dependencies:** T-SHIFT-001
-- **Behavior:** create a `LocationReport` with arrivedAt; close the previous interval; emit `LocationSelected`; HQ board updates.
+- **Behavior:** create/update the current `LocationReport` with server arrivedAt; close the previous interval on a move; derive organization/operator/shift/stall from the authorized session and server records; optionally attach the explicitly tapped GPS sample; HQ board continues to use selling-point reports only.
 - **Invariants:** operator must have an active shift; stall must belong to the assigned operation; location must not be INACTIVE; report is timestamped; previous history is preserved.
 - **Finance:** none. **Security:** self-scope.
-- **Privacy:** **do not activate continuous background tracking**; no `watchPosition`; reports exist only during shifts; optional one-shot assist is operator-initiated and never stored as a trail.
-- **Offline:** queued with device time; one open report per shift enforced at sync.
+- **Privacy:** **do not activate continuous/background tracking**; no `watchPosition`; reports exist only during shifts. Under ADR-0039, an optional one-shot fix may be attached to each explicitly submitted location report, retained no more than 14 days, and can form only a sparse shift-bound sequence; it is advisory and never used for attendance, discipline, or performance scoring.
+- **Offline:** manual reports may use the existing sync path; Page 10 does not durably queue GPS samples, and sync must not persist a sample. One open report per shift is enforced server-side.
 - **Concurrency:** two reports for the same location ⇒ idempotent (returns the existing open report).
 - **Failures:** back-dating beyond a configured window is rejected; unknown location id rejected.
-- **Tests:** valid location; unauthorized stall; inactive shift; duplicate report; offline resubmission.
-- **Manual QA:** QA-S-01, QA-S-02.
+- **Tests:** valid location; unauthorized/cross-operator shift; cross-area location; inactive shift; duplicate/idempotent report; invalid/stale GPS sample; self-scoped read; expired-sample purge; GPS denied manual fallback; offline resubmission does not retain GPS.
+- **Manual QA:** QA-S-01, QA-S-02 plus `/operator/location` one-shot, denied-permission, reload/persistence and mobile-viewport checks.
 - **DoD:** HQ can see "where is this stall selling now" from reports alone.
 
 ## T-LOC-005 — Change location with reason
@@ -1032,43 +1032,63 @@ Manual QA · Definition of Done (DoD).
 
 ---
 
+## T-TRAFFIC-001 — Human traffic video sampling
+
+- **Status:** NOT DONE — implementation and privacy/runtime evidence pending.
+- **Requirements:** FR-TRAFFIC-001, NFR-PRIVACY-012, ADR-0040, R-26, R-27.
+- **Scope:** `/operator/traffic-sampling`; authenticated current-outlet context; explicit silent video capture ≤10 seconds; private upload/status; manual count/band and bounded note; sample history and privacy-safe aggregate analytics.
+- **Invariants:** no camera on page load; no audio, identity/face recognition, CV, third-party processor or model training; HQ cannot access raw clips; raw objects and backups are deleted within 24 hours; result rows are not keyed to operator/shift; production flag remains off until DPIA/privacy approval and purge/backup deletion are verified.
+- **Tests:** unit and integration tests for camera/upload gates, size/type/duration validation, auth/scope, count/band validation, history isolation, idempotency, cleanup and analytics redaction; browser proof remains required.
+- **Dependencies:** active operator outlet context and private media storage; production release blocked on approved DPIA, real private storage, scheduled purge plus backup expiry evidence.
+
+## T-SITE-001 — Weather & site suitability
+
+- **Status:** NOT DONE — weather source, browser acceptance, production persistence and retention gates remain incomplete.
+- **Requirements:** FR-SITE-001..003; canonical prompt `docs/product/end-to-end-pages/12-weather-site-suitability.md`.
+- **Scope:** `/operator/site-condition`; current active-site context; manual wet/dry and shelter observation; bounded shelter/relocation decision notes; recent site observations; clearly scoped traffic and shift sales; transparent weather-unavailable state and non-binding observation-only cue.
+- **Invariants:** no fabricated weather; no third-party weather calls or GPS forwarding; current shift/site derived server-side; notes are bounded and excluded from telemetry; cue is not a forecast, safety certification, or automatic move.
+- **Tests:** adapter missing-weather fallback, cue freshness/decision rules, auth/scope, validation, idempotency, persistence/history and analytics redaction; browser proof remains required.
+- **Dependencies:** active location/shift context; Page 11 traffic is optional and remains production-gated; production release requires an approved weather provider/data flow, real auth/database and verifiable scheduled retention/backup controls.
+
 ## T-INC-001 — Incident capture
 
-- **Requirements:** FR-INC-001..002, FR-INC-004
-- **Goal:** Fast incident reporting with categories, severity hint, location/shift linkage, optional evidence, offline support.
+- **Status:** PARTIAL — Page 13 neutral online capture and self-scoped API are implemented; acceptance and release gates remain open.
+- **Requirements:** FR-INC-001..002, FR-INC-004, FR-INC-011..013
+- **Goal:** Fast neutral report capture with optional operator urgency hint/amount, server-derived shift/location, self-only history, and no unsupported evidence claims.
 - **ADR:** ADR-0027 (neutrality posture)
-- **Product Docs:** `INCIDENTS.md`
-- **Modules:** `src/features/incidents`
-- **Dependencies:** T-SHIFT-001, T-EXP-004 (uploads)
-- **Behavior:** report → OPEN with system severity assignment; P1 safety categories escalate immediately.
-- **Invariants:** no fault fields; owner's own words are quoted, not structured as accusation; offline reports preserved.
-- **Finance:** links to expenses/payments when relevant. **Security:** evidence access control.
-- **Privacy:** third-party data minimisation; short evidence retention.
-- **Offline:** queued; P1 flagged as "delayed sync" with the measured delay.
-- **Concurrency:** duplicates idempotent by `clientIncidentId`.
-- **Failures:** invalid category rejected; app must never claim to be an emergency channel.
-- **Tests:** integration: severity assignment, offline queue, evidence access, idempotency.
-- **Manual QA:** file a P1 offline and verify delayed-sync flagging.
-- **DoD:** incidents are captured in seconds and handled in a lifecycle.
+- **Product Docs:** `INCIDENTS.md`, `docs/integration/13-security-incident-ground-truth.md`, `docs/integration/13-security-incident-architecture.md`
+- **Modules:** `src/features/incidents`, `/operator/incidents/new`, `/api/v1/incidents`
+- **Dependencies:** T-SHIFT-001; T-EXP-004 is not used for incident evidence in this pilot.
+- **Behavior:** report → `SUBMITTED`; no assigned severity, legal finding, automatic escalation or owner is claimed. Actor/org and optional current shift/site are server-derived.
+- **Invariants:** neutral report categories; no client scope fields or involved-person identity; direct cross-operator/cross-tenant detail returns 404; bounded narratives excluded from audit summaries and telemetry.
+- **Finance:** optional amount is an operator-reported IDR value/context only, not verified financial data. **Security:** evidence upload is unavailable.
+- **Privacy:** reporter-only history; production retention/deletion and durable auth/storage controls remain unverified.
+- **Offline:** existing `submitIncident` queue path must remain intact; contract mapping and device-time semantics still need dedicated verification.
+- **Concurrency:** scoped duplicate idempotency by `clientIncidentId`; tests cover same-key replay and changed content.
+- **Failures:** invalid category/time/amount/key rejected; app must never claim to be an emergency channel.
+- **Tests:** `tests/unit/incident-report.test.ts` and `tests/integration/incident-report-api.test.ts`; offline, persistence restart, migration and runtime/browser acceptance remain open.
+- **Manual QA:** operator browser acceptance and direct URL authorization proof pending.
+- **DoD:** NOT MET until open evidence and production gates in `docs/integration/13-security-incident-gap-report.md` are closed.
 
 ## T-INC-002 — Incident lifecycle and escalation
 
-- **Requirements:** FR-INC-003..006, `STATE_MACHINE.md` §11
-- **Goal:** OPEN → ACKNOWLEDGED → INVESTIGATING → RESOLVED → CLOSED with SLAs, owners, trends.
+- **Status:** PARTIAL — Task 14 adds scoped HQ detail, append-only follow-up notes and a limited status transition path; not a complete response workflow.
+- **Requirements:** FR-INC-003..006, `STATE_MACHINE.md` §11 and Page 14 review surface
+- **Goal:** Human review of real report facts, chronology and supported status/history, without fabricated evidence.
 - **ADR:** ADR-0026
-- **Product Docs:** `INCIDENTS.md` §4/§6
-- **Modules:** `src/features/incidents`, `src/features/hq`
-- **Dependencies:** T-INC-001, T-ALERT-001
-- **Behavior:** owner assignment, SLA timers, reopen with reason, trend analytics, equipment watchlist.
-- **Invariants:** lifecycle monotonic aside from audited reopen; resolution note required; no delete.
-- **Finance:** trend cost visibility (via linked expenses). **Security:** responder-scoped access.
-- **Privacy:** involved-person data restricted; never public.
-- **Offline:** HQ online; operator sees status changes on sync.
-- **Concurrency:** two responders ⇒ single owner (claim/lock semantics).
-- **Failures:** SLA breach raises an alert rather than silently ageing.
-- **Tests:** integration: transitions, SLA alerts, reopen audit, trend aggregation.
-- **Manual QA:** run a P1 through to resolution and check the audit trail.
-- **DoD:** incidents produce fixes, not just records.
+- **Product Docs:** `INCIDENTS.md` §4/§6/§7, Page 14 integration artifacts
+- **Modules:** `src/features/incidents`, `/hq/incidents/[id]`, `/api/v1/hq/incidents`
+- **Dependencies:** T-INC-001; T-ALERT-001 remains outstanding.
+- **Behavior:** reviewer may append a factual note or take an allowed status transition; resolving/closing requires a note. No owner assignment, SLA timer, safety alert, or incident-evidence media review is claimed.
+- **Invariants:** tenant/area scope is server-derived; status changes and notes append audit history; evidence metadata/media remains explicitly unsupported.
+- **Finance:** no linked-expense trend workflow. **Security:** HQ_OPS/OWNER and matching AREA_SUPERVISOR only; direct out-of-scope detail returns 404.
+- **Privacy:** no evidence content, actor IDs or free-text notes in analytics; free text is visible only in authorized incident review and audit history.
+- **Offline:** HQ review is online only.
+- **Concurrency:** status/review requests use idempotency; production transaction/claim guarantees are unverified.
+- **Failures:** invalid transitions, missing resolution notes and wrong-scope access are rejected.
+- **Tests:** domain/schema, role/area/tenant/direct-resource, audit, idempotency and telemetry-redaction tests exist; SLA/escalation tests do not.
+- **Manual QA:** actual browser review and authorized multi-role acceptance pending.
+- **DoD:** NOT MET until runtime/browser acceptance, production auth/storage/retention, evidence policy and remaining lifecycle requirements are closed.
 
 ---
 

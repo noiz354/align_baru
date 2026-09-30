@@ -20,8 +20,9 @@ The product must make five things true:
    of why they do not.
 2. **The field works offline.** A dropped connection never stops a sale.
 3. **Money is never imagined.** No digital payment is recorded as received until it is verified.
-4. **People are treated fairly.** Location is reported, not tracked; variance is investigated, not
-   accused; recognition is multi-factor and reviewable, never revenue-only.
+4. **People are treated fairly.** Location comes from explicit operator reports with optional one-shot
+   fixes, never background tracking; variance is investigated, not accused; recognition is multi-factor
+   and reviewable, never revenue-only.
 5. **HQ can see the network.** Coverage, margin, stock, incidents and settlement status, with freshness
    shown rather than assumed.
 
@@ -185,6 +186,9 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | FR-LOCATION-012 | The system shall retain location reports per `RETENTION.md` and automatically purge coordinate detail beyond the retention window while keeping aggregated coverage. | P1 | VS-17 |
 | FR-LOCATION-013 | The system shall allow HQ to merge or split selling points with an audit trail, preserving historical references. | P2 | VS-12 |
 | FR-LOCATION-014 | The system shall display a location's recent history (who sold there, when, with what outcome) to authorised roles only, and never to customers. | P1 | VS-12 |
+| FR-SITE-001 | During an active operator shift, the system shall allow a manual current-site observation of ground wet/dry state, shelter availability/notes, and an optional relocation decision note; the note does not move the shift or selling point. | P1 | Page 12 / T-SITE-001 |
+| FR-SITE-002 | The operator site-condition page shall show server-derived location/shift context, bounded same-site observations, and only source-labelled traffic/sales data that the current read model supports; missing weather data shall be shown as unavailable, never fabricated. | P1 | Page 12 / T-SITE-001 |
+| FR-SITE-003 | Any site-condition cue shall be deterministic, explainable, based only on a fresh persisted operator observation until an approved weather provider exists, and non-binding; it shall not claim a forecast or automatically relocate an operator. | P1 | Page 12 / T-SITE-001 |
 
 ### 7.4 Shifts and handover — `FR-SHIFT`, `FR-HANDOVER`
 
@@ -417,6 +421,12 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | FR-INC-008 | The system shall allow a safety incident to trigger an immediate escalation path that does not depend on app notifications alone being read. | P1 | VS-13 |
 | FR-INC-009 | The system shall retain incident evidence per `RETENTION.md` and delete it on schedule. | P1 | VS-17 |
 | FR-INC-010 | The system shall allow an incident to be linked to a shift, sale, expense, payment or stock record for context. | P1 | VS-13 |
+| FR-INC-011 | An operator may submit a neutral, self-scoped incident report with an event time, optional integer IDR amount/context, and current location/shift derived from server context; reports remain submittable without a current shift but are then explicitly unlinked. | P1 | Page 13 / T-INC-001 |
+| FR-INC-012 | The incident reporting surface shall not decide legality, identify alleged offenders, accept client-selected tenant/actor/shift/location, or imply emergency response; free text is excluded from analytics and application logs. | P0 | Page 13 / T-INC-001 |
+| FR-INC-013 | Evidence upload/reference is unavailable until durable private storage, access controls, retention and deletion are implemented and approved; the UI must state this limitation rather than simulate attachment. | P1 | Page 13 / T-INC-001 |
+| FR-INC-014 | Authorized HQ/area reviewers may view persisted incident facts and append factual follow-up/status history only within server-derived tenant/area scope; review mutations must be audited and idempotent. | P1 | Page 14 / T-INC-002 |
+| FR-INC-015 | Incident evidence metadata/media must never be presented as reviewable unless persisted evidence, object-level authorization, validation and deletion controls are verified; otherwise detail must explicitly report evidence as unsupported. | P1 | Page 14 / T-INC-002 |
+| FR-TRAFFIC-001 | An operator may explicitly capture a silent video sample of at most 10 seconds and enter a manual human count/band; the raw clip is private, not processed for identity or computer vision, never used for training, purged within 24 hours, and result metadata is not keyed to operator or shift. Production stays disabled pending approved DPIA and verified purge/backup deletion. | P1 | Page 11 / T-TRAFFIC-001 |
 | FR-NOTIF-001 | The system shall model notifications as objects with type, severity, audience, subject, action link, created/read/acted timestamps. | P0 | VS-12 |
 | FR-NOTIF-002 | The system shall deliver in-app notifications as the primary channel, with email, push, or WhatsApp as optional channels enabled per organisation. | P0 | VS-14 |
 | FR-NOTIF-003 | The system shall allow each user to configure which notification types they receive on which channel, within organisation policy. | P1 | VS-14 |
@@ -477,6 +487,8 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | NFR-PRIVACY-008 | The system shall segregate loyalty (customer) data from operator performance data, with different access rules. |
 | NFR-PRIVACY-009 | The system shall document data flows, purposes, recipients and retention before any new collection is added (privacy review gate). |
 | NFR-PRIVACY-010 | The system shall support cross-border processing only where lawful and documented, with the DPO/legal posture recorded. |
+| NFR-PRIVACY-011 | Optional GPS samples shall be captured only after an explicit operator tap during an active shift, attached to an explicit report, excluded from analytics, and purged within 14 days; no background/continuous collection is permitted. |
+| NFR-PRIVACY-012 | Traffic video shall be silent, operator-tap initiated, ≤10 seconds, first-party/private, identity-blind and not used for model training; raw media is deleted within 24 hours with backups, HQ cannot access clips, and result metadata has no operator/shift key. Capture remains production-disabled until DPIA/privacy approval and purge verification. |
 
 ### 8.3 Performance and reliability — `NFR-PERF`, `NFR-REL`
 
@@ -598,12 +610,16 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 ### 9.3 Location privacy rules
 
 1. Location is captured only as an explicit operator action during an active shift (arrive, confirm
-   unchanged, move, depart, step away), with a reason for moves (FR-LOCATION-004/005).
-2. No background collection, no timers, no "safety" pings, no third-party SDK with location access.
-3. Repository methods take scope; a shift's location history is visible to the operator, their
-   supervisor within scope, and HQ roles that need it operationally (never for productivity policing).
-4. Coordinates beyond the retention window are purged automatically; operational coverage data
-   survives in aggregate (FR-LOCATION-012).
+   unchanged, move, depart, step away), with a reason for moves (FR-LOCATION-004/005). Under ADR-0039,
+   one optional browser fix may be attached to each submitted report after a direct user tap.
+2. No background collection, no timers, no "safety" pings, no third-party SDK with location access,
+   and no `watchPosition`. Manual reporting remains available when GPS is denied or unavailable.
+3. Repository methods take scope; a shift's selling-point report history is visible to the operator,
+   their supervisor within scope, and HQ roles that need it operationally (never for productivity
+   policing). Raw GPS fields are self-only, excluded from HQ map/read models, audit payloads and analytics.
+4. GPS coordinates/accuracy/capture times are purged within 14 days (NFR-PRIVACY-011 / R-25);
+   non-GPS location reports follow R-09 and operational coverage data survives in aggregate.
+   Production enablement requires approved DPIA and a verified retention job.
 5. The product never asserts a location's legal permission status. Only an explicit HQ verification
    record counts, and it is labelled with verifier and timestamp (FR-LOCATION-009).
 
@@ -700,10 +716,11 @@ movement analysis; any metric whose only effect is pressure without a linked imp
 | AC-06 | HQ can see, for any business day, coverage, cash position, verification backlog, incidents and unfinished closings, each with a visible freshness timestamp. |
 | AC-07 | A variance beyond tolerance always has a human review record with reason and reviewer; `UNKNOWN` is always available as an operator reason. |
 | AC-08 | Field expenses can be recorded in ≤4 taps with a neutral category and no required recipient or authority assertion, and appear in a Finance review queue. |
-| AC-09 | Location data exists only for active shifts, and no continuous collection, background tracking or third-party location SDK is present. |
+| AC-09 | Location capture occurs only through explicit active-shift reports; optional one-shot GPS fields are purged within 14 days (NFR-PRIVACY-011), while the non-GPS operational report follows R-09; no continuous/background tracking or third-party location SDK is present. |
 | AC-10 | Recognition uses documented multi-factor inputs with published weight ranges, sample-size gates, human review and an appeal path; revenue alone can never decide an award. |
 | AC-11 | Every money-affecting and permission-affecting action has an immutable audit row with actor, reason (where required) and correlation ID. |
 | AC-12 | An operator can see, and dispute, every record about themselves, and can access the privacy notice and their data rights path in the app. |
+| AC-13 | Traffic sampling can start only on an explicit operator tap, records no audio or identity inference, limits clips to 10 seconds, deletes raw media within 24 hours including backups, and leaves operator/shift unlinked from result metadata; production remains off until the privacy and purge gates pass. |
 
 ## 13. Pilot and release criteria
 

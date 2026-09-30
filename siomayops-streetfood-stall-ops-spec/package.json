@@ -39,7 +39,8 @@
     "drizzle-kit": "0.31.4",
     "vitest": "3.1.1",
     "playwright": "1.50.0",
-    "@playwright/test": "1.50.0"
+    "@playwright/test": "1.50.0",
+    "@types/react-dom": "19.0.3"
   },
   "optionalDependencies": {}
 }

@@ -1,7 +1,7 @@
 # API — Contract Catalogue
 
 **Document ID:** DOC-API
-**Status:** Phase 0 — contracts only (**no handlers implemented**)
+**Status:** Contract catalogue with selected implemented vertical slices; handler status is documented per slice.
 **Base path:** `/api/v1` · **Format:** JSON over HTTPS · **Auth:** session cookie (planned)
 **Related:** `ARCHITECTURE.md` §6, `OFFLINE.md`, `EVENTS.md`, ADR-0013, ADR-0014, ADR-0034
 
@@ -12,7 +12,7 @@
 | Rule | Detail |
 | --- | --- |
 | Versioning | Path version `/api/v1`. Breaking changes ⇒ `/api/v2` alongside for one deprecation window. Additive fields are non-breaking. |
-| Content type | `application/json; charset=utf-8`; uploads via pre-signed URLs, not multipart through the API. |
+| Content type | `application/json; charset=utf-8`; uploads normally use pre-signed URLs. Page 11 currently uses a same-origin multipart pilot route only while production is disabled; it must move to the approved private object-storage adapter before release. |
 | Authentication | Session cookie (HttpOnly, Secure, SameSite=Lax) issued by the auth library. Phase 0: none implemented; `AuthPort` shell only. |
 | Authorization | Every operation passes `authorize(actor, action, scope)`. Scope ∈ {org, region, area, stall, self}. Denials ⇒ `403 FORBIDDEN` + audit. |
 | Idempotency | **All** mutating endpoints require `Idempotency-Key`. Replay returns the original response with `idempotentReplay: true`. |
@@ -34,6 +34,48 @@
 `STALE_DATA` · `PAYMENT_NOT_VERIFIED` · `PROVIDER_UNAVAILABLE` · `INTERNAL`
 
 ---
+
+## 1a. `GET /operators/me/location` — Current Operator Location Context
+
+| Field | Value |
+| --- | --- |
+| **Requirement ID** | FR-LOCATION-004, FR-LOCATION-006, NFR-PRIVACY-011 |
+| **Actor** | Operator (self only) |
+| **Authentication** | Session required |
+| **Authorization** | `location:view`; target is the session operator's self scope; only that operator's active shift and current-area selling points are returned |
+| **Input** | None; organization, operator, shift, stall, and area are derived from the session and server records |
+| **Output** | `{ generatedAt, gpsCaptureEnabled, activeShift?, currentLocation?, gpsSample?, locationChoices[] }`; precise GPS fields are returned only to the owning operator and only for their open report |
+| **Validation** | No active shift returns explicit empty state; multiple active shifts return `409`; suspended/inactive operator cannot use the flow |
+| **Caching** | `Cache-Control: private, no-store` |
+
+## 1b. `POST /operators/me/location/events` — Page 10 Coarse Events
+
+| Field | Value |
+| --- | --- |
+| **Actor / authorization** | Authenticated operator, `location:view`, self scope |
+| **Input** | Strict enum-only event: `location_capture_started`, `location_permission_denied` with `reason=denied`, or client-observed `location_save_failed` with `reason=network` |
+| **Output** | `{ accepted: true }` |
+| **Privacy** | No coordinates, accuracy, capture time, outlet/operator/shift/report IDs, free text, or browser error string. A safe `location_page_viewed` event is emitted on successful context reads; server write outcomes are emitted separately. |
+
+## 1c. Page 11 — `/operators/me/traffic-sampling` and traffic samples
+
+| Endpoint | Actor / contract | Persistence / privacy |
+| --- | --- | --- |
+| `GET /operators/me/traffic-sampling` | Authenticated `OPERATOR`, `traffic-sample:view`, self scope; no caller-selected organization, operator, shift, or location. Requires a current active shift/location. | Returns server-derived current outlet/session and up to 10 same-location prior estimates. Count metadata has no operator/shift key; time is rounded to UTC hour. `Cache-Control: private, no-store`. |
+| `POST /operators/me/traffic-sampling/events` | Authenticated `OPERATOR`, `traffic-sample:view`; strict enum-only page events; identity fields and additional properties rejected. | Pino allowlist only; no media, exact count, note, or scope identifiers. |
+| `POST /operators/me/traffic-samples/uploads` | Multipart `video` + declared `durationMs`; requires OPERATOR `traffic-sample:create` + `evidence:upload`, same active location, UUID `Idempotency-Key`; accepts only WebM, EBML signature, ≤10 MB, declared duration ≤10,000 ms. | First-party local private-disk pilot adapter, opaque media key, 24-hour expiry. There is no download/read API. Actual encoded WebM duration is **not independently verified** in this pilot; production stays disabled until server-side media inspection and durable primary/backup purge are implemented and verified. |
+| `POST /operators/me/traffic-samples` | JSON `{ clientRequestId, estimatedCount: 0..500, note?, videoUploadId? }`; requires OPERATOR `traffic-sample:create`; `Idempotency-Key` must equal `clientRequestId`; exact count is manually entered and band is derived server-side. | Persists file-backed sample metadata with location and coarse hour only; no operator/shift field. Raw media status is temporary and detached at purge. An anonymous system audit summary excludes exact count/note. |
+
+The application flag defaults off in non-production. This checkout hard-rejects all Page 11 mutations in production regardless of environment flags; there is no current production enablement path. A future production release must add explicit privacy approval and verified primary/backup deletion controls; flags are not evidence by themselves. Production authentication and a database migration are not available in this checkout.
+
+## 1d. Page 12 — `/operators/me/site-condition`
+
+| Endpoint | Actor / contract | Persistence / privacy |
+| --- | --- | --- |
+| `GET /operators/me/site-condition` | Authenticated `OPERATOR`, `site-condition:view`, self session; current shift/site are server-derived. | Returns the active-site context, up to five same-site operator observations, up to five same-location traffic estimates when Page 11 is enabled, and up to five sales filtered by the persisted active-shift and selling-location IDs. The transaction lookup is bounded to the newest 100 scoped current-business-day rows. Weather returns `UNAVAILABLE / PROVIDER_NOT_CONFIGURED`; no provider request or weather value is fabricated. `Cache-Control: private, no-store`. |
+| `POST /operators/me/site-condition` | Authenticated `OPERATOR`, `site-condition:create`; strict `{ clientRequestId, groundCondition, shelterStatus, shelterNote?, relocationDecisionNote? }`; `Idempotency-Key` must equal `clientRequestId`. Organization, actor, shift, and location are derived from the session/current context. | Creates an audited file-backed site observation for the current active location. Replay returns the original observation; a changed payload or changed shift is a conflict. Notes are bounded and omitted from logs/audit summaries. The optional relocation decision is a note only and does not move a shift. |
+
+The displayed cue is derived only from the newest same-site persisted observation: records older than 60 minutes produce `INSUFFICIENT_DATA`; fresh wet ground without shelter produces `REVIEW_SHELTER`; other wet ground produces `WET_GROUND_CAUTION`; dry ground produces `NO_RELOCATION_CUE`. It is not a numerical suitability score, forecast, safety certification, or relocation command. No weather adapter is configured; external weather processing is not performed. Site observations use the 90-day working retention in R-28, with opportunistic local cleanup only; there is no production scheduler, deployed migration, or backup-deletion proof.
 
 ## 1. `POST /shifts` — Start Shift
 
@@ -59,15 +101,15 @@
 | **Requirement ID** | FR-LOCATION-004, FR-LOCATION-006, FR-LOCATION-011 |
 | **Actor** | Operator (own shift) |
 | **Authentication** | Session required |
-| **Authorization** | scope = `self`; shift must be `OPEN`/`ACTIVE`/`PAUSED` and belong to the actor |
-| **Input** | `{ sellingLocationId, reportedAt, reason?: LocationUpdateReason, note?, clientReportId }` |
-| **Output** | `{ reportId, sellingLocationId, arrivedAt, previousReportClosedAt, locationStatusAdvisory? }` |
-| **Validation** | location exists and is not `INACTIVE`; `reportedAt` not in the future beyond clock skew; one open report per shift |
-| **Errors** | `409 CONFLICT` (already at this location — returns existing report) · `403` (not your shift) · `412` (shift not active) |
-| **Idempotency** | Required: `clientReportId` |
-| **Rate limiting** | 20/min per operator |
-| **Audit** | `LocationSelected` audit event; location history row created |
-| **Offline** | **[OFFLINE-OK]** Queued; history order preserved by `reportedAt` on the device; server rejects back-dating beyond a configured window |
+| **Authorization** | `location:report`; shift must be `OPEN`/`PENDING_SYNC`, in the session organization, and owned by the session operator; the selling point must belong to the shift stall's area |
+| **Input** | `{ sellingLocationId, trigger, reasonForMove?, note?, clientReportId, gpsSample?: { latitude, longitude, accuracyMeters, capturedAt } }`; GPS sample is optional, one-shot, advisory, and submitted only with this explicit report |
+| **Output** | `{ locationReportId, gpsSampleStored }` |
+| **Validation** | Selling point must exist in the session organization and not be `INACTIVE`; `MOVE_SITE` requires a reason; coordinates/accuracy are bounded and capture time must be within five minutes of server time; report actor is never client-supplied |
+| **Errors** | `400 VALIDATION_FAILED` · `403 FORBIDDEN` (not your shift/outside operation area) · `404 NOT_FOUND` · `409 CONFLICT` · `412 PRECONDITION_FAILED` |
+| **Idempotency** | Required: `Idempotency-Key` must equal `clientReportId`; report alias replay is also constrained to the same organization, operator, and shift |
+| **Audit** | `location.reported` or `location.gps_sample_saved`; summaries omit coordinates and accuracy |
+| **Retention** | GPS fields are scrubbed after 14 days by the current adapter on process start and Page 10 reads/writes. A reliable production scheduled purge and backup-expiry verification remain production gates (R-25). |
+| **Offline** | Manual offline reports may use the existing sync path, but that path does not persist GPS samples; Page 10 does not durably queue raw GPS in the browser. |
 
 ## 3. `POST /shifts/{shiftId}/location-changes` — Change Location (move)
 
@@ -256,22 +298,54 @@
 | **Audit** | `ShiftClosed` with full summary snapshot; later corrections are separate audited events |
 | **Offline** | **[OFFLINE-OK]** with special semantics: closing is stored `PENDING_SYNC` and **remains editable** until the server accepts it; the UI must not claim "closed" while pending |
 
-## 14. `POST /incidents` — Submit Incident
+## 14. Page 13 — Operator incident reporting
+
+This section documents the implemented local pilot, not the broader aspirational incident workflow.
+
+### `GET /api/v1/incidents`
 
 | Field | Value |
 | --- | --- |
-| **Requirement ID** | FR-INC-001, FR-INC-006 |
-| **Actor** | Operator, Supervisor, HQ |
-| **Authentication** | Session required |
-| **Authorization** | scope = `self`/`area`; operators may report incidents for their own shift/location |
-| **Input** | `{ category, severityHint?, description, occurredAt, sellingLocationId?, shiftId?, evidenceObjectKeys?: string[], clientIncidentId }` |
-| **Output** | `{ incidentId, status: "OPEN", severityAssigned, ownerAssigned?, escalation: "NONE"|"P1_SAFETY" }` |
-| **Validation** | category from configured list; description ≥ 10 chars; occurredAt not absurdly future/past; severity assignment rule applied; safety categories force escalation |
-| **Errors** | `422` · `403` |
-| **Idempotency** | Required |
-| **Rate limiting** | 20/hour per operator |
-| **Audit** | `IncidentReported`; subsequent lifecycle moves audited separately |
-| **Offline** | **[OFFLINE-OK]** Queued with device time; P1 escalation is attempted on reconnect and flagged as delayed sync in HQ |
+| **Actor / authorization** | Authenticated `OPERATOR` only; actor and organization come from session; self-only rows |
+| **Output** | Current server-derived active shift/location context, neutral category catalog and at most 10 recent reports belonging to the reporter |
+| **Privacy** | `Cache-Control: no-store`; response excludes operator/tenant IDs, coordinates and other reporters' content |
+| **Missing shift** | Returns an explicit unlinked context; submission can continue without shift or location |
+
+### `POST /api/v1/incidents`
+
+| Field | Value |
+| --- | --- |
+| **Actor / authorization** | Authenticated `OPERATOR` only; server derives actor, organization and optional current shift/location |
+| **Input** | `{ clientIncidentId, categoryCode, description, occurredAt, severityHint?, amountMinor?, amountContext? }`; strict schema rejects client-selected actor/tenant/shift/location or evidence keys |
+| **Output** | Self-scoped report with initial status `SUBMITTED`; no server-assigned severity, owner, or escalation is claimed |
+| **Validation** | Neutral category allowlist; 10–2,000 character trimmed narrative; valid event timestamp not more than 5 minutes in the future; optional non-negative integer IDR amount ≤ 1,000,000,000 paired with `REQUESTED`/`PAID`/`UNCLEAR` |
+| **Errors** | `400` invalid input/time/key · `401` unauthenticated · `403` role denied · `404` unavailable context/resource · `409` client-ID conflict · `422` changed body under an existing idempotency key |
+| **Idempotency** | `Idempotency-Key` is required and must equal `clientIncidentId`; scoped duplicate content replays, changed content is rejected |
+| **Audit / telemetry** | Submission audit excludes narrative; analytics events are coarse and exclude free text, amount, IDs and evidence |
+| **Evidence** | Not accepted; no upload UI/API, evidence reference or `incident_evidence_added` event exists |
+| **Offline** | Existing offline queue continues to use `submitIncident`; however, mapping this newer online contract to durable offline/device-time semantics is not yet verified |
+
+### `GET /api/v1/incidents/{incidentId}`
+
+Authenticated operator self-only detail read. A report outside the current operator/organization scope returns `404` (including direct-URL access); responses are uncached and omit actor IDs. This endpoint does not expose a reviewer/HQ detail surface.
+
+**Not implemented:** production session authentication, a verified durable database migration/retention job, full owner/SLA/notification workflow, incident evidence storage/deletion, and browser acceptance. See the Page 13 and Page 14 gap reports for release gates.
+
+### Page 14 — HQ incident review (`/hq/incidents/[id]`)
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /api/v1/hq/incidents/inbox` | Authenticated `OWNER`, `HQ_OPS`, or `AREA_SUPERVISOR` with `incident:view`; latest 100 bounded summaries. `AREA_SUPERVISOR` is filtered by server-derived incident area. Response omits narratives, raw actor IDs and evidence references. |
+| `GET /api/v1/hq/incidents/{incidentId}` | Same read roles; returns real incident facts, derived reporter/outlet/location names, at most 50 chronological audit-history entries, allowed next statuses and explicit `{ evidence: { status: "UNSUPPORTED", items: [] } }`. Missing, cross-tenant and out-of-area records return `404`. `Cache-Control: no-store`. |
+| `POST /api/v1/hq/incidents/{incidentId}/review` | `OWNER`, `HQ_OPS`, or matching `AREA_SUPERVISOR` with `incident:resolve`. Input `{ clientReviewId, status?, note? }`; status-only and note-only are supported, but `RESOLVED`/`CLOSED` require a bounded factual note. No evidence key/URL is accepted. |
+
+**Validation/idempotency:** strict request schema; note 10–1,000 trimmed characters; allowed status transition only; `Idempotency-Key` must equal `clientReviewId`. Same-key replay does not append a second audit event; changed body under the same key is rejected.
+
+**Persistence/audit:** report facts are read from the existing incident record. Status changes and note-only follow-ups append `AuditEvent` records (`incident.transitioned` / `incident.review_note_added`); review history is an audit projection, not a separate mutable table. Current implementation uses the local file-backed memory store, not a deployed SQL migration or production transaction.
+
+**Analytics:** `incident_reviewed`, coarse `incident_review_note_added`, `incident_status_changed`, and `incident_review_failed` use the existing structured logger. No narrative, amount, identity, or evidence metadata is emitted. `incident_evidence_opened` is not emitted because evidence review is unsupported.
+
+**Not implemented:** evidence metadata/media authorization, upload/download, production storage/retention, owner/SLA/escalation/notification lifecycle, production auth and browser acceptance.
 
 ## 15. `POST /loyalty/customers/identify` — Identify Loyalty Customer
 
@@ -338,6 +412,30 @@ they export data.
 
 ## 18. Skeleton mapping
 
-Each contract above has a route shell under `src/app/api/v1/.../route.ts` that validates input
-with a Zod schema from `src/shared/contracts` and then throws
-`new Error("Not implemented: T-XXX-XXX")`. No handler logic exists in Phase 0.
+Contracts above describe the intended API surface. Runtime implementation is slice-specific: implemented handlers are listed in the relevant page integration documents. Other planned endpoints may still be skeletons; do not infer runtime support from a contract alone.
+
+---
+
+## Implemented page slice — Transactions (2026-09-30)
+
+The `/transactions` page currently uses these handlers; details and known limitations are recorded in `docs/integration/05-transactions-architecture.md`.
+
+### `GET /api/v1/transactions`
+
+- Requires an authenticated session and `sale:view`.
+- Supports optional `businessDay=YYYY-MM-DD`, `stallId`, `status`, `limit` (1–100), and `offset` (0–100000).
+- Scope filtering is server-side. Output contains structured IDR minor-unit totals, timestamps, status/payment summary, authorized outlet options, and pagination metadata.
+- Current runtime persistence is file-backed `memoryStore`; it is not the planned PostgreSQL query adapter.
+
+### `GET /api/v1/transactions/{transactionId}`
+
+- Requires `sale:view`; returns `404` for absent or out-of-scope transactions.
+- Returns persisted sale lines with immutable unit-price snapshots and persisted payment records.
+
+### `POST /api/v1/transactions`
+
+- Requires session permissions `sale:create` and `payment:cash`, an open shift in the caller's server-derived scope, and a non-empty `Idempotency-Key`.
+- Input: `{ shiftId, clientSaleId, clientPaymentId, lines: [{ menuItemId, quantity }], cashReceivedMinor }` (optional `occurredAtDevice`, ISO UTC).
+- Server resolves prices from active policies, computes integer IDR totals, validates cash, and persists sale + cash payment + stock completion + audit events through the existing features.
+- Output: `{ data: { transactionId, status, totalMinor, changeMinor, currency: "IDR" } }`.
+- This is online cash only. Digital payments, correction, and void are deliberately not exposed by this page. A payment rejection can leave a persisted `DRAFT` sale because the current file-backed features do not share a SQL transaction boundary.
