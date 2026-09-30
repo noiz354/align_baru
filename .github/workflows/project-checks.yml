@@ -149,7 +149,7 @@ jobs:
       # Existing @playwright/test peer range conflicts with Next 15.4.2.
       - run: npm install --legacy-peer-deps --no-package-lock
         working-directory: siomayops-streetfood-stall-ops-spec
-      - run: npm run typecheck && npm test && npm run build
+      - run: npm run lint && npm run typecheck && npm test && npm run build
         working-directory: siomayops-streetfood-stall-ops-spec
   manga:
     runs-on: ubuntu-latest

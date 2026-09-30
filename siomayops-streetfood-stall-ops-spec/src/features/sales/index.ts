@@ -5,6 +5,8 @@ import { computeSaleTotalFromSnapshots } from "../../domain/sale/totals";
 import { resolvePriceForSale } from "../pricing";
 import { writeAuditEvent } from "../audit";
 
+export * from "./transactions";
+
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
 export interface CreateSaleInput {
@@ -32,6 +34,9 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
   const existingSaleId = memoryStore.saleByClientId.get(input.clientSaleId);
   if (existingSaleId) {
     const existing = memoryStore.sales.get(existingSaleId);
+    if (existing && existing.organizationId !== orgId) {
+      throw Object.assign(new Error("Client sale id is already assigned"), { code: "CONFLICT" });
+    }
     if (existing) {
       const items = Array.from(memoryStore.saleItems.values()).filter(i => i.saleId === existing.id);
       return {
@@ -79,6 +84,9 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
     if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
       throw Object.assign(new Error(`Invalid quantity for ${line.menuItemId}`), { code: "VALIDATION_FAILED" });
     }
+    const menuItem = memoryStore.menuItems.get(line.menuItemId);
+    if (!menuItem || menuItem.organizationId !== orgId) throw Object.assign(new Error("Product not found"), { code: "NOT_FOUND", status: 404 });
+    if (!menuItem.active) throw Object.assign(new Error("Product is inactive"), { code: "PRECONDITION_FAILED", status: 409 });
     const resolution = await resolvePriceForSale({
       menuItemId: line.menuItemId,
       sellingLocationId: sellingLocationId as any,

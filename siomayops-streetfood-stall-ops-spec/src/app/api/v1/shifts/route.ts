@@ -16,9 +16,16 @@ export async function GET(request: NextRequest) {
   let shifts = Array.from(memoryStore.shifts.values()).filter(s => s.organizationId === session.organizationId);
   if (status) shifts = shifts.filter(s => s.status === status);
   if (businessDay) shifts = shifts.filter(s => s.businessDay === businessDay);
-  // Scope filtering: self can only see own shifts
+  // Apply persisted session scope before exposing shift choices to client pages.
   if (session.scope.kind === "self") {
     shifts = shifts.filter(s => s.operatorId === session.scope.operatorId);
+  } else if (session.scope.kind === "stall") {
+    shifts = shifts.filter(s => s.stallId === session.scope.stallId);
+  } else if (session.scope.kind === "area") {
+    shifts = shifts.filter(s => memoryStore.stalls.get(s.stallId)?.areaId === session.scope.areaId);
+  } else if (session.scope.kind === "region") {
+    // No region membership is represented in the current persistence adapter; fail closed.
+    shifts = [];
   }
   shifts = shifts.sort((a,b) => b.startedAt.getTime() - a.startedAt.getTime()).slice(0, limit);
 

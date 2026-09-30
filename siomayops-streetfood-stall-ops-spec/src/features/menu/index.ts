@@ -3,6 +3,10 @@ import type { SellingLocationId } from "../../shared/types/ids";
 import type { Money } from "../../shared/money";
 import { writeAuditEvent } from "../audit";
 import { resolvePriceForSale } from "../pricing";
+import { hasCurrentOrFuturePricePolicy } from "./catalog";
+
+export * from "./catalog";
+export * from "./analytics";
 
 export interface MenuItemConfig {
   readonly menuItemId: string;
@@ -27,52 +31,76 @@ const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-00000000
 const availabilityMap = new Map<string, { available: boolean; reason: string }>();
 
 export async function upsertMenuItem(input: {
-  name: string; kind: MenuItemConfig["kind"];
-  components?: MenuItemConfig["components"]; reason: string; organizationId?: string; categoryId?: string;
+  name: string; kind: "SELLABLE"; reason: string; organizationId?: string; categoryId: string;
+  actorId?: string; actorRole?: string;
 }): Promise<MenuItemConfig> {
   const orgId = input.organizationId || DEFAULT_ORG;
+  const name = input.name.trim();
+  const reason = input.reason.trim();
+  if (name.length < 2 || name.length > 120) throw Object.assign(new Error("Product name must be 2–120 characters"), { code: "VALIDATION_FAILED", status: 400 });
+  if (reason.length < 3 || reason.length > 300) throw Object.assign(new Error("A reason of 3–300 characters is required"), { code: "VALIDATION_FAILED", status: 400 });
+  if (input.kind !== "SELLABLE") throw Object.assign(new Error("Only simple sellable items are supported"), { code: "UNSUPPORTED", status: 422 });
+  const category = memoryStore.menuCategories.get(input.categoryId);
+  if (!category || category.organizationId !== orgId) throw Object.assign(new Error("Menu category not found"), { code: "NOT_FOUND", status: 404 });
   const id = generateId();
-  // Ensure category exists or create default
-  let categoryId = input.categoryId;
-  if (!categoryId) {
-    // Find or create default category
-    let cat = Array.from(memoryStore.menuCategories.values()).find(c => c.organizationId === orgId);
-    if (!cat) {
-      const catId = generateId();
-      cat = { id: catId, organizationId: orgId, name: "Default", sortOrder: 0 };
-      memoryStore.menuCategories.set(catId, cat);
-    }
-    categoryId = cat.id;
-  }
   const now = new Date();
+  const sortOrder = Array.from(memoryStore.menuItems.values())
+    .filter((item) => item.organizationId === orgId)
+    .reduce((maximum, item) => Math.max(maximum, item.sortOrder), 0) + 1;
   memoryStore.menuItems.set(id, {
     id,
     organizationId: orgId,
-    categoryId: categoryId!,
-    name: input.name,
+    categoryId: category.id,
+    name,
     active: true,
-    sortOrder: memoryStore.menuItems.size,
+    sortOrder,
     createdAt: now,
   });
   await writeAuditEvent({
     organizationId: orgId,
     actorKind: "HQ_USER",
+    actorId: input.actorId,
+    actorRole: input.actorRole,
     action: "menu.item_upserted",
     subjectKind: "menu_item",
     subjectId: id,
-    reason: input.reason,
+    reason,
     correlationId: generateId(),
     occurredAt: now,
-    afterSummary: { name: input.name, kind: input.kind },
+    afterSummary: { name, kind: input.kind, categoryId: category.id },
   });
-  return {
-    menuItemId: id,
-    name: input.name,
-    kind: input.kind,
-    components: input.components,
-    isRetired: false,
-    organizationId: orgId,
-  };
+  return { menuItemId: id, name, kind: "SELLABLE", isRetired: false, organizationId: orgId };
+}
+
+export async function setMenuItemStatus(input: {
+  menuItemId: string; active: boolean; reason: string; organizationId: string; actorId: string; actorRole?: string;
+}): Promise<{ menuItemId: string; active: boolean }> {
+  const item = memoryStore.menuItems.get(input.menuItemId);
+  if (!item || item.organizationId !== input.organizationId) throw Object.assign(new Error("Product not found"), { code: "NOT_FOUND", status: 404 });
+  const reason = input.reason.trim();
+  if (reason.length < 3 || reason.length > 300) throw Object.assign(new Error("A reason of 3–300 characters is required"), { code: "VALIDATION_FAILED", status: 400 });
+  if (item.active === input.active) throw Object.assign(new Error("Product already has this status"), { code: "CONFLICT", status: 409 });
+  if (!input.active && hasCurrentOrFuturePricePolicy(item.id, input.organizationId)) {
+    throw Object.assign(new Error("A current or future price policy references this product; replace or expire its pricing before deactivation"), { code: "PRECONDITION_FAILED", status: 409 });
+  }
+  const previousActive = item.active;
+  item.active = input.active;
+  memoryStore.menuItems.set(item.id, item);
+  await writeAuditEvent({
+    organizationId: input.organizationId,
+    actorKind: "HQ_USER",
+    actorId: input.actorId,
+    actorRole: input.actorRole,
+    action: "menu.item_status_changed",
+    subjectKind: "menu_item",
+    subjectId: item.id,
+    reason,
+    correlationId: generateId(),
+    occurredAt: new Date(),
+    beforeSummary: { active: previousActive },
+    afterSummary: { active: item.active },
+  });
+  return { menuItemId: item.id, active: item.active };
 }
 
 export async function setItemAvailability(input: {

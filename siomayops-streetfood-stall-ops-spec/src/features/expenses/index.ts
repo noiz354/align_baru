@@ -1,8 +1,11 @@
-import { memoryStore, generateId } from "../../server/db/memory-store";
+import { memoryStore, generateId, type StoredExpense } from "../../server/db/memory-store";
 import type { Money } from "../../shared/money";
 import { writeAuditEvent } from "../audit";
-import { nextReviewState, matchesFlagPattern, type ExpenseRecord } from "../../domain/expense/review";
+import { EXPENSE_CATEGORY_CODES, nextReviewState, matchesFlagPattern, type ExpenseCategoryCode, type ExpenseRecord, type ExpenseReviewState } from "../../domain/expense/review";
 import { money } from "../../shared/money/money";
+
+export * from "./read-model";
+export * from "./analytics";
 
 const DEFAULT_ORG = process.env.FAKE_ORG_ID || "00000000-0000-7000-0000-000000000001";
 
@@ -10,7 +13,7 @@ export interface SubmitExpenseInput {
   shiftId: string;
   categoryId?: string;
   categoryCode?: string;
-  description: string;
+  description?: string;
   amount: Money;
   paidFrom: "CASH_BOX" | "PERSONAL";
   operatorNote?: string;
@@ -20,43 +23,66 @@ export interface SubmitExpenseInput {
   sellingLocationId?: string;
   operatorId?: string;
   organizationId?: string;
+  actorId?: string;
+  actorKind?: "OPERATOR" | "HQ_USER";
 }
 
 export async function submitExpense(input: SubmitExpenseInput): Promise<{ expenseId: string }> {
   const orgId = input.organizationId || DEFAULT_ORG;
-  // Idempotency
+  // Client IDs are globally indexed by the current map adapter; prevent cross-tenant replay.
   const existingId = memoryStore.expenseByClientId.get(input.clientExpenseId);
   if (existingId) {
-    return { expenseId: existingId };
+    const existing = memoryStore.expenses.get(existingId);
+    if (existing && existing.organizationId !== orgId) {
+      throw Object.assign(new Error("Client expense id is already assigned"), { code: "CONFLICT", status: 409 });
+    }
+    if (existing) {
+      const matchesRequest = existing.shiftId === input.shiftId
+        && existing.category === (input.categoryCode || "OTHER_OPERATIONAL")
+        && existing.amountMinor === input.amount.amountMinor
+        && existing.paidFrom === input.paidFrom
+        && existing.description === (input.description?.trim() ?? "")
+        && (existing.note ?? "") === (input.operatorNote?.trim() ?? "");
+      if (!matchesRequest) throw Object.assign(new Error("Client expense id was reused with different data"), { code: "CONFLICT", status: 409 });
+      return { expenseId: existing.id };
+    }
   }
   const shift = memoryStore.shifts.get(input.shiftId);
-  if (!shift) throw Object.assign(new Error("Shift not found"), { code: "NOT_FOUND" });
-
-  const category = input.categoryCode || "OTHER_OPERATIONAL";
-  // Validate neutral categories
-  const allowedCategories = ["UNVERIFIED_FIELD_EXPENSE", "TRANSPORT", "CLEANING", "CONSUMABLE", "REPAIR_MINOR", "PARKING", "OTHER_OPERATIONAL"];
-  if (!allowedCategories.includes(category)) {
-    throw Object.assign(new Error(`Invalid category ${category}`), { code: "VALIDATION_FAILED" });
+  if (!shift || shift.organizationId !== orgId) throw Object.assign(new Error("Shift not found"), { code: "NOT_FOUND", status: 404 });
+  if (shift.status !== "OPEN" && shift.status !== "PENDING_SYNC") {
+    throw Object.assign(new Error("Shift is not open for expense submissions"), { code: "PRECONDITION_FAILED", status: 409 });
   }
+  if (!Number.isSafeInteger(input.amount.amountMinor) || input.amount.amountMinor <= 0) {
+    throw Object.assign(new Error("Expense amount must be a positive integer"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+
+  const candidateCategory = input.categoryCode || "OTHER_OPERATIONAL";
+  if (!(EXPENSE_CATEGORY_CODES as readonly string[]).includes(candidateCategory)) {
+    throw Object.assign(new Error("Unsupported expense category"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+  const category = candidateCategory as ExpenseCategoryCode;
 
   const id = generateId();
   const now = new Date();
-  const expense: any = {
+  const activeLocation = Array.from(memoryStore.locationReports.values())
+    .filter((report) => report.organizationId === orgId && report.shiftId === shift.id && !report.departedAt)
+    .sort((a, b) => b.arrivedAt.getTime() - a.arrivedAt.getTime())[0];
+  const expense: StoredExpense = {
     id,
     organizationId: orgId,
     shiftId: input.shiftId,
-    operatorId: input.operatorId || shift.operatorId,
-    sellingLocationId: input.sellingLocationId,
+    operatorId: shift.operatorId,
+    sellingLocationId: input.sellingLocationId ?? activeLocation?.sellingLocationId ?? shift.startLocationId,
     category,
     amountMinor: input.amount.amountMinor,
     currency: "IDR" as const,
-    description: input.description,
-    note: input.operatorNote,
+    description: input.description?.trim() ?? "",
+    note: input.operatorNote?.trim() || undefined,
     paidFrom: input.paidFrom,
     evidenceObjectKey: input.evidenceAssetId,
-    reviewStatus: "SUBMITTED",
+    reviewStatus: "SUBMITTED" as const,
     clientExpenseId: input.clientExpenseId,
-    incurredAt: input.recordedAtDevice || now,
+    incurredAt: input.recordedAtDevice ?? now,
     createdAt: now,
   };
   memoryStore.expenses.set(id, expense);
@@ -66,8 +92,8 @@ export async function submitExpense(input: SubmitExpenseInput): Promise<{ expens
   const record: ExpenseRecord = {
     expenseId: id,
     shiftId: input.shiftId,
-    categoryCode: category as any,
-    description: input.description,
+    categoryCode: category,
+    description: input.description ?? "",
     amount: input.amount,
     paidFrom: input.paidFrom,
     operatorNote: input.operatorNote,
@@ -82,7 +108,7 @@ export async function submitExpense(input: SubmitExpenseInput): Promise<{ expens
 
   if (flaggedReason) {
     expense.reviewStatus = "REVIEW_REQUIRED";
-    (expense as any).flaggedReason = flaggedReason;
+    expense.flaggedReason = flaggedReason;
     await writeAuditEvent({
       organizationId: orgId,
       actorKind: "SYSTEM",
@@ -97,8 +123,8 @@ export async function submitExpense(input: SubmitExpenseInput): Promise<{ expens
 
   await writeAuditEvent({
     organizationId: orgId,
-    actorKind: "OPERATOR",
-    actorId: expense.operatorId,
+    actorKind: input.actorKind ?? "OPERATOR",
+    actorId: input.actorId ?? expense.operatorId,
     action: "expense.submitted",
     subjectKind: "expense",
     subjectId: id,
@@ -111,16 +137,28 @@ export async function submitExpense(input: SubmitExpenseInput): Promise<{ expens
 }
 
 export async function reviewExpense(input: {
-  expenseId: string; decision: "REVIEWED" | "REJECTED" | "ESCALATED"; reason: string; reviewedBy: string; organizationId?: string;
+  expenseId: string; decision: "REVIEWED" | "REJECTED" | "ESCALATED"; reason: string; reviewedBy: string; reviewerRole?: string; organizationId?: string; reviewerOperatorId?: string;
 }): Promise<{ expenseId: string; newStatus: string }> {
   const expense = memoryStore.expenses.get(input.expenseId);
-  if (!expense) throw Object.assign(new Error("Expense not found"), { code: "NOT_FOUND" });
-  const current = expense.reviewStatus as any;
-  const next = nextReviewState(current, input.decision, input.reason);
+  if (!expense || (input.organizationId && expense.organizationId !== input.organizationId)) {
+    throw Object.assign(new Error("Expense not found"), { code: "NOT_FOUND", status: 404 });
+  }
+  if (input.reviewedBy === expense.operatorId || input.reviewerOperatorId === expense.operatorId) {
+    throw Object.assign(new Error("Submitter cannot review their own expense"), { code: "FORBIDDEN", status: 403 });
+  }
+  const current: ExpenseReviewState = expense.reviewStatus;
+  let next: ExpenseReviewState;
+  try {
+    next = nextReviewState(current, input.decision, input.reason);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid review transition";
+    throw Object.assign(new Error(message), { code: message.startsWith("Reason") ? "VALIDATION_FAILED" : "INVALID_TRANSITION", status: message.startsWith("Reason") ? 400 : 409 });
+  }
   const prev = expense.reviewStatus;
-  expense.reviewStatus = next as any;
+  expense.reviewStatus = next;
   expense.reviewedBy = input.reviewedBy;
   expense.reviewedAt = new Date();
+  expense.reviewReason = input.reason;
   memoryStore.expenses.set(expense.id, expense);
 
   const actionMap: Record<string, any> = {
@@ -133,6 +171,7 @@ export async function reviewExpense(input: {
     organizationId: expense.organizationId,
     actorKind: "HQ_USER",
     actorId: input.reviewedBy,
+    actorRole: input.reviewerRole,
     action: actionMap[input.decision] || "expense.reviewed",
     subjectKind: "expense",
     subjectId: expense.id,

@@ -6,6 +6,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 export type OrganizationId = string;
@@ -211,6 +212,7 @@ export interface StoredExpense {
   flaggedReason?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
+  reviewReason?: string;
   clientExpenseId: string;
   incurredAt: Date;
   createdAt: Date;
@@ -429,7 +431,11 @@ class MemoryStore {
 export const memoryStore = new MemoryStore();
 
 // --- Persistence layer (file-backed) ---
-const DB_PATH = path.join(process.cwd(), "data", "db.json");
+const DB_PATH = process.env.SIOMAYOPS_DATA_FILE
+  ? path.resolve(process.env.SIOMAYOPS_DATA_FILE)
+  : process.env.NODE_ENV === "test"
+    ? path.join(os.tmpdir(), `siomayops-test-${process.pid}.json`)
+    : path.join(process.cwd(), "data", "db.json");
 
 function dateReviver(_key: string, value: any) {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
@@ -583,6 +589,8 @@ function toJakartanBusinessDay(now: Date): string {
 }
 
 function ensureSeed() {
+  // The catalog and financial seed is for local/test work only; never insert it at production startup.
+  if (process.env.NODE_ENV === "production") return;
   const ORG = "00000000-0000-7000-0000-000000000001";
   const AREA = "00000000-0000-7000-0000-000000000003";
   const OPERATOR = "00000000-0000-7000-0000-000000000010";

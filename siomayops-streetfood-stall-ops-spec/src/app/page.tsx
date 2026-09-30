@@ -88,7 +88,7 @@ export default function Page() {
         <a className="nav-link" href="/sell"><Icon name="receipt"/><span>Transaksi</span></a>
         <a className="nav-link" href="/expenses"><Icon name="wallet"/><span>Pengeluaran</span></a>
         <a className="nav-link" href="/stock"><Icon name="box"/><span>Produk &amp; Harga</span></a>
-        <a className="nav-link" href="/hq"><Icon name="chart"/><span>Laporan</span></a>
+        <a className="nav-link" href="/reports"><Icon name="chart"/><span>Laporan</span></a>
       </nav>
       <div className="sidebar-bottom">
         <a className="nav-link" href="#pengaturan" onClick={(event) => { event.preventDefault(); showToast("Pengaturan akun siap dibuka"); }}><Icon name="settings"/><span>Pengaturan</span></a>

@@ -173,3 +173,9 @@ Voiding is *not* the same as "the customer changed their mind before paying" —
 | Sale recorded after closing started | Accepted only if `occurredAt` precedes the closing start; otherwise it becomes a "late sale" exception with HQ visibility |
 | Duplicate loyaly earn on replay | Earn is idempotent by sale reference (later slice) |
 | Void of an already-voided sale | Rejected with `INVALID_TRANSITION` |
+
+---
+
+## Implemented Transactions page slice
+
+The `/transactions` UI lists persisted sales, supports server-side business-day/outlet/status filters, shows direct detail records, and creates online cash transactions from an authorized open shift. The page reads only via `/api/v1/transactions`; it does not use dashboard/demo records. The authoritative price is resolved at the server boundary and cash completion uses the established sale/payment features. Digital methods and sale correction/void controls are intentionally unavailable in this page until their provider/reversal invariants are ready. See `docs/integration/05-transactions-ground-truth.md` and `docs/integration/05-transactions-gap-report.md` for implementation truth and current gaps.
