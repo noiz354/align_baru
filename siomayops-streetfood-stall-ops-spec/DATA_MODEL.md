@@ -152,6 +152,11 @@ StockMovement(id, organization_id, stock_item_id, stall_id?, operator_id?,
 StockSnapshot(id, organization_id, shift_id, stock_item_id, phase (START|END),
               counted_quantity, expected_quantity?, variance_quantity?, reason?)
 
+TrafficSample(id, organization_id, selling_location_id, sampled_at_hour, estimated_count,
+              traffic_band, note?, client_request_id, video_asset_id?, video_status)
+TrafficVideoAsset(id, organization_id, selling_location_id, sample_id?, uploaded_at,
+                  expires_at, content_type, byte_size, duration_ms, private_storage_key)
+
 AuditEvent(id, organization_id, actor_id, actor_role, action, entity_type,
            entity_id, occurred_at, previous_value_json, new_value_json, reason,
            request_id, ip_hash?, user_agent?)
@@ -171,6 +176,8 @@ Shift 1─1 ShiftClosing
 Sale  1─1 Payment (MVP: exactly one active payment per sale; more later via PaymentAttempt)
 StockItem 1─* StockMovement *─1 Shift (optional)
 Operator 1─* Shift *─1 Stall
+SellingLocation 1─* TrafficSample; TrafficSample 0..1─1 temporary TrafficVideoAsset
+TrafficSample has no operator_id or shift_id; video metadata has no operator_id or shift_id
 Everything *─1 Organization
 ```
 
@@ -214,7 +221,7 @@ Everything *─1 Organization
 | Payment dedupe | unique `(provider, provider_reference)`; unique `(organization_id, dedupe_key)` on callbacks |
 | Audit | Append-only; index on `(entity_type, entity_id, occurred_at)` and `(actor_id, occurred_at)` |
 | Raw payloads | `jsonb` (callbacks) with size guard; encrypted at rest at the platform level |
-| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest |
+| Retention | See `RETENTION.md`; audit + financial records kept longest, evidence shortest; raw traffic media ≤24 hours and sample rows provisionally 90 days |
 | Archival | Partition-by-business-day or archive tables once volumes justify; triggers documented in `OPERATIONS.md` |
 | PII | Operator phone, customer phone/token: minimised, access-scoped, masked in logs and exports by default |
 

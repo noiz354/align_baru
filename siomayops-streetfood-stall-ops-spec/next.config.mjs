@@ -34,8 +34,14 @@ const nextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'`,
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'`,
           },
+        ],
+      },
+      {
+        source: "/operator/traffic-sampling",
+        headers: [
+          { key: "Permissions-Policy", value: "geolocation=(), camera=(self), microphone=()" },
         ],
       },
       {

@@ -158,6 +158,40 @@ export const locationReports = pgTable("location_reports", {
   index("location_reports_gps_captured_idx").on(t.gpsCapturedAt),
 ]);
 
+export const trafficSamples = pgTable("traffic_samples", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  sampledAt: timestamp("sampled_at", { withTimezone: true }).notNull(),
+  estimatedCount: integer("estimated_count").notNull(),
+  trafficBand: text("traffic_band").notNull(),
+  note: text("note"),
+  clientRequestId: uuid("client_request_id").notNull(),
+  videoAssetId: uuid("video_asset_id"),
+  videoStatus: text("video_status").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("traffic_samples_org_client_unique").on(t.organizationId, t.clientRequestId),
+  index("traffic_samples_location_time_idx").on(t.organizationId, t.sellingLocationId, t.sampledAt),
+]);
+
+export const trafficVideoAssets = pgTable("traffic_video_assets", {
+  id: uuid("id").primaryKey(),
+  organizationId: orgId,
+  sellingLocationId: uuid("selling_location_id").notNull(),
+  sampleId: uuid("sample_id"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  contentType: text("content_type").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  privateStorageKey: text("private_storage_key").notNull(),
+  createdAt,
+}, (t) => [
+  uniqueIndex("traffic_video_assets_sample_unique").on(t.organizationId, t.sampleId),
+  index("traffic_video_assets_expiry_idx").on(t.expiresAt),
+]);
+
 export const menuCategories = pgTable("menu_categories", {
   id: uuid("id").primaryKey(),
   organizationId: orgId,

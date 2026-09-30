@@ -8,6 +8,9 @@
 
 ## 1. Security objectives
 
+Page 11 is the only browser camera exception: `/operator/traffic-sampling` receives `camera=(self)` while all other routes deny camera; microphone remains denied globally. The production feature flag is closed pending DPIA and verified 24-hour primary/backup purge. Uploaded clips have no read/download endpoint.
+
+
 | # | Objective | Why it matters here |
 | --- | --- | --- |
 | S-1 | **Cash integrity** — no unauthorised creation, alteration, or deletion of money records | A cash business with hundreds of operators is defenceless without it |
