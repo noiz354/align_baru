@@ -26,7 +26,7 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **HQ Dashboard (VS-10):** T-HQ-002..003 — ten cards implemented: coverage, sales (verified vs unverified split), cash-position, verification-backlog, stock, incidents, expense-review, closings, locations, exceptions — all with computedAt, freshnessBand, drillDown, no merged money truth
 - **Loyalty (VS-11):** T-LOY-001..003 — consent-first, single-use rewards (INV-06), concurrent redemption exactly one succeeds, ALREADY_REDEEMED non-punitive, no self-award, online-required check, ledger with rules version via audit
 - **Communication+Alerts (VS-12):** T-COMM-001, T-ALERT-001 — notifications API, alerts, inbox
-- **Incidents (VS-13):** T-INC-001..002 — incident capture offline, lifecycle, escalation
+- **Incidents (VS-13):** T-INC-001..002 — PARTIAL pilot only: Task 13 operator capture and Task 14 scoped HQ fact review/note/status path exist; evidence media, production auth/storage/retention, full owner/SLA/escalation workflow and browser acceptance remain open.
 - **Performance (VS-14):** T-PERF-001..002 — performance metrics, contextual, normalized
 - **Recognition (VS-15):** T-REC-001..002 — transparent multi-factor, no revenue-only leaderboard, no hidden scoring
 - **Offline Hardening (VS-16):** T-OFF-002..004 — offline banner with pending count, per-record sync states (LOCAL_ONLY, PENDING, SYNCING, SYNCED, REJECTED, DEFERRED), rejected explanation with next step, digital disabled with clear message while offline, cash selling possible without confirmation dialogs, service worker shell (sw.ts notes Serwist planned but not wired per ADR, acceptable)
@@ -34,8 +34,8 @@ From TASKS.md: T-FOUND-001..006 (6), T-OP-001..002, T-STALL-001..002, T-AUTHZ-00
 - **Observability (VS-18):** T-OBS-001..002 — OpenTelemetry pipeline (otel config, @opentelemetry/api, sdk-node), business metrics, error tracking, SLOs, runbook linkage, no PII in telemetry
 - **Production (VS-19):** T-OPS-002..004 — Dockerfile, docker-compose (Postgres 18), migrations via drizzle-kit, deployment docs, backups, go-live checklist
 
-## Vertical Slices Completed
-VS-0..VS-18 fully, VS-19 deployment pipeline done, go-live checklist documented.
+## Vertical Slice Implementation Notes
+Core implementation exists across VS-0..VS-19, but implementation entries are not equivalent to page acceptance or production readiness. Incident capture/review (T-INC-001..002) remains partial with the gates documented in the Page 13/14 gap reports.
 
 ## Modules Completed
 - domain: money, pricing/resolution, sale/totals, payment/states, expense/review, inventory/variance, location/report, operators/status, loyalty/reward

@@ -63,8 +63,8 @@ one with 24 tables each of which has an invariant attached.
 | LoyaltyTransaction | EXTEND | Earn/redeem records (no algorithm in Phase 0). |
 | Reward | EXTEND | Definition. |
 | RewardInstance | EXTEND | Single-use entitlement (anti-double-redeem). |
-| Incident | EXTEND | Page 13 online capture pilot stores neutral report, optional urgency hint/amount, server-derived current shift/location and self-scoped status; lifecycle/review workflow is incomplete. |
-| IncidentEvidence | OPTIONAL | Not implemented: no upload or object reference is accepted by Page 13. |
+| Incident | EXTEND | Page 13 report plus Page 14 scoped HQ detail/status/note pilot. Review history uses append-only AuditEvent; full lifecycle, production store and evidence relation remain incomplete. |
+| IncidentEvidence | OPTIONAL | Not implemented: no evidence metadata/object reference is accepted or reviewed on Pages 13–14. |
 | Message | EXTEND | Operational message, threaded. |
 | MessageThread | EXTEND | Topic binding (area/stall/shift/incident). |
 | OperationalAlert | EXTEND | Actionable alert objects. |

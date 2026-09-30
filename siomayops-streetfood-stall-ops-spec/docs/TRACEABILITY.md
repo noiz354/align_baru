@@ -56,7 +56,7 @@ Enforced by tooling:
 | `PERF` | 18 | PERFORMANCE.md, docs/product/OPERATOR-RECOGNITION.md | T-EXP-004, T-HQ-002, T-OFF-002, T-PERF-001, T-PERF-002 | unit/normalisation (with T-PERF-002) | QA-H |
 | `RECOG` | 8 | docs/product/OPERATOR-RECOGNITION.md | T-REC-001, T-REC-002 | integration/recognition-gates (with T-REC-001) | QA-H |
 | `COMM` | 8 | COMMUNICATION.md | T-COMM-001 | integration/threads (with T-COMM-001) | QA-H |
-| `INC` | 13 | INCIDENTS.md, PRD.md | T-INC-001, T-INC-002 | unit/incident-report, integration/incident-report-api; full lifecycle and runtime evidence pending | QA-H |
+| `INC` | 15 | INCIDENTS.md, PRD.md | T-INC-001, T-INC-002 | unit/incident-report, integration/incident-report-api, unit/incident-review, integration/incident-evidence-review-api; production lifecycle/evidence and browser evidence pending | QA-H |
 | `NOTIF` | 8 | NOTIFICATIONS.md | T-ALERT-001, T-STOCK-003 | integration/alerts (with T-ALERT-001) | QA-X |
 | `AUDIT` | 8 | SECURITY.md, ADR-0026 | T-AUTHZ-001, T-FOUND-003, T-SALE-004 | integration/audit-append-only | QA-A |
 | `CUST` | 5 | PAYMENTS.md, LOYALTY.md | T-PAY-002, T-SALE-001 | integration/payments-honesty | QA-C |

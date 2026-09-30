@@ -15,6 +15,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: { total: incidents.length, byCategory, byStatus },
-    meta: { computedAt: new Date().toISOString(), freshnessBand: "current" as const, drillDown: { endpoint: "/api/v1/incidents" } },
+    meta: { computedAt: new Date().toISOString(), freshnessBand: "current" as const, drillDown: { endpoint: "/api/v1/hq/incidents/inbox" } },
   }, { headers: { "X-Request-Id": requestId } });
 }

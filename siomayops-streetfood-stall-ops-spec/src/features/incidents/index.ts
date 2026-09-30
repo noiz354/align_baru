@@ -198,35 +198,206 @@ export async function submitIncident(input: {
   return { incidentId: id as IncidentId, status: row.status, replayed: false };
 }
 
-export async function transitionIncident(input: {
-  incidentId: IncidentId; to: IncidentStatus; reason?: string; resolutionNote?: string; actorId?: string;
-}): Promise<{ readonly incidentId: IncidentId; readonly status: IncidentStatus }> {
-  const inc = memoryStore.incidents.get(input.incidentId);
-  if (!inc) throw Object.assign(new Error("Incident not found"), { code: "NOT_FOUND" });
-  const allowed = INCIDENT_TRANSITIONS[inc.status];
-  if (!allowed.includes(input.to)) {
-    throw Object.assign(new Error(`Invalid incident transition ${inc.status} -> ${input.to}`), { code: "INVALID_TRANSITION" });
+function incidentAreaId(row: StoredIncident): string | undefined {
+  const shift = row.shiftId ? memoryStore.shifts.get(row.shiftId) : undefined;
+  if (shift?.organizationId === row.organizationId && shift.operatorId === row.operatorId) {
+    const stall = memoryStore.stalls.get(shift.stallId);
+    if (stall?.organizationId === row.organizationId) return stall.areaId;
   }
-  const prev = inc.status;
-  inc.status = input.to;
-  inc.updatedAt = new Date();
-  memoryStore.incidents.set(inc.id, inc);
+  const operator = memoryStore.operators.get(row.operatorId);
+  return operator?.organizationId === row.organizationId ? operator.areaId : undefined;
+}
 
+function incidentStallCode(row: StoredIncident): string | null {
+  const shift = row.shiftId ? memoryStore.shifts.get(row.shiftId) : undefined;
+  if (!shift || shift.organizationId !== row.organizationId || shift.operatorId !== row.operatorId) return null;
+  const stall = memoryStore.stalls.get(shift.stallId);
+  return stall?.organizationId === row.organizationId ? stall.code : null;
+}
+
+function incidentLocationName(row: StoredIncident): string | null {
+  if (!row.sellingLocationId) return null;
+  const location = memoryStore.sellingLocations.get(row.sellingLocationId);
+  if (!location || location.organizationId !== row.organizationId) return null;
+  const areaId = incidentAreaId(row);
+  if (areaId && location.areaId !== areaId) return null;
+  return location.name;
+}
+
+function reviewerCanAccess(session: SessionContext, row: StoredIncident): boolean {
+  if (!session.roles.some((role) => ["OWNER", "HQ_OPS", "AREA_SUPERVISOR"].includes(role))) return false;
+  if (session.organizationId !== row.organizationId || session.scope.organizationId !== row.organizationId) return false;
+  if (session.roles.includes("AREA_SUPERVISOR") && !session.roles.some((role) => role === "OWNER" || role === "HQ_OPS") && session.scope.kind !== "area") return false;
+  if (session.scope.kind === "org") return true;
+  const areaId = incidentAreaId(row);
+  if (session.scope.kind === "area") return Boolean(areaId && areaId === session.scope.areaId);
+  if (session.scope.kind === "stall") {
+    const shift = row.shiftId ? memoryStore.shifts.get(row.shiftId) : undefined;
+    return Boolean(shift?.organizationId === row.organizationId && shift.operatorId === row.operatorId && shift.stallId === session.scope.stallId);
+  }
+  return false;
+}
+
+function parseAuditSummary(value?: string): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function incidentHistory(incidentId: string, organizationId: string) {
+  return memoryStore.auditEvents
+    .filter((event) => event.organizationId === organizationId && event.entityType === "incident" && event.entityId === incidentId)
+    .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.id.localeCompare(b.id))
+    .slice(-50)
+    .map((event) => {
+      const before = parseAuditSummary(event.previousValueJson);
+      const after = parseAuditSummary(event.newValueJson);
+      const note = typeof after.followUpNote === "string" ? after.followUpNote
+        : typeof after.resolutionNote === "string" ? after.resolutionNote
+        : typeof after.note === "string" ? after.note : null;
+      return {
+        id: event.id,
+        action: event.action,
+        occurredAt: event.occurredAt.toISOString(),
+        actorKind: event.actorKind,
+        fromStatus: typeof before.status === "string" ? before.status : null,
+        toStatus: typeof after.status === "string" ? after.status : null,
+        note,
+      };
+    });
+}
+
+export function getIncidentReviewAllowedTransitions(status: IncidentStatus): readonly IncidentStatus[] {
+  return INCIDENT_TRANSITIONS[status] ?? [];
+}
+
+function incidentCategoryLabel(code: string): string | null {
+  return INCIDENT_CATEGORIES.find((category) => category.code === code)?.label ?? null;
+}
+
+export function getIncidentReviewDetail(session: SessionContext, incidentId: string) {
+  const row = memoryStore.incidents.get(incidentId);
+  if (!row || row.organizationId !== session.organizationId || !reviewerCanAccess(session, row)) return null;
+  const operator = memoryStore.operators.get(row.operatorId);
+  const safeOperator = operator?.organizationId === row.organizationId ? operator : undefined;
+  return {
+    id: row.id,
+    categoryCode: row.category,
+    categoryLabel: incidentCategoryLabel(row.category),
+    description: row.description,
+    status: row.status,
+    severityHint: row.severityHint ?? null,
+    amountMinor: row.amountMinor ?? null,
+    amountContext: row.amountContext ?? null,
+    occurredAt: (row.occurredAt ?? row.createdAt).toISOString(),
+    reportedAt: row.createdAt.toISOString(),
+    reporterName: safeOperator?.name ?? null,
+    stallCode: incidentStallCode(row),
+    locationName: incidentLocationName(row),
+    evidence: { status: "UNSUPPORTED" as const, items: [] as const },
+    reviewHistory: incidentHistory(row.id, row.organizationId),
+    allowedNextStatuses: getIncidentReviewAllowedTransitions(row.status),
+  };
+}
+
+export function getIncidentReviewInbox(session: SessionContext, limit = 100) {
+  const boundedLimit = Math.max(1, Math.min(100, Math.trunc(limit) || 100));
+  const incidents = [...memoryStore.incidents.values()]
+    .filter((row) => row.organizationId === session.organizationId && reviewerCanAccess(session, row))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id))
+    .slice(0, boundedLimit);
+  return {
+    generatedAt: new Date().toISOString(),
+    items: incidents.map((row) => {
+      const operator = memoryStore.operators.get(row.operatorId);
+      return {
+        id: row.id,
+        categoryCode: row.category,
+        categoryLabel: incidentCategoryLabel(row.category),
+        status: row.status,
+        severityHint: row.severityHint ?? null,
+        occurredAt: (row.occurredAt ?? row.createdAt).toISOString(),
+        reportedAt: row.createdAt.toISOString(),
+        reporterName: operator?.organizationId === row.organizationId ? operator.name : null,
+        stallCode: incidentStallCode(row),
+        locationName: incidentLocationName(row),
+      };
+    }),
+  };
+}
+
+async function transitionIncident(input: {
+  incidentId: IncidentId; to: IncidentStatus; followUpNote?: string; actorId: string; correlationId: string;
+}): Promise<{ readonly incidentId: IncidentId; readonly status: IncidentStatus; readonly fromStatus: IncidentStatus }> {
+  const incident = memoryStore.incidents.get(input.incidentId);
+  if (!incident) throw Object.assign(new Error("Incident not found"), { code: "NOT_FOUND", status: 404 });
+  if (!(INCIDENT_TRANSITIONS[incident.status] ?? []).includes(input.to)) {
+    throw Object.assign(new Error("Incident status transition is not allowed"), { code: "INVALID_TRANSITION", status: 409 });
+  }
+  if ((input.to === "RESOLVED" || input.to === "CLOSED") && !input.followUpNote) {
+    throw Object.assign(new Error("A factual follow-up note is required for resolution or closure"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+  const fromStatus = incident.status;
+  const now = new Date();
+  incident.status = input.to;
+  incident.updatedAt = now;
+  memoryStore.incidents.set(incident.id, incident);
   await writeAuditEvent({
-    organizationId: inc.organizationId,
+    organizationId: incident.organizationId,
     actorKind: "HQ_USER",
     actorId: input.actorId,
     action: "incident.transitioned",
     subjectKind: "incident",
-    subjectId: inc.id,
-    reason: input.reason,
-    correlationId: generateId(),
-    occurredAt: new Date(),
-    beforeSummary: { status: prev },
-    afterSummary: { status: input.to, resolutionNote: input.resolutionNote },
+    subjectId: incident.id,
+    correlationId: input.correlationId,
+    occurredAt: now,
+    beforeSummary: { status: fromStatus },
+    afterSummary: { status: input.to, followUpNote: input.followUpNote },
   });
+  return { incidentId: incident.id as IncidentId, status: incident.status, fromStatus };
+}
 
-  return { incidentId: inc.id as IncidentId, status: input.to };
+export async function reviewIncident(input: {
+  session: SessionContext;
+  incidentId: string;
+  toStatus?: IncidentStatus;
+  note?: string;
+  correlationId: string;
+}): Promise<{ readonly status: IncidentStatus; readonly fromStatus?: IncidentStatus; readonly updatedAt: string }> {
+  const incident = memoryStore.incidents.get(input.incidentId);
+  if (!incident || incident.organizationId !== input.session.organizationId || !reviewerCanAccess(input.session, incident)) {
+    throw Object.assign(new Error("Incident not found"), { code: "NOT_FOUND", status: 404 });
+  }
+  if (!input.toStatus && !input.note) {
+    throw Object.assign(new Error("A status change or follow-up note is required"), { code: "VALIDATION_FAILED", status: 400 });
+  }
+  if (input.toStatus) {
+    const result = await transitionIncident({
+      incidentId: incident.id as IncidentId,
+      to: input.toStatus,
+      followUpNote: input.note,
+      actorId: input.session.userId,
+      correlationId: input.correlationId,
+    });
+    return { status: result.status, fromStatus: result.fromStatus, updatedAt: memoryStore.incidents.get(incident.id)!.updatedAt.toISOString() };
+  }
+  const now = new Date();
+  await writeAuditEvent({
+    organizationId: incident.organizationId,
+    actorKind: "HQ_USER",
+    actorId: input.session.userId,
+    action: "incident.review_note_added",
+    subjectKind: "incident",
+    subjectId: incident.id,
+    correlationId: input.correlationId,
+    occurredAt: now,
+    afterSummary: { note: input.note },
+  });
+  return { status: incident.status, updatedAt: now.toISOString() };
 }
 
 export async function listIncidents(orgId: string, status?: string): Promise<StoredIncident[]> {
