@@ -269,6 +269,7 @@ export interface StoredExpense {
   flaggedReason?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
+  reviewReason?: string;
   clientExpenseId: string;
   incurredAt: Date;
   createdAt: Date;
