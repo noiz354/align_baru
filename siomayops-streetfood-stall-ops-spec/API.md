@@ -298,22 +298,38 @@ The displayed cue is derived only from the newest same-site persisted observatio
 | **Audit** | `ShiftClosed` with full summary snapshot; later corrections are separate audited events |
 | **Offline** | **[OFFLINE-OK]** with special semantics: closing is stored `PENDING_SYNC` and **remains editable** until the server accepts it; the UI must not claim "closed" while pending |
 
-## 14. `POST /incidents` — Submit Incident
+## 14. Page 13 — Operator incident reporting
+
+This section documents the implemented local pilot, not the broader aspirational incident workflow.
+
+### `GET /api/v1/incidents`
 
 | Field | Value |
 | --- | --- |
-| **Requirement ID** | FR-INC-001, FR-INC-006 |
-| **Actor** | Operator, Supervisor, HQ |
-| **Authentication** | Session required |
-| **Authorization** | scope = `self`/`area`; operators may report incidents for their own shift/location |
-| **Input** | `{ category, severityHint?, description, occurredAt, sellingLocationId?, shiftId?, evidenceObjectKeys?: string[], clientIncidentId }` |
-| **Output** | `{ incidentId, status: "OPEN", severityAssigned, ownerAssigned?, escalation: "NONE"|"P1_SAFETY" }` |
-| **Validation** | category from configured list; description ≥ 10 chars; occurredAt not absurdly future/past; severity assignment rule applied; safety categories force escalation |
-| **Errors** | `422` · `403` |
-| **Idempotency** | Required |
-| **Rate limiting** | 20/hour per operator |
-| **Audit** | `IncidentReported`; subsequent lifecycle moves audited separately |
-| **Offline** | **[OFFLINE-OK]** Queued with device time; P1 escalation is attempted on reconnect and flagged as delayed sync in HQ |
+| **Actor / authorization** | Authenticated `OPERATOR` only; actor and organization come from session; self-only rows |
+| **Output** | Current server-derived active shift/location context, neutral category catalog and at most 10 recent reports belonging to the reporter |
+| **Privacy** | `Cache-Control: no-store`; response excludes operator/tenant IDs, coordinates and other reporters' content |
+| **Missing shift** | Returns an explicit unlinked context; submission can continue without shift or location |
+
+### `POST /api/v1/incidents`
+
+| Field | Value |
+| --- | --- |
+| **Actor / authorization** | Authenticated `OPERATOR` only; server derives actor, organization and optional current shift/location |
+| **Input** | `{ clientIncidentId, categoryCode, description, occurredAt, severityHint?, amountMinor?, amountContext? }`; strict schema rejects client-selected actor/tenant/shift/location or evidence keys |
+| **Output** | Self-scoped report with initial status `SUBMITTED`; no server-assigned severity, owner, or escalation is claimed |
+| **Validation** | Neutral category allowlist; 10–2,000 character trimmed narrative; valid event timestamp not more than 5 minutes in the future; optional non-negative integer IDR amount ≤ 1,000,000,000 paired with `REQUESTED`/`PAID`/`UNCLEAR` |
+| **Errors** | `400` invalid input/time/key · `401` unauthenticated · `403` role denied · `404` unavailable context/resource · `409` client-ID conflict · `422` changed body under an existing idempotency key |
+| **Idempotency** | `Idempotency-Key` is required and must equal `clientIncidentId`; scoped duplicate content replays, changed content is rejected |
+| **Audit / telemetry** | Submission audit excludes narrative; analytics events are coarse and exclude free text, amount, IDs and evidence |
+| **Evidence** | Not accepted; no upload UI/API, evidence reference or `incident_evidence_added` event exists |
+| **Offline** | Existing offline queue continues to use `submitIncident`; however, mapping this newer online contract to durable offline/device-time semantics is not yet verified |
+
+### `GET /api/v1/incidents/{incidentId}`
+
+Authenticated operator self-only detail read. A report outside the current operator/organization scope returns `404` (including direct-URL access); responses are uncached and omit actor IDs. This endpoint does not expose a reviewer/HQ detail surface.
+
+**Not implemented:** production session authentication, a verified durable database migration/retention job, full incident lifecycle and HQ detail workflow, safety notification/escalation, evidence storage/deletion, and browser acceptance. See the Page 13 gap report for the release gates.
 
 ## 15. `POST /loyalty/customers/identify` — Identify Loyalty Customer
 

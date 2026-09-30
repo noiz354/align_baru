@@ -23,7 +23,7 @@ implementing regulations still pending (obligations apply regardless).
 | Customer identifier (phone hash, QR token, device token) | Customers | Loyalty accrual/redemption | **Explicit consent** (opt-in, withdrawable) | Optional; hash where possible; masking by default |
 | Sales & payment records | Operators, customers (indirect) | Financial integrity, audit | Contract/legal obligation | Customer linkage is optional/opaque |
 | Expense records (incl. notes, evidence) | Operators, third parties (incidental) | Reimbursement visibility, review | Contract/legitimate interest | Notes bounded; evidence optional and short-lived |
-| Incident records (incl. photos) | Operators, customers, third parties | Safety, dispute resolution | Legitimate interest / legal obligation | Access-restricted; retention-limited |
+| Incident records (incl. photos) | Operators, customers, third parties | Safety, dispute resolution | Legitimate interest / legal obligation | Access-restricted; retention-limited; Page 13 pilot collects neutral category, bounded narrative, event time, optional amount/context and server-derived active shift/site; reporter-only reads; no involved-person identity field, no evidence upload, no free-text telemetry |
 | Device metadata (device label, app version) | Operators | Support, audit | Legitimate interest | No hardware fingerprinting, no advertising identifiers |
 
 **No** processing of sensitive categories (health, biometrics, religion, etc.) is intended.
@@ -52,6 +52,7 @@ restricted access, short retention, no analytics use.
    identifiers; errors carry request IDs, not payloads.
 7. **Exports are scoped, masked where possible, and audited.**
 8. **Site observations are explicit operator reports, not inferred weather.** They are bound to the active shift/current site, use bounded non-identifying notes, and are not sent to an external weather provider; the source remains unavailable until privacy/data-flow approval.
+9. **Page 13 incident reporting is a neutral account, not a finding.** Collect only the reporter's category, bounded factual narrative, event time, optional amount/context and server-derived active shift/site. Do not request names or identify alleged offenders; no evidence upload exists. Incident free text, amounts, actor identifiers and evidence metadata must not enter analytics/application logs. Production retention/access controls remain unverified.
 
 ---
 

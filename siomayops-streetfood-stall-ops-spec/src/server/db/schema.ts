@@ -494,14 +494,22 @@ export const incidents = pgTable("incidents", {
   id: uuid("id").primaryKey(),
   organizationId: orgId,
   shiftId: uuid("shift_id"),
+  sellingLocationId: uuid("selling_location_id"),
   operatorId: uuid("operator_id").notNull(),
   category: text("category").notNull(),
+  severityHint: text("severity_hint"),
   description: text("description").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }),
+  amountMinor: integer("amount_minor"),
+  amountContext: text("amount_context"),
+  clientIncidentId: uuid("client_incident_id"),
   status: text("status").notNull(),
   createdAt,
   updatedAt,
 }, (t) => [
+  uniqueIndex("incidents_org_operator_client_unique").on(t.organizationId, t.operatorId, t.clientIncidentId),
   index("incidents_org_idx").on(t.organizationId),
+  index("incidents_org_operator_created_idx").on(t.organizationId, t.operatorId, t.createdAt),
 ]);
 
 export const SCHEMA_IS_INTENTIONALLY_EMPTY_IN_PHASE_0 = false;

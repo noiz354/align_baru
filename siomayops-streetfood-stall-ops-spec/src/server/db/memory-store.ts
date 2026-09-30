@@ -381,9 +381,15 @@ export interface StoredIncident {
   id: string;
   organizationId: string;
   shiftId?: string;
+  sellingLocationId?: string;
   operatorId: string;
   category: string;
+  severityHint?: "P1" | "P2" | "P3";
   description: string;
+  occurredAt?: Date;
+  amountMinor?: number;
+  amountContext?: "REQUESTED" | "PAID" | "UNCLEAR";
+  clientIncidentId?: string;
   status: "SUBMITTED" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED" | "ESCALATED" | "CLOSED";
   createdAt: Date;
   updatedAt: Date;
@@ -432,6 +438,7 @@ class MemoryStore {
   loyaltyAccounts = new Map<string, StoredLoyaltyAccount>();
   rewardInstances = new Map<string, StoredRewardInstance>();
   incidents = new Map<string, StoredIncident>();
+  incidentByClientId = new Map<string, string>(); // org|operator|clientIncidentId -> incidentId
   alerts = new Map<string, StoredAlert>();
   evidenceAssets = new Map<string, any>();
   notifications = new Map<string, any>();
@@ -477,6 +484,7 @@ class MemoryStore {
     this.loyaltyAccounts.clear();
     this.rewardInstances.clear();
     this.incidents.clear();
+    this.incidentByClientId.clear();
     this.alerts.clear();
     this.evidenceAssets.clear();
     this.notifications.clear();
@@ -546,6 +554,7 @@ function persistStore() {
       loyaltyAccounts: Array.from(memoryStore.loyaltyAccounts.entries()),
       rewardInstances: Array.from(memoryStore.rewardInstances.entries()),
       incidents: Array.from(memoryStore.incidents.entries()),
+      incidentByClientId: Array.from(memoryStore.incidentByClientId.entries()),
       alerts: Array.from(memoryStore.alerts.entries()),
       evidenceAssets: Array.from(memoryStore.evidenceAssets.entries()),
       notifications: Array.from(memoryStore.notifications.entries()),
@@ -601,6 +610,7 @@ function loadStore(): boolean {
     if (data.loyaltyAccounts) memoryStore.loyaltyAccounts = new Map(data.loyaltyAccounts);
     if (data.rewardInstances) memoryStore.rewardInstances = new Map(data.rewardInstances);
     if (data.incidents) memoryStore.incidents = new Map(data.incidents);
+    if (data.incidentByClientId) memoryStore.incidentByClientId = new Map(data.incidentByClientId);
     if (data.alerts) memoryStore.alerts = new Map(data.alerts);
     if (data.evidenceAssets) memoryStore.evidenceAssets = new Map(data.evidenceAssets);
     if (data.notifications) memoryStore.notifications = new Map(data.notifications);
@@ -624,7 +634,7 @@ function wrapMapsForPersist() {
     "operators","stalls","assignments","sellingLocations","shifts","locationReports","siteConditionObservations","siteConditionObservationByClientId","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
     "menuCategories","menuItems","pricePolicies","priceAcknowledgements","sales","saleItems",
     "payments","paymentCallbacks","expenses","stockItems","stockMovements","stockSnapshots",
-    "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","alerts",
+    "closings","idempotency","loyaltyAccounts","rewardInstances","incidents","incidentByClientId","alerts",
     "evidenceAssets","notifications","shiftClosings","shiftByClientId","saleByClientId",
     "paymentByClientId","expenseByClientId","locationReportByClientId","closingByClientId","movementByClientId"
   ];
