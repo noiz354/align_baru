@@ -269,7 +269,7 @@ enforces and must be reviewed as such.
 | ARC-03 | INV-08/INV-09 | Completed sales and accepted closings are immutable; corrections are new records referencing the original | DB permissions/triggers + API tests |
 | ARC-04 | INV-01/INV-08 | Totals recomputed from sale-line snapshots equal the stored totals, before and after any price change | property tests |
 | ARC-05 | INV-07 | A reward instance is redeemable at most once, under concurrency | unique constraint + concurrent test |
-| ARC-06 | INV-11 | No location record can exist for an inactive shift, and no geolocation API may be used outside the explicit report module | FK + `tools/check-stubs.mjs` |
+| ARC-06 | INV-11 | Location samples require an active owned shift; only the named operator-initiated one-shot Page 10 helper may call `getCurrentPosition`; background/watch APIs remain forbidden | Route/service guards + `tools/check-stubs.mjs` allowlist + tests |
 | ARC-07 | INV-10 | Audit rows are append-only; UPDATE/DELETE are revoked; the audit row commits with the business change | DB permissions + transaction helper |
 | ARC-08 | INV-14 | Every table carries `organization_id`; every unique constraint includes it | schema test |
 | ARC-09 | INV-14 | Every repository method requires an explicit scope argument, so an unscoped query cannot be written | signatures + compile-time proof |
@@ -278,8 +278,9 @@ enforces and must be reviewed as such.
 | ARC-12 | INV-02/INV-03/INV-04 | Records belong to exactly one shift; at most one active shift per operator and per stall (handover window excepted) | FKs + partial unique indexes |
 
 Phase-0-only check (not an invariant of the running system): `ARC-P0` — every stub throws
-`Not implemented: T-XXX-XXX` naming a real task, and no forbidden dependency or geolocation API
-appears in `src/**`. Enforced by `tools/check-stubs.mjs` in CI.
+`Not implemented: T-XXX-XXX` naming a real task and no forbidden dependency is imported. The sole
+ADR-0039 exception is the named foreground `getCurrentPosition` helper; `watchPosition`, timers,
+and geolocation use anywhere else remain rejected by `tools/check-stubs.mjs`.
 
 ## 15. Extension points (ports; interfaces only in this phase)
 

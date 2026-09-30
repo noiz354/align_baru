@@ -48,8 +48,9 @@ are new ADRs that supersede them.
 | [0036](docs/adr/ADR-0036-skeleton-code-policy.md) | Skeleton code policy and NotImplemented convention | Accepted | VS-0 | Process |
 | [0037](docs/adr/ADR-0037-retention-and-deletion.md) | Retention, deletion, and archival strategy | Accepted | VS-17 | Compliance |
 | [0038](docs/adr/ADR-0038-feature-flags-slice-gating.md) | Feature flags and vertical-slice gating | Accepted | VS-0 | Process |
+| [0039](docs/adr/ADR-0039-persisted-one-shot-gps-assist.md) | Persisted one-shot GPS assist for explicit shift location reports | Accepted | Page 10 / T-LOC-004 | Privacy/Location |
 
-**Total ADRs:** 38 (all Accepted; none superseded).
+**Total ADRs:** 39 (all accepted; ADR-0007 is superseded in part by ADR-0039). Production GPS capture remains blocked pending the DPIA and retention gates in ADR-0039.
 
 Nested records live in `docs/adr/` (index: [`docs/adr/INDEX.md`](docs/adr/INDEX.md)) using the filenames
 linked above; that index is a navigational duplicate and this file is canonical.

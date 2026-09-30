@@ -49,6 +49,7 @@
 | R-22 | Outbox events | Short after processing (e.g. 14 days) | Technical | Reliability | Purge |
 | R-23 | Backups | Rolling (e.g. 35 days) + monthly archives per R-01 | All | Recovery | Expire per policy |
 | R-24 | Exports (CSV/report artefacts) | Short (e.g. 30 days) | Sensitive | Delivery only | Object deletion; export action logged |
+| R-25 | Explicit one-shot GPS samples attached to location reports (coordinates, accuracy, captured time) | **Maximum 14 days after capture** | Precise personal work-location data | Operator-confirmed location report only | Purge GPS fields; retain the selling-point report under R-09; no GPS-specific legal-hold extension without new privacy review |
 
 *Durations marked "e.g." are placeholders to be confirmed with legal/commercial advice before
 production. The architecture must make changing them a configuration change, not a rewrite.*
@@ -73,6 +74,7 @@ production. The architecture must make changing them a configuration change, not
 
 ```text
 jobs/retention/daily
+ ├── purge GPS sample fields older than R-25 (do not delete the linked R-09 report)
  ├── purge location reports older than R-09
  ├── purge expense evidence older than R-06 (object delete first, then row clear)
  ├── purge incident evidence older than R-12

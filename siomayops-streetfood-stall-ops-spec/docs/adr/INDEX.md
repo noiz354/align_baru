@@ -47,8 +47,9 @@ creates a new ADR that supersedes the old one rather than editing history.
 | [0036](ADR-0036-skeleton-code-policy.md) | Skeleton code policy and NotImplemented convention | Accepted | VS-0 | Process |
 | [0037](ADR-0037-retention-and-deletion.md) | Retention, deletion, and archival strategy | Accepted | VS-17 | Compliance |
 | [0038](ADR-0038-feature-flags-slice-gating.md) | Feature flags and vertical-slice gating | Accepted | VS-0 | Process |
+| [0039](ADR-0039-persisted-one-shot-gps-assist.md) | Persisted one-shot GPS assist for explicit shift location reports | Accepted | Page 10 / T-LOC-004 | Privacy/Location |
 
-**Total ADRs:** 38
+**Total ADRs:** 39
 
 ## Reading order for a new contributor
 

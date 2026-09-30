@@ -48,7 +48,7 @@ Forbidden:
 
 ```text
 business calculations · database queries against real data · auth implementations ·
-payment gateway calls · GPS/geolocation collection · loyalty point maths ·
+payment gateway calls · continuous/background GPS tracking (one-shot assist only under ADR-0039) · loyalty point maths ·
 settlement/accounting logic · stock deduction · notification delivery ·
 production dashboards · WhatsApp integrations · deployment scripts that deploy
 ```

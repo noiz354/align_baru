@@ -84,7 +84,7 @@ export default function Page() {
       <div className="nav-caption">MENU UTAMA</div>
       <nav className="primary-nav" aria-label="Navigasi utama">
         <a className="nav-link active" href="#dashboard"><Icon name="grid"/><span>Dashboard</span></a>
-        <a className="nav-link" href="/hq"><Icon name="activity"/><span>Operasional</span><span className="nav-count">3</span></a>
+        <a className="nav-link" href="/operations/map"><Icon name="activity"/><span>Operasional</span><span className="nav-count">3</span></a>
         <a className="nav-link" href="/sell"><Icon name="receipt"/><span>Transaksi</span></a>
         <a className="nav-link" href="/expenses"><Icon name="wallet"/><span>Pengeluaran</span></a>
         <a className="nav-link" href="/stock"><Icon name="box"/><span>Produk &amp; Harga</span></a>

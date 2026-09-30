@@ -125,12 +125,13 @@ interface OperatorLocationReport {
 
 ### Optional one-shot position assist
 
-An explicit button may (future slice) fill a map pin from one GPS fix to help the operator
-confirm a spot. It is:
-- triggered by the operator, once;
-- never recorded as a trail;
-- stored only as a proposed coordinate for the operator to accept or discard;
-- clearly labelled "posisi perkiraan — mohon periksa".
+Under ADR-0039, an explicit button may request one GPS fix to help the operator confirm a
+selling point. The operator sees the device-reported coordinates, accuracy, and capture time, then
+chooses/confirms the selling point before submitting. The optional fix is attached to that explicit
+shift-bound location report and retained for at most 14 days. Multiple explicit reports can therefore
+form a sparse, short-lived shift-only sequence; this is not continuous tracking and is never used for
+attendance, discipline, or performance scoring. It is clearly labelled "posisi perkiraan — mohon
+periksa" and can be omitted when permission is denied or unavailable.
 
 ---
 

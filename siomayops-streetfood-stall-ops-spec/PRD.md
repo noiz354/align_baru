@@ -20,8 +20,9 @@ The product must make five things true:
    of why they do not.
 2. **The field works offline.** A dropped connection never stops a sale.
 3. **Money is never imagined.** No digital payment is recorded as received until it is verified.
-4. **People are treated fairly.** Location is reported, not tracked; variance is investigated, not
-   accused; recognition is multi-factor and reviewable, never revenue-only.
+4. **People are treated fairly.** Location comes from explicit operator reports with optional one-shot
+   fixes, never background tracking; variance is investigated, not accused; recognition is multi-factor
+   and reviewable, never revenue-only.
 5. **HQ can see the network.** Coverage, margin, stock, incidents and settlement status, with freshness
    shown rather than assumed.
 
@@ -477,6 +478,7 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 | NFR-PRIVACY-008 | The system shall segregate loyalty (customer) data from operator performance data, with different access rules. |
 | NFR-PRIVACY-009 | The system shall document data flows, purposes, recipients and retention before any new collection is added (privacy review gate). |
 | NFR-PRIVACY-010 | The system shall support cross-border processing only where lawful and documented, with the DPO/legal posture recorded. |
+| NFR-PRIVACY-011 | Optional GPS samples shall be captured only after an explicit operator tap during an active shift, attached to an explicit report, excluded from analytics, and purged within 14 days; no background/continuous collection is permitted. |
 
 ### 8.3 Performance and reliability — `NFR-PERF`, `NFR-REL`
 
@@ -598,12 +600,16 @@ Conventions: **Priority** P0 = required for the pilot, P1 = required before scal
 ### 9.3 Location privacy rules
 
 1. Location is captured only as an explicit operator action during an active shift (arrive, confirm
-   unchanged, move, depart, step away), with a reason for moves (FR-LOCATION-004/005).
-2. No background collection, no timers, no "safety" pings, no third-party SDK with location access.
-3. Repository methods take scope; a shift's location history is visible to the operator, their
-   supervisor within scope, and HQ roles that need it operationally (never for productivity policing).
-4. Coordinates beyond the retention window are purged automatically; operational coverage data
-   survives in aggregate (FR-LOCATION-012).
+   unchanged, move, depart, step away), with a reason for moves (FR-LOCATION-004/005). Under ADR-0039,
+   one optional browser fix may be attached to each submitted report after a direct user tap.
+2. No background collection, no timers, no "safety" pings, no third-party SDK with location access,
+   and no `watchPosition`. Manual reporting remains available when GPS is denied or unavailable.
+3. Repository methods take scope; a shift's selling-point report history is visible to the operator,
+   their supervisor within scope, and HQ roles that need it operationally (never for productivity
+   policing). Raw GPS fields are self-only, excluded from HQ map/read models, audit payloads and analytics.
+4. GPS coordinates/accuracy/capture times are purged within 14 days (NFR-PRIVACY-011 / R-25);
+   non-GPS location reports follow R-09 and operational coverage data survives in aggregate.
+   Production enablement requires approved DPIA and a verified retention job.
 5. The product never asserts a location's legal permission status. Only an explicit HQ verification
    record counts, and it is labelled with verifier and timestamp (FR-LOCATION-009).
 
@@ -700,7 +706,7 @@ movement analysis; any metric whose only effect is pressure without a linked imp
 | AC-06 | HQ can see, for any business day, coverage, cash position, verification backlog, incidents and unfinished closings, each with a visible freshness timestamp. |
 | AC-07 | A variance beyond tolerance always has a human review record with reason and reviewer; `UNKNOWN` is always available as an operator reason. |
 | AC-08 | Field expenses can be recorded in ≤4 taps with a neutral category and no required recipient or authority assertion, and appear in a Finance review queue. |
-| AC-09 | Location data exists only for active shifts, and no continuous collection, background tracking or third-party location SDK is present. |
+| AC-09 | Location capture occurs only through explicit active-shift reports; optional one-shot GPS fields are purged within 14 days (NFR-PRIVACY-011), while the non-GPS operational report follows R-09; no continuous/background tracking or third-party location SDK is present. |
 | AC-10 | Recognition uses documented multi-factor inputs with published weight ranges, sample-size gates, human review and an appeal path; revenue alone can never decide an award. |
 | AC-11 | Every money-affecting and permission-affecting action has an immutable audit row with actor, reason (where required) and correlation ID. |
 | AC-12 | An operator can see, and dispute, every record about themselves, and can access the privacy notice and their data rights path in the app. |
