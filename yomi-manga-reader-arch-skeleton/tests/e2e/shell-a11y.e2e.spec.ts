@@ -8,7 +8,7 @@
  * including reader chrome and tap-zone keyboard equivalents"), §4 (skip link),
  * §6 (error/empty states are focusable, announced, and offer a next action).
  *
- * Why this file exists separately from route-map.e2e.test.ts: that file proves
+ * Why this file exists separately from route-map.e2e.spec.ts: that file proves
  * the ROUTE MAP resolves. This one proves a measurable a11y FLOOR on what the
  * map renders — a property that can silently regress when a page swaps an
  * inline link for a text run, which is exactly what happened on the not-found
@@ -91,7 +91,9 @@ test.describe('target size (NFR-A11Y-010, the 44px floor)', () => {
 });
 
 test.describe('boundary states are announced (NFR-A11Y-003)', () => {
-  test('on a HARD load not-found does not steal focus, and is announced instead', async ({ page }) => {
+  test('on a HARD load not-found does not steal focus, and is announced instead', async ({
+    page,
+  }) => {
     await page.goto('/no-such-page');
 
     // SQ-A11Y-1 (docs/architecture/spec-questions.md). This page's region sits

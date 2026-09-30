@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authorize } from "@/server/auth/port";
-import { canAccessExpenseShift, expenseScopeForShift, getExpense, listExpenses, submitExpense, trackExpenseEvent } from "@/features/expenses";
+import { canAccessExpenseShift, expenseScopeForShift, getExpense, listExpenses, recordExpense, submitExpense, trackExpenseEvent } from "@/features/expenses";
 import { memoryStore } from "@/server/db/memory-store";
 import { EXPENSE_CATEGORY_CODES } from "@/domain/expense/review";
-import { expenseSubmitRequestSchema } from "@/shared/contracts/expenses";
+import { expenseSubmitRequestSchema, recordExpenseRequestSchema } from "@/shared/contracts/expenses";
 import { money } from "@/shared/money/money";
 import { errorResponse, getRequestId, handleWithIdempotency, resolveSession } from "../_helpers";
 
@@ -76,6 +76,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const requestId = getRequestId();
   const body = await request.json().catch(() => null);
+  // HQ/finance's outlet-based input coexists with the operator shift-based POS contract.
+  if (body && typeof body === "object" && !Array.isArray(body) && "outletId" in body) {
+    const parsedDirect = recordExpenseRequestSchema.safeParse(body);
+    if (!parsedDirect.success) return failedCreate("VALIDATION_ERROR", "Data pengeluaran tidak valid", 400, requestId, parsedDirect.error.flatten());
+    const idempotencyKey = request.headers.get("Idempotency-Key")?.trim();
+    if (!idempotencyKey) return failedCreate("IDEMPOTENCY_KEY_REQUIRED", "Kunci idempotensi wajib diisi", 400, requestId);
+    const directSession = await resolveSession();
+    if (!directSession) return failedCreate("UNAUTHENTICATED", "Not authenticated", 401, requestId);
+    try {
+      const result = await recordExpense(directSession, parsedDirect.data, { idempotencyKey, correlationId: requestId });
+      const headers: Record<string, string> = { "X-Request-Id": requestId, "Cache-Control": "no-store" };
+      if (result.replayed) headers["X-Idempotent-Replayed"] = "true";
+      return NextResponse.json({ data: result, replayed: result.replayed }, { status: result.replayed ? 200 : 201, headers });
+    } catch (error: any) {
+      const status = error.status ?? (error.code === "FORBIDDEN" ? 403 : error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : error.code === "IDEMPOTENCY_MISMATCH" ? 422 : error.code === "UNAUTHENTICATED" ? 401 : 400);
+      return failedCreate(error.code ?? "VALIDATION_ERROR", error.message ?? "Data pengeluaran tidak valid", status, requestId, error.details);
+    }
+  }
   const parsed = expenseSubmitRequestSchema.safeParse(body);
   if (!parsed.success) return failedCreate("VALIDATION_ERROR", "Data pengeluaran tidak valid", 400, requestId, parsed.error.flatten());
   if (!request.headers.get("Idempotency-Key")?.trim()) {
@@ -102,7 +120,7 @@ export async function POST(request: NextRequest) {
     const expense = await submitExpense({
       shiftId: parsed.data.shiftId,
       categoryCode: parsed.data.categoryCode,
-      description: parsed.data.description,
+      description: parsed.data.description ?? "",
       amount: money(parsed.data.amount.amountMinor, parsed.data.amount.currency),
       paidFrom: parsed.data.paidFrom,
       operatorNote: parsed.data.operatorNote,

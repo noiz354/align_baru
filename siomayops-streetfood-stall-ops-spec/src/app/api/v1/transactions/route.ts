@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authorize } from "@/server/auth/port";
 import { memoryStore } from "@/server/db/memory-store";
 import { createCashPayment } from "@/features/payments";
-import { canAccessShift, createSale, listTransactions, transactionScopeForShift } from "@/features/sales";
+import { canAccessShift, createSale, listTransactions, recordTransaction, transactionScopeForShift } from "@/features/sales";
 import { trackTransactionEvent } from "@/features/sales/transaction-analytics";
 import { money } from "@/shared/money/money";
 import { errorResponse, getRequestId, handleWithIdempotency, resolveSession } from "../_helpers";
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   const params = request.nextUrl.searchParams;
   const businessDay = params.get("businessDay") ?? undefined;
-  const stallId = params.get("stallId") ?? undefined;
+  const stallId = params.get("stallId") ?? params.get("outletId") ?? undefined;
   const statusRaw = params.get("status") ?? undefined;
   const limit = parseInteger(params.get("limit"), 25);
   const offset = parseInteger(params.get("offset"), 0);
@@ -63,6 +63,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const requestId = getRequestId();
   const body = await request.json().catch(() => null);
+  // Finance/HQ's amount-based write flow is supported alongside the operator line-item POS flow.
+  if (body && typeof body === "object" && !Array.isArray(body) && "outletId" in body) {
+    const directSession = await resolveSession();
+    if (!directSession) return failedCreate("UNAUTHENTICATED", "Not authenticated", 401, requestId);
+    try {
+      const idempotencyKey = request.headers.get("Idempotency-Key")?.trim() || (typeof (body as any).clientTransactionId === "string" ? (body as any).clientTransactionId : "");
+      const result = await recordTransaction(directSession, body, { idempotencyKey, correlationId: requestId });
+      const headers: Record<string, string> = { "X-Request-Id": requestId, "Cache-Control": "no-store" };
+      if (result.replayed) headers["X-Idempotent-Replayed"] = "true";
+      return NextResponse.json({ data: result, replayed: result.replayed }, { status: result.replayed ? 200 : 201, headers });
+    } catch (error: any) {
+      const status = error.status ?? (error.code === "FORBIDDEN" ? 403 : error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : error.code === "IDEMPOTENCY_MISMATCH" ? 422 : error.code === "UNAUTHENTICATED" ? 401 : 400);
+      return failedCreate(error.code ?? "VALIDATION_ERROR", error.message ?? "Data transaksi tidak valid", status, requestId, error.details);
+    }
+  }
   const parsed = CreateTransactionSchema.safeParse(body);
   if (!parsed.success) return failedCreate("VALIDATION_ERROR", "Data transaksi tidak valid", 400, requestId, parsed.error.flatten());
   const idempotencyKey = request.headers.get("Idempotency-Key");

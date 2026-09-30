@@ -39,27 +39,26 @@
  *             credential) · 4 the schema is not migrated.
  * ═══════════════════════════════════════════════════════════════════════
  *
- * ── PHASE ONE of the two-phase use the task names ──────────────────────────
+ * ── PHASE TWO: keys are delivery-valid AND bytes are written ───────────────
  * T-FOUND-012 "depends on T-UPLOAD-004 (page asset shape) — runs fully only
- * after the media pipeline exists; before that, seeds DB rows with placeholder
- * asset keys and is re-run after". **T-UPLOAD-004 has not run, so this file is
- * phase one.** Concretely:
- *   - Every `chapter_page.asset_key` and `manga.cover_asset_key` written here is
- *     a PLACEHOLDER handle. The keys are already opaque and deterministic
- *     (FR-MEDIA-003: an unguessable key, never a path), so asset enumeration
- *     behaves like production — but **no object bytes exist in object
- *     storage**, so media delivery for a seeded page 404s until the upload
- *     pipeline can produce the real object.
- *   - The synthetic page images ARE generated (in memory, with sharp) and their
+ * after the media pipeline exists". Phase one seeded DB rows with placeholder
+ * asset keys and dropped the rendered bytes; 8ebc15f closed the page half and
+ * T-CATALOG-010 closes the cover half here. Concretely:
+ *   - Every `chapter_page.asset_key` is an opaque deterministic base key
+ *     (`pageAssetKey`), and its three variants are WRITTEN to
+ *     `pages/{chapterId}/{assetKey}.{ext}` through `ObjectStoragePort` — the
+ *     same storage the app reads from — so a seeded page is deliverable.
+ *   - Every `manga.cover_asset_key` is an opaque deterministic base key
+ *     (`coverAssetKey`, 32 hex — the old `seed/v1/cover/<digest>` shape is
+ *     gone because slashes can never pass the delivery grammar), and its two
+ *     variants (WebP + JPEG, T-CATALOG-010) are WRITTEN to
+ *     `covers/{mangaId}.{ext}`.
+ *   - The synthetic images ARE generated (in memory, with sharp) and their
  *     TRUE dimensions and variant byte sizes are recorded on every row
- *     (DATA_MODEL §10 `byte_size_avif|webp|jpeg`, the NFR-PERF-009 record). The
- *     encoded bytes are then dropped: nothing is written to disk or to S3.
- *   - After T-UPLOAD-004 lands, re-running the harness with the real
- *     `commitPages` means: upload the rendered buffers through
- *     `ObjectStoragePort`, take the REAL variant keys the media pipeline mints,
- *     and call `commitPages({ replace: true })` so the old keys are GC-queued
- *     (FR-UPLOAD-009). Until then that step is a no-op and the placeholder keys
- *     are the documented intermediate state.
+ *     (DATA_MODEL §10 `byte_size_avif|webp|jpeg`, the NFR-PERF-009 record).
+ *   - What T-UPLOAD-004 still owns: minting REAL pipeline keys at upload time
+ *     and GC-queuing replaced ones (FR-UPLOAD-009). The seed's deterministic
+ *     keys remain the documented fixture state, not production ingest.
  *
  * ── Determinism ────────────────────────────────────────────────────────────
  * Two fresh runs produce byte-identical stdout (the report):
@@ -675,6 +674,44 @@ export function pageObjectPathFor(input) {
   })}.${input.ext}`;
 }
 
+/**
+ * The opaque base key a manga's cover is stored under (T-FOUND-012,
+ * T-CATALOG-010, FR-MEDIA-003).
+ *
+ * The previous shape — `seed/v1/cover/<digest>` — carried slashes and no
+ * extension, so `parseDeliveryKey` returned null and every cover 404'd before
+ * storage was ever consulted (D-IMG-002). A cover key is the same kind of
+ * thing as a page key (an opaque, unguessable, layout-free handle), so it is
+ * derived the same way: 128 bits of digest, hex, one URL segment. The manga
+ * directory is the server's business (`covers/{mangaId}.{ext}`), not the
+ * key's — exactly the split the page pipeline already uses.
+ *
+ * @param {{ slug: string }} input
+ * @returns {string}
+ */
+export function coverAssetKey(input) {
+  return createHash('sha256').update(`cover|${input.slug}`).digest('hex').slice(0, 32);
+}
+
+/**
+ * Where one cover variant's OBJECT goes: `covers/{mangaId}.{ext}`.
+ *
+ * The same layout `coverObjectKey` in src/server/storage builds, and it must
+ * stay identical to it — the delivery route resolves the cover from the manga
+ * row, so a seed that writes anywhere else produces an object no request will
+ * ever name. Written here as its own function, and mirrored by a test, for
+ * the same reason `pageObjectPathFor` exists: a path inlined in the writer is
+ * a path nothing can reach, and the suite that claims to check "the path the
+ * seed wrote" would otherwise build the path itself.
+ *
+ * @param {{ slug: string, ext: string }} input
+ * @returns {string}
+ */
+export function coverObjectPathFor(input) {
+  const mangaId = deterministicUuid('manga', input.slug);
+  return `covers/${mangaId}.${input.ext}`;
+}
+
 /* ── the plan (pure) ─────────────────────────────────────────────────────── */
 
 /**
@@ -745,7 +782,7 @@ function ordinaryManga(input) {
     genreNames: pick(input.genreNames, index, 2),
     tagNames: pick(input.tagNames, index, 3),
     creators: input.creators,
-    coverAssetKey: `seed/v1/cover/${createHash('sha256').update(slug).digest('hex').slice(0, 32)}`,
+    coverAssetKey: coverAssetKey({ slug }),
     chapters: [
       chapterSpec(1, `${padded} — opening`, true, input.pages),
       chapterSpec(2, `${padded} — middle`, true, input.pages),
@@ -782,7 +819,7 @@ function specialManga(input) {
     genreNames: pick(input.genreNames, input.pageCount, 2),
     tagNames: pick(input.tagNames, input.pageCount, 3),
     creators: input.creators,
-    coverAssetKey: `seed/v1/cover/${createHash('sha256').update(slug).digest('hex').slice(0, 32)}`,
+    coverAssetKey: coverAssetKey({ slug }),
     chapters: [chapterSpec(1, 'the whole chapter', true, input.pageCount)],
   };
 }
@@ -955,6 +992,53 @@ export async function renderSyntheticPage(spec) {
     byteSizeJpeg: jpeg.length,
     digest: createHash('sha256').update(avif).digest('hex').slice(0, 16),
     avif,
+    webp,
+    jpeg,
+  };
+}
+
+/**
+ * Cover art dimensions: 2:3, the design's cover proportion (the hi-fi set;
+ * `cover-image.tsx` reserves the box at 600×900). Under T-CATALOG-010's
+ * 1200 px ceiling, so no downscale step is needed.
+ */
+export const SYNTHETIC_COVER_WIDTH = 600;
+export const SYNTHETIC_COVER_HEIGHT = 900;
+
+/**
+ * Renders ONE synthetic cover and reports its real geometry and variant sizes.
+ *
+ * Same synthetic-gradient technique as `renderSyntheticPage` (no file read,
+ * no network, nothing but this function — TEST_STRATEGY §6, AGENTS.md §4.3),
+ * but WebP + JPEG ONLY: covers are stored in those two variants
+ * (`coverObjectKey`, ADR-005 / T-UPLOAD-011), so an AVIF encode would be a
+ * third of the cover budget spent on bytes no request can name. The gradient
+ * tilt is derived from the slug so covers differ from each other the way
+ * pages differ by page number — deterministically.
+ *
+ * The encoded buffers are RETURNED for the caller to put in object storage
+ * (the same arrangement as pages). They are live and not safe to retain; the
+ * seed writes each cover inside its loop and lets the buffers fall out of
+ * scope.
+ *
+ * @param {{ slug: string }} spec
+ * @returns {Promise<{ width: number, height: number, byteSizeWebp: number, byteSizeJpeg: number, webp: Buffer, jpeg: Buffer }>}
+ */
+export async function renderSyntheticCover(spec) {
+  const sharp = await loadSharp();
+  const tiltSeed = Number.parseInt(createHash('sha256').update(spec.slug).digest('hex').slice(0, 8), 16);
+  const raw = grayscaleGradient(SYNTHETIC_COVER_WIDTH, SYNTHETIC_COVER_HEIGHT, tiltSeed % 997);
+  /** @type {import('sharp').SharpOptions} */
+  const input = { raw: { width: SYNTHETIC_COVER_WIDTH, height: SYNTHETIC_COVER_HEIGHT, channels: 1 } };
+  const [webp, jpeg] = await Promise.all([
+    sharp(raw, input).webp().toBuffer(),
+    sharp(raw, input).jpeg({ quality: 80 }).toBuffer(),
+  ]);
+  return {
+    width: SYNTHETIC_COVER_WIDTH,
+    height: SYNTHETIC_COVER_HEIGHT,
+    byteSizeWebp: webp.length,
+    byteSizeJpeg: jpeg.length,
     webp,
     jpeg,
   };
@@ -1978,6 +2062,34 @@ export async function runSeed(options) {
         'Page rendering exceeded the T-FOUND-012 budget; re-run with a smaller --chunk-size.',
       );
     }
+
+    // Covers are rendered and written here — NOT in `materialisePages`, which
+    // is the page pipeline's chunk loop. One cover per plan title (WebP +
+    // JPEG, T-CATALOG-010), each written inside the loop and released before
+    // the next render, so peak memory stays one cover. The object path is the
+    // seed's own `coverObjectPathFor`, mirrored by a test against the product
+    // `coverObjectKey` (INT-MEDIA-SEED).
+    const coverStartedAt = Date.now();
+    let coversWritten = 0;
+    for (const entry of materialised.manga) {
+      const rendered = await renderSyntheticCover({ slug: entry.slug });
+      await storage.putStream(
+        asAssetKey(coverObjectPathFor({ slug: entry.slug, ext: 'webp' })),
+        bytesToStream(rendered.webp),
+        'image/webp',
+      );
+      await storage.putStream(
+        asAssetKey(coverObjectPathFor({ slug: entry.slug, ext: 'jpeg' })),
+        bytesToStream(rendered.jpeg),
+        'image/jpeg',
+      );
+      coversWritten += 1;
+    }
+    timings['covers'] = Date.now() - coverStartedAt;
+    log.info(
+      { covers: coversWritten, coverMs: timings['covers'] },
+      'Synthetic covers rendered and written to object storage (webp/jpeg per title).',
+    );
 
     const writeStartedAt = Date.now();
     const repositories = createSeedRepositories(db);

@@ -31,6 +31,8 @@ import {
   SeedRefusal,
   assertSeedMode,
   buildSeedPlan,
+  coverAssetKey,
+  coverObjectPathFor,
   deterministicUuid,
   materialisePages,
   pageAssetKey,
@@ -584,3 +586,48 @@ const COMMON_WEAK_PASSWORDS = [
   'seed-password',
   'dev-password',
 ] as const;
+
+/* ── UNIT-SEED-006 — cover keys obey the delivery grammar ─────────────────── */
+
+describe('UNIT-SEED-006 / T-FOUND-012 — cover asset keys are grammar-valid base keys', () => {
+  // The grammar the media route applies to the URL path, copied from
+  // DELIVERY_KEY_PATTERN in src/server/media/page-delivery.ts — the same
+  // independent source the page-key suite (above) pins itself to.
+  const DELIVERY_KEY_PATTERN = /^([A-Za-z0-9_-]{22,64})\.(avif|webp|jpeg)$/;
+
+  it('derives cover asset keys that are deterministic and unguessable (FR-MEDIA-003)', () => {
+    const a = coverAssetKey({ slug: 'seed-manga-0001' });
+    const b = coverAssetKey({ slug: 'seed-manga-0001' });
+    const c = coverAssetKey({ slug: 'seed-manga-0002' });
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a).not.toContain('seed-manga-0001');
+  });
+
+  it('mints cover asset keys the delivery grammar actually accepts', () => {
+    // The old `seed/v1/cover/<digest>` shape carried slashes and no
+    // extension, so `parseDeliveryKey` returned null and every cover 404'd
+    // before storage was ever consulted. A cover key must be one URL
+    // segment; the manga directory is the server's business
+    // (`covers/{mangaId}.{ext}`), not the key's.
+    const key = coverAssetKey({ slug: 'seed-manga-0001' });
+    expect(`${key}.jpeg`).toMatch(DELIVERY_KEY_PATTERN);
+    expect(`${key}.webp`).toMatch(DELIVERY_KEY_PATTERN);
+    expect(key).not.toContain('/');
+  });
+
+  it('derives the cover object path the delivery layer resolves', () => {
+    // Mirrors the product helper rather than rebuilding it: importing
+    // `coverObjectKey` here would make this suite assert the product code
+    // against itself, so the agreement is asserted in
+    // tests/integration/media-seed-delivery.test.ts, which runs the seed's
+    // own function and then asks the delivery path for the key it produced.
+    const mangaId = deterministicUuid('manga', 'seed-manga-0001');
+    expect(coverObjectPathFor({ slug: 'seed-manga-0001', ext: 'jpeg' })).toBe(
+      `covers/${mangaId}.jpeg`,
+    );
+    expect(coverObjectPathFor({ slug: 'seed-manga-0001', ext: 'webp' })).toBe(
+      `covers/${mangaId}.webp`,
+    );
+  });
+});

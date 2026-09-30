@@ -119,7 +119,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Action>> = {
     "hq:read", "hq:view", "hq:export", "operator:manage", "stall:manage", "assignment:manage",
     "price:manage", "menu:manage", "menu:view", "location:manage", "location:view",
     "shift:suspend", "shift:view", "incident:resolve", "incident:view", "stock:transfer", "stock:view",
-    "expense:review", "expense:view", "sale:view", "payment:view",
+    "expense:submit", "expense:review", "expense:view", "sale:create", "sale:view", "payment:cash", "payment:digital", "payment:view",
     "evidence:view", "notification:view", "audit:view", "config:view",
   ]),
   HQ_FINANCE: new Set([
@@ -130,8 +130,8 @@ const ROLE_PERMISSIONS: Record<Role, Set<Action>> = {
   ]),
   AREA_SUPERVISOR: new Set([
     "hq:read", "hq:view", "location:manage", "location:view", "price:override",
-    "shift:suspend", "shift:view", "expense:review", "expense:view", "stock:report", "stock:view",
-    "incident:resolve", "incident:view", "sale:view", "payment:view", "evidence:view", "notification:view",
+    "shift:suspend", "shift:view", "expense:submit", "expense:review", "expense:view", "stock:report", "stock:view",
+    "incident:resolve", "incident:view", "sale:create", "sale:view", "payment:cash", "payment:digital", "payment:view", "evidence:view", "notification:view",
   ]),
   MENU_PRICING_ADMIN: new Set(["price:manage", "menu:manage", "menu:view", "hq:read", "hq:view", "config:view"]),
   ANALYST: new Set(["hq:read", "hq:view", "sale:view", "payment:view", "stock:view", "config:view"]),
@@ -168,14 +168,28 @@ export function authorize(session: SessionContext, action: Action, target: Scope
   }
   // Scope checks: self can only act on self
   if (session.scope.kind === "self") {
-    if (target.kind === "self" && target.operatorId !== session.operatorId) {
+    const actorOpId = session.operatorId || session.scope.operatorId;
+    if (target.operatorId && target.operatorId !== actorOpId) {
       const err = new Error("Forbidden: self scope violation");
       (err as any).code = "FORBIDDEN";
       throw err;
     }
+    if (target.stallId && session.scope.stallId && target.stallId !== session.scope.stallId) {
+      const err = new Error("Forbidden: stall scope violation");
+      (err as any).code = "FORBIDDEN";
+      throw err;
+    }
   }
-  // Area supervisor can only manage their area
-  if (session.roles.includes("AREA_SUPERVISOR") && session.scope.areaId) {
+  // Stall scope check
+  if (session.scope.kind === "stall" && session.scope.stallId) {
+    if (target.stallId && target.stallId !== session.scope.stallId) {
+      const err = new Error("Forbidden: stall scope violation");
+      (err as any).code = "FORBIDDEN";
+      throw err;
+    }
+  }
+  // Area scope check
+  if ((session.scope.kind === "area" || session.roles.includes("AREA_SUPERVISOR")) && session.scope.areaId) {
     if (target.areaId && target.areaId !== session.scope.areaId) {
       const err = new Error("Forbidden: area scope violation");
       (err as any).code = "FORBIDDEN";

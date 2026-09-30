@@ -18,6 +18,7 @@
  */
 import { z } from 'zod';
 import type { ChapterId, MangaId, MangaSlug } from '../../shared/types';
+import { MEDIA_URL_PATTERN } from '../../shared/storage-keys';
 
 /**
  * The wire is a string; the domain type is branded (shared/types/ids.ts). This
@@ -38,15 +39,18 @@ export const statusSchema = z.enum(['ongoing', 'completed', 'hiatus']);
 export const directionSchema = z.enum(['rtl', 'ltr']);
 
 /**
- * `coverUrl` is app-relative `/media/{assetKey}` — an invariant stated in
- * shared/contracts/manga.ts, and THREAT T-11 makes the key a capability. A value
- * that is not of that form is transformed to `null`, so the card renders the
- * placeholder instead of fetching an origin the API chose. Dropping the field is
- * the safe failure: a wrong image is a worse defect than a missing one.
+ * `coverUrl` is app-relative `/media/{assetKey}.{variant}` — an invariant
+ * stated in shared/contracts/manga.ts, and THREAT T-11 makes the key a
+ * capability. The shape is `MEDIA_URL_PATTERN` in shared/storage-keys.ts
+ * (T-CATALOG-010; the one home this rule shares with the members' lane), not
+ * a local regex. A value that is not of that form is transformed to `null`,
+ * so the card renders the placeholder instead of fetching an origin the API
+ * chose. Dropping the field is the safe failure: a wrong image is a worse
+ * defect than a missing one.
  */
 const coverUrlSchema = z
   .string()
-  .transform((value) => (/^\/media\/[A-Za-z0-9_-]{6,64}$/.test(value) ? value : null))
+  .transform((value) => (MEDIA_URL_PATTERN.test(value) ? value : null))
   .nullable();
 
 /** `numeric(8,2)` arrives as a number, but a driver may hand over a string. */

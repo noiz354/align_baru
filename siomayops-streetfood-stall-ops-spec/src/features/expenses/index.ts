@@ -1,7 +1,14 @@
-import { memoryStore, generateId, type StoredExpense } from "../../server/db/memory-store";
+import crypto from "node:crypto";
+import { memoryStore, generateId, syncFromDiskIfNeeded, toJakartanBusinessDay, type StoredExpense } from "../../server/db/memory-store";
+import { repositories } from "../../server/db/repository";
+import { withIdempotency } from "../../server/db/idempotency";
+import { authorize, type SessionContext } from "../../server/auth/port";
+import type { Scope } from "../../shared/types/scope";
+import { recordExpenseRequestSchema } from "../../shared/contracts/expenses";
+import { resolveAuthorizedOutlet } from "../sales";
 import type { Money } from "../../shared/money";
 import { writeAuditEvent } from "../audit";
-import { EXPENSE_CATEGORY_CODES, nextReviewState, matchesFlagPattern, type ExpenseCategoryCode, type ExpenseRecord, type ExpenseReviewState } from "../../domain/expense/review";
+import { EXPENSE_CATEGORY_CODES, nextReviewState, matchesFlagPattern, type ExpenseCategoryCode, type ExpenseRecord, type ExpenseReviewState, type ExpensePaidFrom } from "../../domain/expense/review";
 import { money } from "../../shared/money/money";
 
 export * from "./read-model";
@@ -135,6 +142,387 @@ export async function submitExpense(input: SubmitExpenseInput): Promise<{ expens
 
   return { expenseId: id };
 }
+
+export interface RecordExpenseResult {
+  readonly expenseId: string;
+  readonly outletId: string;
+  readonly outletName: string;
+  readonly stallId: string;
+  readonly stallCode: string;
+  readonly sellingLocationId: string;
+  readonly locationName: string;
+  readonly operatorId: string;
+  readonly operatorName: string;
+  readonly shiftId: string;
+  readonly businessDay: string;
+  readonly categoryCode: ExpenseCategoryCode;
+  readonly description: string;
+  readonly note?: string;
+  readonly amount: Money;
+  readonly paidFrom: ExpensePaidFrom;
+  readonly reviewStatus: ExpenseReviewState;
+  readonly flaggedReason?: string;
+  readonly incurredAt: string;
+  readonly createdAt: string;
+  readonly replayed: boolean;
+}
+
+export async function recordExpense(
+  session: SessionContext | null | undefined,
+  rawInput: unknown,
+  options?: { idempotencyKey?: string; correlationId?: string }
+): Promise<RecordExpenseResult> {
+  syncFromDiskIfNeeded();
+  const correlationId = options?.correlationId || generateId();
+
+  if (!session || !session.organizationId || !session.userId) {
+    throw Object.assign(new Error("Sesi tidak terautentikasi"), {
+      code: "UNAUTHENTICATED",
+      status: 401,
+    });
+  }
+
+  // Role permission check
+  try {
+    authorize(session, "expense:submit", session.scope);
+  } catch (e: any) {
+    await writeAuditEvent({
+      organizationId: session.organizationId,
+      actorKind: session.roles.includes("OPERATOR") ? "OPERATOR" : "HQ_USER",
+      actorId: session.operatorId || session.userId,
+      actorRole: session.roles[0],
+      action: "authz.denied",
+      subjectKind: "expense",
+      subjectId: "submit",
+      reason: e.message || "role_permission_denied",
+      correlationId,
+      occurredAt: new Date(),
+      afterSummary: { roles: session.roles, attemptedAction: "expense:submit" },
+    });
+    throw Object.assign(new Error(e.message || "Forbidden"), {
+      code: "FORBIDDEN",
+      status: 403,
+    });
+  }
+
+  if (!rawInput || typeof rawInput !== "object" || Array.isArray(rawInput)) {
+    throw Object.assign(new Error("Payload pengeluaran tidak valid"), {
+      code: "VALIDATION_FAILED",
+      status: 400,
+      details: { formErrors: ["Payload pengeluaran harus berupa objek"] },
+    });
+  }
+
+  const rawObj = rawInput as Record<string, any>;
+  let resolvedOutletId = typeof rawObj.outletId === "string" ? rawObj.outletId.trim() : "";
+  if (!resolvedOutletId && typeof rawObj.shiftId === "string" && rawObj.shiftId.trim()) {
+    const shift = memoryStore.shifts.get(rawObj.shiftId.trim());
+    if (shift && shift.organizationId === session.organizationId) {
+      resolvedOutletId = shift.stallId;
+    } else if (shift && shift.organizationId !== session.organizationId) {
+      throw Object.assign(new Error("Akses ditolak: shift milik organisasi lain"), {
+        code: "FORBIDDEN",
+        status: 403,
+      });
+    } else {
+      throw Object.assign(new Error("Shift atau outlet tidak ditemukan"), {
+        code: "NOT_FOUND",
+        status: 404,
+      });
+    }
+  }
+
+  const rawAmount =
+    typeof rawObj.amount === "number"
+      ? rawObj.amount
+      : typeof rawObj.amountMinor === "number"
+        ? rawObj.amountMinor
+        : rawObj.amount && typeof rawObj.amount === "object" && typeof rawObj.amount.amountMinor === "number"
+          ? rawObj.amount.amountMinor
+          : rawObj.amount;
+
+  if (typeof rawAmount !== "number" || !Number.isFinite(rawAmount)) {
+    throw Object.assign(new Error("Nominal pengeluaran harus berupa bilangan bulat Rupiah yang valid"), {
+      code: "VALIDATION_FAILED",
+      status: 400,
+      details: { fieldErrors: { amount: ["Nominal pengeluaran harus berupa angka bulat positif"] } },
+    });
+  }
+
+  const rawCategory =
+    typeof rawObj.categoryCode === "string" && rawObj.categoryCode.trim()
+      ? rawObj.categoryCode.trim()
+      : typeof rawObj.category === "string" && rawObj.category.trim()
+        ? rawObj.category.trim()
+        : undefined;
+
+  const rawNote =
+    typeof rawObj.note === "string" && rawObj.note.trim().length > 0
+      ? rawObj.note.trim()
+      : typeof rawObj.operatorNote === "string" && rawObj.operatorNote.trim().length > 0
+        ? rawObj.operatorNote.trim()
+        : undefined;
+
+  const rawIncurredAt =
+    typeof rawObj.incurredAt === "string" && rawObj.incurredAt.trim()
+      ? rawObj.incurredAt.trim()
+      : typeof rawObj.recordedAtDevice === "string" && rawObj.recordedAtDevice.trim()
+        ? rawObj.recordedAtDevice.trim()
+        : undefined;
+
+  const normalizedCandidate = {
+    outletId: resolvedOutletId,
+    categoryCode: rawCategory,
+    amount: rawAmount,
+    description: typeof rawObj.description === "string" ? rawObj.description : "",
+    paidFrom: rawObj.paidFrom || "CASH_BOX",
+    incurredAt: rawIncurredAt,
+    note: rawNote,
+    evidenceAssetId: typeof rawObj.evidenceAssetId === "string" ? rawObj.evidenceAssetId : undefined,
+    clientExpenseId:
+      typeof rawObj.clientExpenseId === "string" && rawObj.clientExpenseId.trim().length > 0
+        ? rawObj.clientExpenseId.trim()
+        : undefined,
+  };
+
+  const parsed = recordExpenseRequestSchema.safeParse(normalizedCandidate);
+  if (!parsed.success) {
+    const flat = parsed.error.flatten();
+    const firstMsg =
+      Object.values(flat.fieldErrors).flat()[0] ||
+      flat.formErrors[0] ||
+      "Data pengeluaran tidak valid";
+    throw Object.assign(new Error(firstMsg), {
+      code: "VALIDATION_FAILED",
+      status: 400,
+      details: flat,
+    });
+  }
+
+  const input = parsed.data;
+
+  // Resolve and authorize target outlet (verifies org, area, stall, and self scope)
+  const outlet = await resolveAuthorizedOutlet(session, input.outletId, correlationId);
+
+  // Also explicitly authorize expense:submit against the target stall scope
+  const targetScope: Scope = {
+    kind: "stall",
+    organizationId: session.organizationId,
+    areaId: outlet.areaId,
+    stallId: outlet.stallId,
+    operatorId: session.operatorId,
+  };
+  try {
+    authorize(session, "expense:submit", targetScope);
+  } catch (e: any) {
+    throw Object.assign(new Error(e.message || "Akses ditolak untuk mencatat pengeluaran di outlet ini"), {
+      code: "FORBIDDEN",
+      status: 403,
+    });
+  }
+
+  const amountMoney = money(input.amount, "IDR");
+  const effectiveIdempotencyKey =
+    (options?.idempotencyKey && options.idempotencyKey.trim()) ||
+    (input.clientExpenseId && input.clientExpenseId.trim()) ||
+    "";
+  const clientExpenseId = effectiveIdempotencyKey || generateId();
+
+  const requestHash = crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({
+        outletId: outlet.stallId,
+        categoryCode: input.categoryCode,
+        amountMinor: amountMoney.amountMinor,
+        description: input.description,
+        paidFrom: input.paidFrom,
+        note: input.note || "",
+        incurredAt: input.incurredAt || "",
+      })
+    )
+    .digest("hex");
+
+  const executeWrite = async (): Promise<{ body: Omit<RecordExpenseResult, "replayed">; status: number }> => {
+    const existing = await repositories.expenses.findByClientId(session.scope, clientExpenseId);
+    if (existing) {
+      return {
+        body: {
+          expenseId: existing.id,
+          outletId: outlet.outletId,
+          outletName: outlet.outletName,
+          stallId: outlet.stallId,
+          stallCode: outlet.stallCode,
+          sellingLocationId: outlet.sellingLocationId,
+          locationName: outlet.locationName,
+          operatorId: existing.operatorId,
+          operatorName: outlet.operatorName,
+          shiftId: existing.shiftId,
+          businessDay: existing.businessDay || toJakartanBusinessDay(existing.incurredAt),
+          categoryCode: existing.category as ExpenseCategoryCode,
+          description: existing.description,
+          note: existing.note,
+          amount: money(existing.amountMinor, "IDR"),
+          paidFrom: existing.paidFrom,
+          reviewStatus: existing.reviewStatus,
+          flaggedReason: existing.flaggedReason,
+          incurredAt: existing.incurredAt.toISOString(),
+          createdAt: existing.createdAt.toISOString(),
+        },
+        status: 201,
+      };
+    }
+
+    const now = new Date();
+    const incurredAt = input.incurredAt ? new Date(input.incurredAt) : now;
+    const shift = memoryStore.shifts.get(outlet.shiftId);
+    const businessDay = shift?.businessDay || toJakartanBusinessDay(incurredAt);
+    const expenseId = generateId();
+
+    // Evaluate record-level neutral flag patterns (never attached to person, never auto-rejects)
+    const domainRecord: ExpenseRecord = {
+      expenseId,
+      shiftId: outlet.shiftId,
+      categoryCode: input.categoryCode,
+      description: input.description,
+      amount: amountMoney,
+      paidFrom: input.paidFrom,
+      operatorNote: input.note,
+      evidenceAssetId: input.evidenceAssetId,
+      reviewState: "SUBMITTED",
+      clientExpenseId,
+    };
+
+    let flaggedReason: string | undefined;
+    if (matchesFlagPattern(domainRecord, "HIGH_AMOUNT")) flaggedReason = "HIGH_AMOUNT";
+    else if (matchesFlagPattern(domainRecord, "NO_EVIDENCE_HIGH")) flaggedReason = "NO_EVIDENCE_HIGH";
+    else if (matchesFlagPattern(domainRecord, "ROUND_AMOUNT")) flaggedReason = "ROUND_AMOUNT";
+    else if (matchesFlagPattern(domainRecord, "REPEATED_UNVERIFIED")) flaggedReason = "REPEATED_UNVERIFIED";
+
+    const reviewStatus: ExpenseReviewState = flaggedReason ? "REVIEW_REQUIRED" : "SUBMITTED";
+
+    // Protected fields derived strictly server-side
+    const storedExpense: StoredExpense = {
+      id: expenseId,
+      organizationId: session.organizationId,
+      shiftId: outlet.shiftId,
+      stallId: outlet.stallId,
+      operatorId: outlet.operatorId,
+      sellingLocationId: outlet.sellingLocationId,
+      businessDay,
+      category: input.categoryCode,
+      amountMinor: amountMoney.amountMinor,
+      currency: "IDR",
+      description: input.description,
+      note: input.note,
+      paidFrom: input.paidFrom,
+      evidenceObjectKey: input.evidenceAssetId,
+      reviewStatus,
+      flaggedReason,
+      clientExpenseId,
+      incurredAt,
+      createdAt: now,
+    };
+
+    await repositories.expenses.createExpense(session.scope, storedExpense);
+
+    if (flaggedReason) {
+      await writeAuditEvent({
+        organizationId: session.organizationId,
+        actorKind: "SYSTEM",
+        action: "expense.flagged",
+        subjectKind: "expense",
+        subjectId: expenseId,
+        correlationId,
+        occurredAt: now,
+        afterSummary: { flaggedReason, reviewStatus },
+      });
+    }
+
+    await writeAuditEvent({
+      organizationId: session.organizationId,
+      actorKind: session.roles.includes("OPERATOR") ? "OPERATOR" : "HQ_USER",
+      actorId: session.operatorId || session.userId,
+      actorRole: session.roles[0],
+      action: "expense.submitted",
+      subjectKind: "expense",
+      subjectId: expenseId,
+      correlationId,
+      occurredAt: now,
+      afterSummary: {
+        stallId: outlet.stallId,
+        stallCode: outlet.stallCode,
+        categoryCode: input.categoryCode,
+        amountMinor: amountMoney.amountMinor,
+        paidFrom: input.paidFrom,
+        description: input.description,
+        note: input.note,
+        reviewStatus,
+      },
+    });
+
+    return {
+      body: {
+        expenseId,
+        outletId: outlet.outletId,
+        outletName: outlet.outletName,
+        stallId: outlet.stallId,
+        stallCode: outlet.stallCode,
+        sellingLocationId: outlet.sellingLocationId,
+        locationName: outlet.locationName,
+        operatorId: outlet.operatorId,
+        operatorName: outlet.operatorName,
+        shiftId: outlet.shiftId,
+        businessDay,
+        categoryCode: input.categoryCode,
+        description: input.description,
+        note: input.note,
+        amount: amountMoney,
+        paidFrom: input.paidFrom,
+        reviewStatus,
+        flaggedReason,
+        incurredAt: incurredAt.toISOString(),
+        createdAt: now.toISOString(),
+      },
+      status: 201,
+    };
+  };
+
+  if (effectiveIdempotencyKey && effectiveIdempotencyKey.length >= 8) {
+    try {
+      const idempotentResult = await withIdempotency(
+        {
+          organizationId: session.organizationId,
+          route: "POST /api/v1/expenses",
+          idempotencyKey: effectiveIdempotencyKey,
+          requestHash,
+          actorId: session.userId,
+        },
+        executeWrite
+      );
+      return {
+        ...idempotentResult.body,
+        amount: money(idempotentResult.body.amount.amountMinor, "IDR"),
+        replayed: idempotentResult.replayed,
+      };
+    } catch (e: any) {
+      if (e.code === "IDEMPOTENCY_MISMATCH") {
+        throw Object.assign(
+          new Error("Kunci idempotensi sudah digunakan dengan rincian pengeluaran yang berbeda"),
+          { code: "IDEMPOTENCY_MISMATCH", status: 422 }
+        );
+      }
+      throw e;
+    }
+  }
+
+  const directResult = await executeWrite();
+  return {
+    ...directResult.body,
+    replayed: false,
+  };
+}
+
 
 export async function reviewExpense(input: {
   expenseId: string; decision: "REVIEWED" | "REJECTED" | "ESCALATED"; reason: string; reviewedBy: string; reviewerRole?: string; organizationId?: string; reviewerOperatorId?: string;

@@ -11,49 +11,51 @@ Curators (admins) upload chapters as archives or image sets; the pipeline valida
 
 ## Documents
 
-| Document | Purpose |
-|---|---|
-| [`PRD.md`](PRD.md) | Product requirements with stable IDs (FR-*, NFR-*) |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System architecture, module map, data flow |
-| [`ADR.md`](ADR.md) | Index of all architecture decision records |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | Conceptual data model (pre-migration) |
-| [`API_CONTRACT.md`](API_CONTRACT.md) | Planned API operations + error taxonomy |
-| [`SECURITY.md`](SECURITY.md) | Security architecture & controls |
-| [`THREAT_MODEL.md`](THREAT_MODEL.md) | Threat register with mitigations & verification |
-| [`PERFORMANCE.md`](PERFORMANCE.md) | Measurable performance budgets |
-| [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | WCAG 2.1 AA commitments |
-| [`TEST_STRATEGY.md`](TEST_STRATEGY.md) | Test levels, planned test IDs |
-| [`OBSERVABILITY.md`](OBSERVABILITY.md) | Traces, metrics, logs, alerts |
-| [`DEPLOYMENT.md`](DEPLOYMENT.md) | Topology, env, secrets, backups, rollback |
-| [`RUNBOOK.md`](RUNBOOK.md) | Operational procedures |
-| [`ROADMAP.md`](ROADMAP.md) | Vertical slices VS-0 … VS-11 |
-| [`TASKS.md`](TASKS.md) | All implementation tasks (source of work) |
-| [`AGENTS.md`](AGENTS.md) | How coding agents must work in this repo |
-| [`SKILLS.md`](SKILLS.md) | Which agent skills apply to which task family, and which installed skills deliberately do not |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Human/agent contribution conventions |
-| [`docs/architecture/`](docs/architecture/) | System context, module boundaries, dependency rules, data flow, final review + traceability |
-| [`docs/product/`](docs/product/) | Reader behavior spec, admin workflow, user journeys, edge cases |
-| [`docs/adr/`](docs/adr/) | ADR-001 … ADR-009 |
-| [`docs/research/2026-stack-validation.md`](docs/research/2026-stack-validation.md) | Stack validation evidence & package status registry |
+| Document                                                                           | Purpose                                                                                       |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`PRD.md`](PRD.md)                                                                 | Product requirements with stable IDs (FR-_, NFR-_)                                            |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)                                               | System architecture, module map, data flow                                                    |
+| [`ADR.md`](ADR.md)                                                                 | Index of all architecture decision records                                                    |
+| [`DATA_MODEL.md`](DATA_MODEL.md)                                                   | Conceptual data model (pre-migration)                                                         |
+| [`API_CONTRACT.md`](API_CONTRACT.md)                                               | Planned API operations + error taxonomy                                                       |
+| [`SECURITY.md`](SECURITY.md)                                                       | Security architecture & controls                                                              |
+| [`THREAT_MODEL.md`](THREAT_MODEL.md)                                               | Threat register with mitigations & verification                                               |
+| [`PERFORMANCE.md`](PERFORMANCE.md)                                                 | Measurable performance budgets                                                                |
+| [`ACCESSIBILITY.md`](ACCESSIBILITY.md)                                             | WCAG 2.1 AA commitments                                                                       |
+| [`TEST_STRATEGY.md`](TEST_STRATEGY.md)                                             | Test levels, planned test IDs                                                                 |
+| [`OBSERVABILITY.md`](OBSERVABILITY.md)                                             | Traces, metrics, logs, alerts                                                                 |
+| [`DEPLOYMENT.md`](DEPLOYMENT.md)                                                   | Topology, env, secrets, backups, rollback                                                     |
+| [`RUNBOOK.md`](RUNBOOK.md)                                                         | Operational procedures                                                                        |
+| [`USER_GUIDE.md`](USER_GUIDE.md)                                                   | User guide: run it, read, keep a shelf, get manga in (EN)                                     |
+| [`PANDUAN_PENGGUNA.md`](PANDUAN_PENGGUNA.md)                                       | Panduan pengguna: menjalankan, membaca, rak, memasukkan manga (ID)                            |
+| [`ROADMAP.md`](ROADMAP.md)                                                         | Vertical slices VS-0 … VS-11                                                                  |
+| [`TASKS.md`](TASKS.md)                                                             | All implementation tasks (source of work)                                                     |
+| [`AGENTS.md`](AGENTS.md)                                                           | How coding agents must work in this repo                                                      |
+| [`SKILLS.md`](SKILLS.md)                                                           | Which agent skills apply to which task family, and which installed skills deliberately do not |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                                               | Human/agent contribution conventions                                                          |
+| [`docs/architecture/`](docs/architecture/)                                         | System context, module boundaries, dependency rules, data flow, final review + traceability   |
+| [`docs/product/`](docs/product/)                                                   | Reader behavior spec, admin workflow, user journeys, edge cases                               |
+| [`docs/adr/`](docs/adr/)                                                           | ADR-001 … ADR-009                                                                             |
+| [`docs/research/2026-stack-validation.md`](docs/research/2026-stack-validation.md) | Stack validation evidence & package status registry                                           |
 
 ## Validated 2026 stack (summary)
 
-| Concern | Selection | Why (one line) |
-|---|---|---|
-| Runtime | Node.js 24 LTS (Active) | Current LTS; 26 is not LTS until Oct 2026 |
-| Language | TypeScript 6.0 (strict) | 7.0 has unstable programmatic API |
-| Framework | Next.js 16.3 (App Router, Turbopack) | Stable since Oct 2025; 15.x EOLs Oct 2026 |
-| UI | React 19.3 | Stable, compiler-ready |
-| Styling | Tailwind CSS 4.3 | CSS-first, 2024+ browser baseline |
-| Database | PostgreSQL 18.6 | Supported to Nov 2030 |
-| Data access | Drizzle ORM 0.45 + drizzle-kit | SQL-first, inspectable, stable line |
-| Object storage | S3 protocol (`@aws-sdk/client-s3`) | R2/S3/MinIO all work behind one port |
-| Images | sharp 0.35 (libvips) | AVIF/WebP/JPEG at batch speed |
-| Validation | Zod 4 | Stable, Standard Schema |
-| Passwords | argon2 (Argon2id) | 2026 recommended |
-| Observability | OpenTelemetry API 1.9 + SDK 2.11 + pino | Vendor-neutral |
-| Tests | Vitest 4.1 + Playwright 1.62 | Stable lines |
-| Ops | Docker + GitHub Actions | Compose on a single VM |
+| Concern        | Selection                               | Why (one line)                            |
+| -------------- | --------------------------------------- | ----------------------------------------- |
+| Runtime        | Node.js 24 LTS (Active)                 | Current LTS; 26 is not LTS until Oct 2026 |
+| Language       | TypeScript 6.0 (strict)                 | 7.0 has unstable programmatic API         |
+| Framework      | Next.js 16.3 (App Router, Turbopack)    | Stable since Oct 2025; 15.x EOLs Oct 2026 |
+| UI             | React 19.3                              | Stable, compiler-ready                    |
+| Styling        | Tailwind CSS 4.3                        | CSS-first, 2024+ browser baseline         |
+| Database       | PostgreSQL 18.6                         | Supported to Nov 2030                     |
+| Data access    | Drizzle ORM 0.45 + drizzle-kit          | SQL-first, inspectable, stable line       |
+| Object storage | S3 protocol (`@aws-sdk/client-s3`)      | R2/S3/MinIO all work behind one port      |
+| Images         | sharp 0.35 (libvips)                    | AVIF/WebP/JPEG at batch speed             |
+| Validation     | Zod 4                                   | Stable, Standard Schema                   |
+| Passwords      | argon2 (Argon2id)                       | 2026 recommended                          |
+| Observability  | OpenTelemetry API 1.9 + SDK 2.11 + pino | Vendor-neutral                            |
+| Tests          | Vitest 4.1 + Playwright 1.62            | Stable lines                              |
+| Ops            | Docker + GitHub Actions                 | Compose on a single VM                    |
 
 Full evidence and rejected alternatives: `docs/research/2026-stack-validation.md`.
 
@@ -90,7 +92,7 @@ tests/
 └── e2e/            # planned Playwright flows
 ```
 
-Skeleton rule: files communicate responsibility, contracts, requirement IDs (FR-*/NFR-*), and task IDs (T-*). Functions that must not exist yet throw `Not implemented: T-…`. **Do not mistake skeletons for implementations.**
+Skeleton rule: files communicate responsibility, contracts, requirement IDs (FR-_/NFR-_), and task IDs (T-*). Functions that must not exist yet throw `Not implemented: T-…`. **Do not mistake skeletons for implementations.**
 
 ## What is NOT here yet (by design)
 

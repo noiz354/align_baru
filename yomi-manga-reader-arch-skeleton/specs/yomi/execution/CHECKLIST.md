@@ -1103,19 +1103,19 @@ Completion evidence:
 
 ### F-021-S1 — Get E2E into CI
 
-- [ ] spec complete
-- [ ] dependencies satisfied
-- [ ] implementation complete
-- [ ] migration complete / N/A
-- [ ] unit test complete / N/A
-- [ ] integration test complete
-- [ ] negative-path verification
-- [ ] user isolation verification
-- [ ] build/typecheck/lint
-- [ ] acceptance criteria verified
-- [ ] documentation reconciled
-- [ ] commit created
-- [ ] evidence recorded
+- [x] spec complete
+- [x] dependencies satisfied
+- [x] implementation complete
+- [x] migration complete / N/A
+- [x] unit test complete / N/A
+- [x] integration test complete
+- [x] negative-path verification
+- [x] user isolation verification
+- [x] build/typecheck/lint
+- [x] acceptance criteria verified
+- [x] documentation reconciled
+- [x] commit created
+- [x] evidence recorded
 
 **Acceptance**
 - the 5 non-todo e2e specs run in CI: `catalog-journey`, `catalog-perf`,
@@ -1127,10 +1127,19 @@ Completion evidence:
   double-count
 
 Completion evidence:
-- Commit:
-- Tests:
-- Commands:
-- Notes:
+- Commit: F-021-S1 (verification + deletions; the job already existed)
+- Tests: 788 unchanged; Playwright locally 83/85 (2 environmental, both
+  chased to cause: dev-bundle JS measured against a production budget, and a
+  seed title this box lacks).
+- Commands: 5 Playwright specs against the seeded app · full regression gates
+  · `next build`
+- Notes: the checklist said "E2E absent" and named project-checks.yml — both
+  stale (ci.yml has a real e2e job: Chromium, seeded PG, production artifact,
+  axe gate, no continue-on-error, gated on push like every other job). The 7
+  dead todo shells (24 describe.todo, executed by NO runner) are deleted; IDs
+  live in TEST_STRATEGY.md/TASKS.md. vitest include covers unit+integration
+  only, so no double-count. Not claimed: CI-green (only CI claims that),
+  mobile results, or the deleted todos reimplemented.
 
 ---
 

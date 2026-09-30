@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { authorize } from "@/server/auth/port";
 import { memoryStore, generateId } from "@/server/db/memory-store";
 import { writeAuditEvent } from "@/features/audit";
-import { getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError } from "@/features/hq/dashboard";
+import { authorizeHqScope, getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError } from "@/features/hq/dashboard";
 import { errorResponse, getRequestId, resolveSession } from "../../../_helpers";
 
 const csvCell = (value: string | number | null) => {
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const session = await resolveSession();
     if (!session) return errorResponse("UNAUTHENTICATED", "Sign in is required", 401, requestId);
     authorize(session, "hq:export", { kind: "org", organizationId: session.organizationId });
+    const scope = authorizeHqScope(session);
     const params = request.nextUrl.searchParams;
     const day = params.get("date") ?? getDefaultDashboardDay();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(`${day}T12:00:00Z`))) {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (!validStatuses.has(statusRaw)) return errorResponse("VALIDATION_ERROR", "Invalid outlet status", 400, requestId);
 
     // Export uses the same server-side, session-scoped query as the dashboard, not browser table state.
-    const snapshot = getHqDashboard({ scope: session.scope, businessDay: day, areaId, outletId, status: statusRaw as any, search: params.get("search") || undefined, limit: 10_000 });
+    const snapshot = getHqDashboard({ scope, businessDay: day, areaId, outletId, status: statusRaw as any, search: params.get("search") || undefined, limit: 10_000 });
     const header = ["business_day", "generated_at", "source_watermark", "outlet", "operator", "started_at", "sales_idr", "transactions", "expenses_idr", "status"];
     const lines = [header.map(csvCell).join(",")];
     for (const row of snapshot.outlets) {

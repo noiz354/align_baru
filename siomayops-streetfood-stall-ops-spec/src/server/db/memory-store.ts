@@ -6,7 +6,6 @@
  */
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 export type OrganizationId = string;
@@ -79,12 +78,7 @@ export interface StoredShift {
   updatedAt: Date;
 }
 
-export interface StoredGpsSample {
-  latitude: number;
-  longitude: number;
-  accuracyMeters: number;
-  capturedAt: Date;
-}
+export interface StoredGpsSample { latitude: number; longitude: number; accuracyMeters: number; capturedAt: Date; }
 
 export interface StoredLocationReport {
   id: string;
@@ -106,47 +100,20 @@ export interface StoredLocationReport {
 export type StoredSiteGroundCondition = "DRY" | "WET";
 export type StoredSiteShelterStatus = "AVAILABLE" | "NOT_AVAILABLE" | "UNKNOWN";
 export interface StoredSiteConditionObservation {
-  id: string;
-  organizationId: string;
-  operatorId: string;
-  shiftId: string;
-  sellingLocationId: string;
-  observedAt: Date;
-  groundCondition: StoredSiteGroundCondition;
-  shelterStatus: StoredSiteShelterStatus;
-  shelterNote?: string;
-  relocationDecisionNote?: string;
-  clientRequestId: string;
-  createdAt: Date;
+  id: string; organizationId: string; operatorId: string; shiftId: string; sellingLocationId: string;
+  observedAt: Date; groundCondition: StoredSiteGroundCondition; shelterStatus: StoredSiteShelterStatus;
+  shelterNote?: string; relocationDecisionNote?: string; clientRequestId: string; createdAt: Date;
 }
-
 export type StoredTrafficBand = "QUIET" | "STEADY" | "BUSY" | "VERY_BUSY";
 export interface StoredTrafficSample {
-  id: string;
-  organizationId: string;
-  sellingLocationId: string;
-  /** Deliberately coarse (hour bucket); no operatorId or shiftId by design. */
-  sampledAt: Date;
-  estimatedCount: number;
-  trafficBand: StoredTrafficBand;
-  note?: string;
-  clientRequestId: string;
-  videoAssetId?: string;
-  videoStatus: "NOT_PROVIDED" | "UPLOADED" | "DELETED";
-  createdAt: Date;
+  id: string; organizationId: string; sellingLocationId: string; sampledAt: Date; estimatedCount: number;
+  trafficBand: StoredTrafficBand; note?: string; clientRequestId: string; videoAssetId?: string;
+  videoStatus: "NOT_PROVIDED" | "UPLOADED" | "DELETED"; createdAt: Date;
 }
 export interface StoredTrafficVideoAsset {
-  id: string;
-  organizationId: string;
-  sellingLocationId: string;
-  sampleId?: string;
-  uploadedAt: Date;
-  expiresAt: Date;
-  contentType: "video/webm";
-  byteSize: number;
-  durationMs: number;
-  clientRequestId: string;
-  storageKey: string;
+  id: string; organizationId: string; sellingLocationId: string; sampleId?: string; uploadedAt: Date;
+  expiresAt: Date; contentType: "video/webm"; byteSize: number; durationMs: number;
+  clientRequestId: string; storageKey: string;
 }
 
 export interface StoredMenuCategory {
@@ -206,6 +173,8 @@ export interface StoredSale {
   currency: "IDR";
   status: "DRAFT" | "COMPLETED" | "VOIDED" | "CORRECTED";
   clientSaleId: string;
+  note?: string;
+  customerReference?: string;
   version: number;
   createdAt: Date;
 }
@@ -253,8 +222,10 @@ export interface StoredExpense {
   id: string;
   organizationId: string;
   shiftId: string;
+  stallId?: string;
   operatorId: string;
   sellingLocationId?: string;
+  businessDay?: string;
   category: string;
   amountMinor: number;
   currency: "IDR";
@@ -438,7 +409,7 @@ class MemoryStore {
   loyaltyAccounts = new Map<string, StoredLoyaltyAccount>();
   rewardInstances = new Map<string, StoredRewardInstance>();
   incidents = new Map<string, StoredIncident>();
-  incidentByClientId = new Map<string, string>(); // org|operator|clientIncidentId -> incidentId
+  incidentByClientId = new Map<string, string>();
   alerts = new Map<string, StoredAlert>();
   evidenceAssets = new Map<string, any>();
   notifications = new Map<string, any>();
@@ -460,12 +431,9 @@ class MemoryStore {
     this.sellingLocations.clear();
     this.shifts.clear();
     this.locationReports.clear();
-    this.siteConditionObservations.clear();
-    this.siteConditionObservationByClientId.clear();
-    this.trafficSamples.clear();
-    this.trafficVideoAssets.clear();
-    this.trafficSampleByClientId.clear();
-    this.trafficVideoByClientId.clear();
+    this.siteConditionObservations.clear(); this.siteConditionObservationByClientId.clear();
+    this.trafficSamples.clear(); this.trafficVideoAssets.clear();
+    this.trafficSampleByClientId.clear(); this.trafficVideoByClientId.clear();
     this.menuCategories.clear();
     this.menuItems.clear();
     this.pricePolicies.clear();
@@ -479,7 +447,7 @@ class MemoryStore {
     this.stockMovements.clear();
     this.stockSnapshots.clear();
     this.closings.clear();
-    this.auditEvents = [];
+    this.auditEvents.splice(0, this.auditEvents.length);
     this.idempotency.clear();
     this.loyaltyAccounts.clear();
     this.rewardInstances.clear();
@@ -496,20 +464,46 @@ class MemoryStore {
     this.locationReportByClientId.clear();
     this.closingByClientId.clear();
     this.movementByClientId.clear();
-    // persist after clear (will write empty but seed will repopulate on next load)
-    try { persistStore(); } catch {}
+    // Only persist on clear if an explicit SIOMAYOPS_DB_PATH is set and not in standard test runner
+    if (process.env.SIOMAYOPS_DB_PATH) {
+      try { persistStore(); } catch {}
+    }
+  }
+
+  resetToSeed() {
+    this.clear();
+    ensureSeed();
+  }
+
+  reloadFromDisk(): boolean {
+    return reloadStoreFromDisk();
   }
 }
 
-// Singleton
-export const memoryStore = new MemoryStore();
+// Singleton shared across Next.js module contexts
+const globalForStore = globalThis as unknown as {
+  __siomayopsMemoryStore?: MemoryStore;
+  __siomayopsWrapped?: boolean;
+  __siomayopsLastMtimeMs?: number;
+};
+
+export const memoryStore: MemoryStore =
+  globalForStore.__siomayopsMemoryStore ?? (globalForStore.__siomayopsMemoryStore = new MemoryStore());
 
 // --- Persistence layer (file-backed) ---
-const DB_PATH = process.env.SIOMAYOPS_DATA_FILE
-  ? path.resolve(process.env.SIOMAYOPS_DATA_FILE)
-  : process.env.NODE_ENV === "test"
-    ? path.join(os.tmpdir(), `siomayops-test-${process.pid}.json`)
-    : path.join(process.cwd(), "data", "db.json");
+const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "db.json");
+
+function getDbPath(): string | null {
+  if (process.env.SIOMAYOPS_DB_PATH) {
+    return process.env.SIOMAYOPS_DB_PATH;
+  }
+  if (process.env.VITEST || process.env.NODE_ENV === "test") {
+    return null;
+  }
+  return DEFAULT_DB_PATH;
+}
+
+let isApplyingFromDisk = false;
 
 function dateReviver(_key: string, value: any) {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
@@ -520,8 +514,11 @@ function dateReviver(_key: string, value: any) {
 }
 
 function persistStore() {
+  if (isApplyingFromDisk) return;
+  const dbPath = getDbPath();
+  if (!dbPath) return;
   try {
-    const dir = path.dirname(DB_PATH);
+    const dir = path.dirname(dbPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const data = {
       operators: Array.from(memoryStore.operators.entries()),
@@ -567,69 +564,91 @@ function persistStore() {
       closingByClientId: Array.from(memoryStore.closingByClientId.entries()),
       movementByClientId: Array.from(memoryStore.movementByClientId.entries()),
     };
-    const tmp = DB_PATH + ".tmp";
+    const tmp = dbPath + `.tmp.${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
-    fs.renameSync(tmp, DB_PATH);
+    fs.renameSync(tmp, dbPath);
+    try {
+      globalForStore.__siomayopsLastMtimeMs = fs.statSync(dbPath).mtimeMs;
+    } catch {}
   } catch {}
 }
 
+function populateMap<K, V>(target: Map<K, V>, entries: Iterable<[K, V]> | undefined) {
+  target.clear();
+  if (!entries) return;
+  for (const [k, v] of entries) {
+    target.set(k, v);
+  }
+}
+
 function loadStore(): boolean {
+  const dbPath = getDbPath();
+  if (!dbPath) return false;
   try {
-    if (!fs.existsSync(DB_PATH)) return false;
-    const raw = fs.readFileSync(DB_PATH, "utf-8");
+    if (!fs.existsSync(dbPath)) return false;
+    const raw = fs.readFileSync(dbPath, "utf-8");
     if (!raw) return false;
     const data = JSON.parse(raw, dateReviver);
-    // restore maps
-    if (data.operators) memoryStore.operators = new Map(data.operators);
-    if (data.stalls) memoryStore.stalls = new Map(data.stalls);
-    if (data.assignments) memoryStore.assignments = new Map(data.assignments);
-    if (data.sellingLocations) memoryStore.sellingLocations = new Map(data.sellingLocations);
-    if (data.shifts) memoryStore.shifts = new Map(data.shifts);
-    if (data.locationReports) memoryStore.locationReports = new Map(data.locationReports);
-    if (data.siteConditionObservations) memoryStore.siteConditionObservations = new Map(data.siteConditionObservations);
-    if (data.siteConditionObservationByClientId) memoryStore.siteConditionObservationByClientId = new Map(data.siteConditionObservationByClientId);
-    if (data.trafficSamples) memoryStore.trafficSamples = new Map(data.trafficSamples);
-    if (data.trafficVideoAssets) memoryStore.trafficVideoAssets = new Map(data.trafficVideoAssets);
-    if (data.trafficSampleByClientId) memoryStore.trafficSampleByClientId = new Map(data.trafficSampleByClientId);
-    if (data.trafficVideoByClientId) memoryStore.trafficVideoByClientId = new Map(data.trafficVideoByClientId);
-    if (data.menuCategories) memoryStore.menuCategories = new Map(data.menuCategories);
-    if (data.menuItems) memoryStore.menuItems = new Map(data.menuItems);
-    if (data.pricePolicies) memoryStore.pricePolicies = new Map(data.pricePolicies);
-    if (data.priceAcknowledgements) memoryStore.priceAcknowledgements = new Map(data.priceAcknowledgements);
-    if (data.sales) memoryStore.sales = new Map(data.sales);
-    if (data.saleItems) memoryStore.saleItems = new Map(data.saleItems);
-    if (data.payments) memoryStore.payments = new Map(data.payments);
-    if (data.paymentCallbacks) memoryStore.paymentCallbacks = new Map(data.paymentCallbacks);
-    if (data.expenses) memoryStore.expenses = new Map(data.expenses);
-    if (data.stockItems) memoryStore.stockItems = new Map(data.stockItems);
-    if (data.stockMovements) memoryStore.stockMovements = new Map(data.stockMovements);
-    if (data.stockSnapshots) memoryStore.stockSnapshots = new Map(data.stockSnapshots);
-    if (data.closings) memoryStore.closings = new Map(data.closings);
-    if (data.auditEvents) memoryStore.auditEvents = data.auditEvents;
-    if (data.idempotency) memoryStore.idempotency = new Map(data.idempotency);
-    if (data.loyaltyAccounts) memoryStore.loyaltyAccounts = new Map(data.loyaltyAccounts);
-    if (data.rewardInstances) memoryStore.rewardInstances = new Map(data.rewardInstances);
-    if (data.incidents) memoryStore.incidents = new Map(data.incidents);
-    if (data.incidentByClientId) memoryStore.incidentByClientId = new Map(data.incidentByClientId);
-    if (data.alerts) memoryStore.alerts = new Map(data.alerts);
-    if (data.evidenceAssets) memoryStore.evidenceAssets = new Map(data.evidenceAssets);
-    if (data.notifications) memoryStore.notifications = new Map(data.notifications);
-    if (data.shiftClosings) memoryStore.shiftClosings = new Map(data.shiftClosings);
-    if (data.shiftByClientId) memoryStore.shiftByClientId = new Map(data.shiftByClientId);
-    if (data.saleByClientId) memoryStore.saleByClientId = new Map(data.saleByClientId);
-    if (data.paymentByClientId) memoryStore.paymentByClientId = new Map(data.paymentByClientId);
-    if (data.expenseByClientId) memoryStore.expenseByClientId = new Map(data.expenseByClientId);
-    if (data.locationReportByClientId) memoryStore.locationReportByClientId = new Map(data.locationReportByClientId);
-    if (data.closingByClientId) memoryStore.closingByClientId = new Map(data.closingByClientId);
-    if (data.movementByClientId) memoryStore.movementByClientId = new Map(data.movementByClientId);
+    isApplyingFromDisk = true;
+    try {
+      populateMap(memoryStore.operators, data.operators);
+      populateMap(memoryStore.stalls, data.stalls);
+      populateMap(memoryStore.assignments, data.assignments);
+      populateMap(memoryStore.sellingLocations, data.sellingLocations);
+      populateMap(memoryStore.shifts, data.shifts);
+      populateMap(memoryStore.locationReports, data.locationReports);
+      populateMap(memoryStore.siteConditionObservations, data.siteConditionObservations);
+      populateMap(memoryStore.siteConditionObservationByClientId, data.siteConditionObservationByClientId);
+      populateMap(memoryStore.trafficSamples, data.trafficSamples);
+      populateMap(memoryStore.trafficVideoAssets, data.trafficVideoAssets);
+      populateMap(memoryStore.trafficSampleByClientId, data.trafficSampleByClientId);
+      populateMap(memoryStore.trafficVideoByClientId, data.trafficVideoByClientId);
+      populateMap(memoryStore.menuCategories, data.menuCategories);
+      populateMap(memoryStore.menuItems, data.menuItems);
+      populateMap(memoryStore.pricePolicies, data.pricePolicies);
+      populateMap(memoryStore.priceAcknowledgements, data.priceAcknowledgements);
+      populateMap(memoryStore.sales, data.sales);
+      populateMap(memoryStore.saleItems, data.saleItems);
+      populateMap(memoryStore.payments, data.payments);
+      populateMap(memoryStore.paymentCallbacks, data.paymentCallbacks);
+      populateMap(memoryStore.expenses, data.expenses);
+      populateMap(memoryStore.stockItems, data.stockItems);
+      populateMap(memoryStore.stockMovements, data.stockMovements);
+      populateMap(memoryStore.stockSnapshots, data.stockSnapshots);
+      populateMap(memoryStore.closings, data.closings);
+      memoryStore.auditEvents.splice(0, memoryStore.auditEvents.length, ...(data.auditEvents || []));
+      populateMap(memoryStore.idempotency, data.idempotency);
+      populateMap(memoryStore.loyaltyAccounts, data.loyaltyAccounts);
+      populateMap(memoryStore.rewardInstances, data.rewardInstances);
+      populateMap(memoryStore.incidents, data.incidents);
+      populateMap(memoryStore.incidentByClientId, data.incidentByClientId);
+      populateMap(memoryStore.alerts, data.alerts);
+      populateMap(memoryStore.evidenceAssets, data.evidenceAssets);
+      populateMap(memoryStore.notifications, data.notifications);
+      populateMap(memoryStore.shiftClosings, data.shiftClosings);
+      populateMap(memoryStore.shiftByClientId, data.shiftByClientId);
+      populateMap(memoryStore.saleByClientId, data.saleByClientId);
+      populateMap(memoryStore.paymentByClientId, data.paymentByClientId);
+      populateMap(memoryStore.expenseByClientId, data.expenseByClientId);
+      populateMap(memoryStore.locationReportByClientId, data.locationReportByClientId);
+      populateMap(memoryStore.closingByClientId, data.closingByClientId);
+      populateMap(memoryStore.movementByClientId, data.movementByClientId);
+      try {
+        globalForStore.__siomayopsLastMtimeMs = fs.statSync(dbPath).mtimeMs;
+      } catch {}
+    } finally {
+      isApplyingFromDisk = false;
+    }
     return true;
   } catch {
+    isApplyingFromDisk = false;
     return false;
   }
 }
 
 // Wrap map mutations to auto-persist
 function wrapMapsForPersist() {
+  if (globalForStore.__siomayopsWrapped) return;
   const mapKeys: (keyof MemoryStore)[] = [
     "operators","stalls","assignments","sellingLocations","shifts","locationReports","siteConditionObservations","siteConditionObservationByClientId","trafficSamples","trafficVideoAssets","trafficSampleByClientId","trafficVideoByClientId",
     "menuCategories","menuItems","pricePolicies","priceAcknowledgements","sales","saleItems",
@@ -648,15 +667,13 @@ function wrapMapsForPersist() {
     (m as any).delete = (key: any) => { const r = origDelete(key); if (r) persistStore(); return r; };
     (m as any).clear = () => { const r = origClear(); persistStore(); return r; };
   }
-  // auditEvents is array: wrap push
   const origPush = memoryStore.auditEvents.push.bind(memoryStore.auditEvents);
   (memoryStore.auditEvents as any).push = (...args: any[]) => { const r = origPush(...args); persistStore(); return r; };
-  // also wrap splice etc that may be used? We handle generic array mutation via proxy would be complex; we handle push only plus after writes we also call persistStore explicitly in writeAuditEvent
+  globalForStore.__siomayopsWrapped = true;
 }
 
 // Deterministic seed for POS vertical slice
-function toJakartanBusinessDay(now: Date): string {
-  // same logic as toBusinessDay with cut 4, Jakarta UTC+7
+export function toJakartanBusinessDay(now: Date): string {
   const utcMs = now.getTime();
   const jakartaMs = utcMs + 7 * 60 * 60 * 1000;
   const d = new Date(jakartaMs);
@@ -676,206 +693,271 @@ function toJakartanBusinessDay(now: Date): string {
   return `${y}-${pad2(m)}-${pad2(dd)}`;
 }
 
-function ensureSeed() {
-  // The catalog and financial seed is for local/test work only; never insert it at production startup.
+export function ensureSeed() {
   if (process.env.NODE_ENV === "production") return;
   const ORG = "00000000-0000-7000-0000-000000000001";
   const AREA = "00000000-0000-7000-0000-000000000003";
   const OPERATOR = "00000000-0000-7000-0000-000000000010";
+  const OP2 = "00000000-0000-7000-0000-000000000011";
   const STALL = "00000000-0000-7000-0000-000000000020";
+  const STALL2 = "00000000-0000-7000-0000-000000000021";
   const LOC = "00000000-0000-7000-0000-000000000030";
+  const LOC2 = "00000000-0000-7000-0000-000000000032";
   const now = new Date();
+  const businessDay = toJakartanBusinessDay(now);
 
   let seeded = false;
-
-  // Operators
-  if (!memoryStore.operators.has(OPERATOR)) {
-    memoryStore.operators.set(OPERATOR, {
-      id: OPERATOR,
-      organizationId: ORG,
-      areaId: AREA,
-      name: "Budi",
-      phoneE164: "+6281234567890",
-      status: "ACTIVE",
-      contractType: "FULL_TIME",
-      trainingState: "TRAINED",
-      startedOn: "2026-01-15",
-      createdAt: now,
-      updatedAt: now,
-      active: true,
-    });
-    seeded = true;
-  }
-  // Second operator for HQ
-  const OP2 = "00000000-0000-7000-0000-000000000011";
-  if (!memoryStore.operators.has(OP2)) {
-    memoryStore.operators.set(OP2, {
-      id: OP2,
-      organizationId: ORG,
-      areaId: AREA,
-      name: "Sari",
-      phoneE164: "+6281234567891",
-      status: "ACTIVE",
-      contractType: "FULL_TIME",
-      trainingState: "TRAINED",
-      createdAt: now,
-      updatedAt: now,
-      active: true,
-    });
-    seeded = true;
-  }
-
-  // Stall
-  if (!memoryStore.stalls.has(STALL)) {
-    memoryStore.stalls.set(STALL, {
-      id: STALL,
-      organizationId: ORG,
-      areaId: AREA,
-      code: "ST-001",
-      type: "MOBILE",
-      status: "ACTIVE",
-      createdAt: now,
-    });
-    seeded = true;
-  }
-
-  // Selling location
-  if (!memoryStore.sellingLocations.has(LOC)) {
-    memoryStore.sellingLocations.set(LOC, {
-      id: LOC,
-      organizationId: ORG,
-      areaId: AREA,
-      name: "Alun-alun Bandung",
-      addressText: "Jl. Asia Afrika No.1, Bandung",
-      lat: -6.921,
-      lng: 107.607,
-      status: "ACTIVE",
-      createdAt: now,
-      updatedAt: now,
-    });
-    seeded = true;
-  }
-
-  // Assignment
-  const ASSIGN = "00000000-0000-7000-0000-000000000040";
-  if (!memoryStore.assignments.has(ASSIGN)) {
-    memoryStore.assignments.set(ASSIGN, {
-      id: ASSIGN,
-      organizationId: ORG,
-      operatorId: OPERATOR,
-      stallId: STALL,
-      areaId: AREA,
-      type: "PRIMARY",
-      validFrom: now,
-      createdBy: OPERATOR,
-    });
-    seeded = true;
-  }
-
-  // Menu categories
-  const CAT1 = "00000000-0000-7000-0000-000000000050";
-  const CAT2 = "00000000-0000-7000-0000-000000000051";
-  if (!memoryStore.menuCategories.has(CAT1)) {
-    memoryStore.menuCategories.set(CAT1, { id: CAT1, organizationId: ORG, name: "Siomay", sortOrder: 1 });
-    memoryStore.menuCategories.set(CAT2, { id: CAT2, organizationId: ORG, name: "Minuman", sortOrder: 2 });
-    seeded = true;
-  }
-
-  // Menu items — 4 items matching MOCK_MENU prices
-  const menuSeed: { id: string; name: string; cat: string; price: number; sort: number }[] = [
-    { id: "00000000-0000-7000-0000-000000000101", name: "Siomay Ayam", cat: CAT1, price: 15000, sort: 1 },
-    { id: "00000000-0000-7000-0000-000000000102", name: "Siomay Campur", cat: CAT1, price: 18000, sort: 2 },
-    { id: "00000000-0000-7000-0000-000000000103", name: "Batagor", cat: CAT1, price: 12000, sort: 3 },
-    { id: "00000000-0000-7000-0000-000000000104", name: "Es Teh", cat: CAT2, price: 5000, sort: 4 },
-  ];
-  for (const m of menuSeed) {
-    if (!memoryStore.menuItems.has(m.id)) {
-      memoryStore.menuItems.set(m.id, {
-        id: m.id,
+  const prevApplying = isApplyingFromDisk;
+  isApplyingFromDisk = true;
+  try {
+    // Operators
+    if (!memoryStore.operators.has(OPERATOR)) {
+      memoryStore.operators.set(OPERATOR, {
+        id: OPERATOR,
         organizationId: ORG,
-        categoryId: m.cat,
-        name: m.name,
-        active: true,
-        sortOrder: m.sort,
+        areaId: AREA,
+        name: "Budi",
+        phoneE164: "+6281234567890",
+        status: "ACTIVE",
+        contractType: "FULL_TIME",
+        trainingState: "TRAINED",
+        startedOn: "2026-01-15",
         createdAt: now,
-      });
-      seeded = true;
-    }
-    // price policy
-    const policyExists = Array.from(memoryStore.pricePolicies.values()).some(p => p.menuItemId === m.id && p.organizationId === ORG);
-    if (!policyExists) {
-      const pid = `pp-${m.id.slice(-4)}`;
-      memoryStore.pricePolicies.set(pid, {
-        id: pid,
-        organizationId: ORG,
-        menuItemId: m.id,
-        scope: "ORG",
-        scopeId: ORG,
-        unitPriceMinor: m.price,
-        currency: "IDR",
-        effectiveFrom: new Date(now.getTime() - 24*3600*1000),
-        reason: "seed: initial price",
-        createdBy: OPERATOR,
-        createdAt: now,
-      });
-      seeded = true;
-    }
-  }
-
-  // Stock items — 4 items (matching menu 1:1 for POS vertical)
-  const stockSeed: { id: string; name: string; code: string }[] = [
-    { id: "00000000-0000-7000-0000-000000000201", name: "Siomay Ayam", code: "STK-001" },
-    { id: "00000000-0000-7000-0000-000000000202", name: "Siomay Campur", code: "STK-002" },
-    { id: "00000000-0000-7000-0000-000000000203", name: "Batagor", code: "STK-003" },
-    { id: "00000000-0000-7000-0000-000000000204", name: "Es Teh", code: "STK-004" },
-  ];
-  for (const s of stockSeed) {
-    if (!memoryStore.stockItems.has(s.id)) {
-      memoryStore.stockItems.set(s.id, {
-        id: s.id,
-        organizationId: ORG,
-        code: s.code,
-        name: s.name,
-        category: s.name === "Es Teh" ? "MINUMAN" : "MAKANAN",
-        unit: "porsi",
+        updatedAt: now,
         active: true,
       });
       seeded = true;
     }
-  }
-
-  // Initial stock movements: 40 each if no movements yet
-  const hasMovements = Array.from(memoryStore.stockMovements.values()).some(m => m.organizationId === ORG);
-  if (!hasMovements) {
-    for (const s of stockSeed) {
-      const mid = `mov-init-${s.id.slice(-4)}`;
-      memoryStore.stockMovements.set(mid, {
-        id: mid,
+    if (!memoryStore.operators.has(OP2)) {
+      memoryStore.operators.set(OP2, {
+        id: OP2,
         organizationId: ORG,
-        stockItemId: s.id,
-        stallId: STALL,
+        areaId: AREA,
+        name: "Sari",
+        phoneE164: "+6281234567891",
+        status: "ACTIVE",
+        contractType: "FULL_TIME",
+        trainingState: "TRAINED",
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+      });
+      seeded = true;
+    }
+
+    // Stalls (Outlets)
+    if (!memoryStore.stalls.has(STALL)) {
+      memoryStore.stalls.set(STALL, {
+        id: STALL,
+        organizationId: ORG,
+        areaId: AREA,
+        code: "ST-001",
+        type: "MOBILE",
+        status: "ACTIVE",
+        createdAt: now,
+      });
+      seeded = true;
+    }
+    if (!memoryStore.stalls.has(STALL2)) {
+      memoryStore.stalls.set(STALL2, {
+        id: STALL2,
+        organizationId: ORG,
+        areaId: AREA,
+        code: "ST-002",
+        type: "BOOTH",
+        status: "ACTIVE",
+        createdAt: now,
+      });
+      seeded = true;
+    }
+
+    // External organization stall for cross-tenant authorization verification
+    const EXT_ORG = "00000000-0000-7000-0000-000000000099";
+    const EXT_STALL = "00000000-0000-7000-0000-000000000098";
+    const EXT_LOC = "00000000-0000-7000-0000-000000000097";
+    if (!memoryStore.stalls.has(EXT_STALL)) {
+      memoryStore.stalls.set(EXT_STALL, {
+        id: EXT_STALL,
+        organizationId: EXT_ORG,
+        areaId: "00000000-0000-7000-0000-000000000096",
+        code: "ST-EXT-99",
+        type: "MOBILE",
+        status: "ACTIVE",
+        createdAt: now,
+      });
+      memoryStore.sellingLocations.set(EXT_LOC, {
+        id: EXT_LOC,
+        organizationId: EXT_ORG,
+        areaId: "00000000-0000-7000-0000-000000000096",
+        name: "Outlet Organisasi Lain",
+        status: "ACTIVE",
+        createdAt: now,
+        updatedAt: now,
+      });
+      seeded = true;
+    }
+
+    // Selling locations
+    if (!memoryStore.sellingLocations.has(LOC)) {
+      memoryStore.sellingLocations.set(LOC, {
+        id: LOC,
+        organizationId: ORG,
+        areaId: AREA,
+        name: "Alun-alun Bandung",
+        addressText: "Jl. Asia Afrika No.1, Bandung",
+        lat: -6.921,
+        lng: 107.607,
+        status: "ACTIVE",
+        createdAt: now,
+        updatedAt: now,
+      });
+      seeded = true;
+    }
+    if (!memoryStore.sellingLocations.has(LOC2)) {
+      memoryStore.sellingLocations.set(LOC2, {
+        id: LOC2,
+        organizationId: ORG,
+        areaId: AREA,
+        name: "Cabang Dago Atas",
+        addressText: "Jl. Ir. H. Juanda No.88, Bandung",
+        lat: -6.885,
+        lng: 107.613,
+        status: "ACTIVE",
+        createdAt: now,
+        updatedAt: now,
+      });
+      seeded = true;
+    }
+
+    // Assignments
+    const ASSIGN = "00000000-0000-7000-0000-000000000040";
+    if (!memoryStore.assignments.has(ASSIGN)) {
+      memoryStore.assignments.set(ASSIGN, {
+        id: ASSIGN,
+        organizationId: ORG,
         operatorId: OPERATOR,
-        movementType: "RESTOCK",
-        quantity: 40,
-        occurredAt: now,
-        reason: "seed: opening stock",
-        actorId: OPERATOR,
-        clientMovementId: `client-${mid}`,
+        stallId: STALL,
+        areaId: AREA,
+        type: "PRIMARY",
+        validFrom: now,
+        createdBy: OPERATOR,
       });
-      memoryStore.movementByClientId.set(`client-${mid}`, mid);
+      seeded = true;
     }
-    seeded = true;
-  }
+    const ASSIGN2 = "00000000-0000-7000-0000-000000000041";
+    if (!memoryStore.assignments.has(ASSIGN2)) {
+      memoryStore.assignments.set(ASSIGN2, {
+        id: ASSIGN2,
+        organizationId: ORG,
+        operatorId: OP2,
+        stallId: STALL2,
+        areaId: AREA,
+        type: "PRIMARY",
+        validFrom: now,
+        createdBy: OP2,
+      });
+      seeded = true;
+    }
 
-  // Seed an OPEN shift if none exists for operator
-  const hasOpenShift = Array.from(memoryStore.shifts.values()).some(s => s.operatorId === OPERATOR && (s.status === "OPEN" || s.status === "PENDING_SYNC"));
-  if (!hasOpenShift) {
-    const shiftId = "00000000-0000-7000-0000-000000000001";
-    // only create if not exists (idempotent)
-    if (!memoryStore.shifts.has(shiftId)) {
-      const businessDay = toJakartanBusinessDay(now);
+    // Menu categories
+    const CAT1 = "00000000-0000-7000-0000-000000000050";
+    const CAT2 = "00000000-0000-7000-0000-000000000051";
+    if (!memoryStore.menuCategories.has(CAT1)) {
+      memoryStore.menuCategories.set(CAT1, { id: CAT1, organizationId: ORG, name: "Siomay", sortOrder: 1 });
+      memoryStore.menuCategories.set(CAT2, { id: CAT2, organizationId: ORG, name: "Minuman", sortOrder: 2 });
+      seeded = true;
+    }
+
+    // Menu items — 4 items matching MOCK_MENU prices
+    const menuSeed: { id: string; name: string; cat: string; price: number; sort: number }[] = [
+      { id: "00000000-0000-7000-0000-000000000101", name: "Siomay Ayam", cat: CAT1, price: 15000, sort: 1 },
+      { id: "00000000-0000-7000-0000-000000000102", name: "Siomay Campur", cat: CAT1, price: 18000, sort: 2 },
+      { id: "00000000-0000-7000-0000-000000000103", name: "Batagor", cat: CAT1, price: 12000, sort: 3 },
+      { id: "00000000-0000-7000-0000-000000000104", name: "Es Teh", cat: CAT2, price: 5000, sort: 4 },
+    ];
+    for (const m of menuSeed) {
+      if (!memoryStore.menuItems.has(m.id)) {
+        memoryStore.menuItems.set(m.id, {
+          id: m.id,
+          organizationId: ORG,
+          categoryId: m.cat,
+          name: m.name,
+          active: true,
+          sortOrder: m.sort,
+          createdAt: now,
+        });
+        seeded = true;
+      }
+      const policyExists = Array.from(memoryStore.pricePolicies.values()).some(p => p.menuItemId === m.id && p.organizationId === ORG);
+      if (!policyExists) {
+        const pid = `pp-${m.id.slice(-4)}`;
+        memoryStore.pricePolicies.set(pid, {
+          id: pid,
+          organizationId: ORG,
+          menuItemId: m.id,
+          scope: "ORG",
+          scopeId: ORG,
+          unitPriceMinor: m.price,
+          currency: "IDR",
+          effectiveFrom: new Date(now.getTime() - 24*3600*1000),
+          reason: "seed: initial price",
+          createdBy: OPERATOR,
+          createdAt: now,
+        });
+        seeded = true;
+      }
+    }
+
+    // Stock items — 4 items
+    const stockSeed: { id: string; name: string; code: string }[] = [
+      { id: "00000000-0000-7000-0000-000000000201", name: "Siomay Ayam", code: "STK-001" },
+      { id: "00000000-0000-7000-0000-000000000202", name: "Siomay Campur", code: "STK-002" },
+      { id: "00000000-0000-7000-0000-000000000203", name: "Batagor", code: "STK-003" },
+      { id: "00000000-0000-7000-0000-000000000204", name: "Es Teh", code: "STK-004" },
+    ];
+    for (const s of stockSeed) {
+      if (!memoryStore.stockItems.has(s.id)) {
+        memoryStore.stockItems.set(s.id, {
+          id: s.id,
+          organizationId: ORG,
+          code: s.code,
+          name: s.name,
+          category: s.name === "Es Teh" ? "MINUMAN" : "MAKANAN",
+          unit: "porsi",
+          active: true,
+        });
+        seeded = true;
+      }
+    }
+
+    // Initial stock movements: 40 each if no movements yet
+    const hasMovements = Array.from(memoryStore.stockMovements.values()).some(m => m.organizationId === ORG);
+    if (!hasMovements) {
+      for (const s of stockSeed) {
+        const mid = `mov-init-${s.id.slice(-4)}`;
+        memoryStore.stockMovements.set(mid, {
+          id: mid,
+          organizationId: ORG,
+          stockItemId: s.id,
+          stallId: STALL,
+          operatorId: OPERATOR,
+          movementType: "RESTOCK",
+          quantity: 40,
+          occurredAt: now,
+          reason: "seed: opening stock",
+          actorId: OPERATOR,
+          clientMovementId: `client-${mid}`,
+        });
+        memoryStore.movementByClientId.set(`client-${mid}`, mid);
+      }
+      seeded = true;
+    }
+
+    // Seed OPEN shift 1 for ST-001 (Budi)
+    const shiftId1 = "00000000-0000-7000-0000-000000000001";
+    if (!memoryStore.shifts.has(shiftId1)) {
       const shift: StoredShift = {
-        id: shiftId,
+        id: shiftId1,
         organizationId: ORG,
         operatorId: OPERATOR,
         stallId: STALL,
@@ -885,20 +967,19 @@ function ensureSeed() {
         openingCashMinor: 50000,
         currency: "IDR",
         status: "OPEN",
-        clientShiftId: shiftId,
+        clientShiftId: shiftId1,
         version: 1,
         createdAt: now,
         updatedAt: now,
       };
-      memoryStore.shifts.set(shiftId, shift);
-      memoryStore.shiftByClientId.set(shiftId, shiftId);
-      // location report ARRIVED
+      memoryStore.shifts.set(shiftId1, shift);
+      memoryStore.shiftByClientId.set(shiftId1, shiftId1);
       const reportId = "00000000-0000-7000-0000-000000000031";
       if (!memoryStore.locationReports.has(reportId)) {
         memoryStore.locationReports.set(reportId, {
           id: reportId,
           organizationId: ORG,
-          shiftId,
+          shiftId: shiftId1,
           stallId: STALL,
           operatorId: OPERATOR,
           sellingLocationId: LOC,
@@ -909,14 +990,13 @@ function ensureSeed() {
         });
         memoryStore.locationReportByClientId.set(reportId, reportId);
       }
-      // stock snapshots START
       for (const s of stockSeed) {
         const snapId = `snap-start-${s.id.slice(-4)}`;
         if (!memoryStore.stockSnapshots.has(snapId)) {
           memoryStore.stockSnapshots.set(snapId, {
             id: snapId,
             organizationId: ORG,
-            shiftId,
+            shiftId: shiftId1,
             stockItemId: s.id,
             phase: "START",
             countedQuantity: 40,
@@ -926,17 +1006,184 @@ function ensureSeed() {
       }
       seeded = true;
     }
+
+    // Seed OPEN shift 2 for ST-002 (Sari)
+    const shiftId2 = "00000000-0000-7000-0000-000000000002";
+    if (!memoryStore.shifts.has(shiftId2)) {
+      const shift2: StoredShift = {
+        id: shiftId2,
+        organizationId: ORG,
+        operatorId: OP2,
+        stallId: STALL2,
+        businessDay,
+        startedAt: now,
+        startLocationId: LOC2,
+        openingCashMinor: 50000,
+        currency: "IDR",
+        status: "OPEN",
+        clientShiftId: shiftId2,
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      memoryStore.shifts.set(shiftId2, shift2);
+      memoryStore.shiftByClientId.set(shiftId2, shiftId2);
+      const reportId2 = "00000000-0000-7000-0000-000000000033";
+      if (!memoryStore.locationReports.has(reportId2)) {
+        memoryStore.locationReports.set(reportId2, {
+          id: reportId2,
+          organizationId: ORG,
+          shiftId: shiftId2,
+          stallId: STALL2,
+          operatorId: OP2,
+          sellingLocationId: LOC2,
+          trigger: "ARRIVED",
+          arrivedAt: now,
+          clientReportId: reportId2,
+          createdAt: now,
+        });
+        memoryStore.locationReportByClientId.set(reportId2, reportId2);
+      }
+      seeded = true;
+    }
+
+    // Seed initial baseline completed sales if none exist yet (matching AFTER.md: 2 sales of Rp 30.000 = Rp 60.000)
+    if (memoryStore.sales.size === 0) {
+      const baselineSales = [
+        {
+          saleId: "42febc10-0000-7000-8000-000000000301",
+          paymentId: "42febc10-0000-7000-8000-000000000401",
+          saleItemId: "42febc10-0000-7000-8000-000000000501",
+          movId: "42febc10-0000-7000-8000-000000000601",
+          occurredAt: new Date(now.getTime() - 25 * 60 * 1000),
+          note: "2x Siomay Ayam (Shift Pagi)",
+        },
+        {
+          saleId: "7a3e32e8-0000-7000-8000-000000000302",
+          paymentId: "7a3e32e8-0000-7000-8000-000000000402",
+          saleItemId: "7a3e32e8-0000-7000-8000-000000000502",
+          movId: "7a3e32e8-0000-7000-8000-000000000602",
+          occurredAt: new Date(now.getTime() - 10 * 60 * 1000),
+          note: "2x Siomay Ayam (Pelanggan Reguler)",
+        },
+      ];
+      for (const bs of baselineSales) {
+        memoryStore.sales.set(bs.saleId, {
+          id: bs.saleId,
+          organizationId: ORG,
+          shiftId: shiftId1,
+          sellingLocationId: LOC,
+          operatorId: OPERATOR,
+          stallId: STALL,
+          businessDay,
+          occurredAt: bs.occurredAt,
+          serverAcceptedAt: bs.occurredAt,
+          totalMinor: 30000,
+          currency: "IDR",
+          status: "COMPLETED",
+          clientSaleId: bs.saleId,
+          note: bs.note,
+          customerReference: bs.note,
+          version: 2,
+          createdAt: bs.occurredAt,
+        });
+        memoryStore.saleByClientId.set(bs.saleId, bs.saleId);
+        memoryStore.saleItems.set(bs.saleItemId, {
+          id: bs.saleItemId,
+          organizationId: ORG,
+          saleId: bs.saleId,
+          menuItemId: "00000000-0000-7000-0000-000000000101",
+          quantity: 2,
+          unitPriceMinor: 15000,
+          lineTotalMinor: 30000,
+          pricePolicyId: "pp-0101",
+        });
+        memoryStore.payments.set(bs.paymentId, {
+          id: bs.paymentId,
+          organizationId: ORG,
+          saleId: bs.saleId,
+          method: "CASH",
+          amountMinor: 30000,
+          currency: "IDR",
+          status: "PAID",
+          clientPaymentId: bs.paymentId,
+          createdAt: bs.occurredAt,
+          updatedAt: bs.occurredAt,
+        });
+        memoryStore.paymentByClientId.set(bs.paymentId, bs.paymentId);
+        const movClientKey = `sale-${bs.saleId}-00000000-0000-7000-0000-000000000101`;
+        if (!memoryStore.movementByClientId.has(movClientKey)) {
+          memoryStore.stockMovements.set(bs.movId, {
+            id: bs.movId,
+            organizationId: ORG,
+            stockItemId: "00000000-0000-7000-0000-000000000201",
+            stallId: STALL,
+            operatorId: OPERATOR,
+            shiftId: shiftId1,
+            movementType: "SALE",
+            quantity: -2,
+            occurredAt: bs.occurredAt,
+            reason: `sale ${bs.saleId}`,
+            actorId: OPERATOR,
+            clientMovementId: movClientKey,
+          });
+          memoryStore.movementByClientId.set(movClientKey, bs.movId);
+        }
+        memoryStore.auditEvents.push({
+          id: `aud-${bs.saleId.slice(0, 8)}`,
+          organizationId: ORG,
+          actorId: OPERATOR,
+          actorKind: "OPERATOR",
+          action: "sale.created",
+          entityType: "sale",
+          entityId: bs.saleId,
+          occurredAt: bs.occurredAt,
+          newValueJson: JSON.stringify({ total: 30000, stallId: STALL, note: bs.note }),
+          requestId: `seed-${bs.saleId.slice(0, 8)}`,
+        });
+      }
+      seeded = true;
+    }
+  } finally {
+    isApplyingFromDisk = prevApplying;
   }
 
   if (seeded) persistStore();
 }
 
+export function syncFromDiskIfNeeded(): void {
+  const dbPath = getDbPath();
+  if (!dbPath) return;
+  try {
+    if (fs.existsSync(dbPath)) {
+      const mtimeMs = fs.statSync(dbPath).mtimeMs;
+      if (
+        globalForStore.__siomayopsLastMtimeMs === undefined ||
+        mtimeMs > globalForStore.__siomayopsLastMtimeMs ||
+        memoryStore.operators.size === 0
+      ) {
+        loadStore();
+        if (memoryStore.operators.size === 0) {
+          ensureSeed();
+        }
+      }
+    } else if (memoryStore.operators.size === 0) {
+      ensureSeed();
+    }
+  } catch {}
+}
+
+export function reloadStoreFromDisk(): boolean {
+  const ok = loadStore();
+  if (memoryStore.operators.size === 0) {
+    ensureSeed();
+  }
+  return ok;
+}
+
 export const GPS_SAMPLE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 export const TRAFFIC_VIDEO_RETENTION_MS = 24 * 60 * 60 * 1000;
 export const TRAFFIC_SAMPLE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
-
-
-/** Scrub only the precise GPS fields; retain the operational selling-point report. */
 export function purgeExpiredGpsSamples(now = new Date()): number {
   const cutoff = now.getTime() - GPS_SAMPLE_RETENTION_MS;
   let purged = 0;
@@ -945,7 +1192,7 @@ export function purgeExpiredGpsSamples(now = new Date()): number {
     const capturedAt = report.gpsSample.capturedAt;
     const timestamp = capturedAt instanceof Date ? capturedAt.getTime() : Number.NaN;
     if (!Number.isFinite(timestamp) || timestamp <= cutoff) {
-      const { gpsSample: _expiredSample, ...operationalReport } = report;
+      const { gpsSample: _expired, ...operationalReport } = report;
       memoryStore.locationReports.set(id, operationalReport);
       purged += 1;
     }
@@ -953,20 +1200,20 @@ export function purgeExpiredGpsSamples(now = new Date()): number {
   return purged;
 }
 
-// Initialize persistence and opportunistically scrub expired GPS fields on every process start.
-const loaded = loadStore();
+// Initialize persistence
 wrapMapsForPersist();
-ensureSeed();
+if (getDbPath()) {
+  const loaded = loadStore();
+  ensureSeed();
+  if (!loaded) persistStore();
 purgeExpiredGpsSamples();
-if (!loaded) persistStore();
+}
 
 // Helpers
 export function generateId(): string {
-  // UUIDv7-like: use crypto randomUUID if available
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return (crypto as any).randomUUID();
   }
-  // fallback
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 

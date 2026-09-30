@@ -440,9 +440,13 @@ jobs:
       # object store and no real secret here, and none of these values is ever
       # printed. SESSION_SECRET is generated per run precisely so that no
       # credential-shaped string is committed to this file (SECURITY.md §9).
-      # The S3 endpoint keeps an unreachable host on purpose: the seed writes
-      # placeholder asset keys and no object bytes (phase one, until
-      # T-UPLOAD-004), so no page is fetched from storage by the route map.
+      # The S3 endpoint keeps an unreachable host on purpose: this job runs no
+      # object store, so STORAGE_DIR points the seed AND the app server at the
+      # same local root (T-CATALOG-010: the seed writes real page/cover bytes;
+      # the driver is filesystem wherever STORAGE_DIR is set). SEED_EMAIL_PREFIX
+      # is the seed's test-mode key prefix for this invocation (`--env test`
+      # with no --run-id seeds run-id `local`, i.e. prefix `tlocal-`) — the
+      # sign-in spec needs the exact reader address the seed wrote.
       - name: Test environment
         run: |
           {
@@ -455,8 +459,10 @@ jobs:
             echo 'S3_BUCKET=yomi-media'
             echo 'S3_ACCESS_KEY_ID=yomi'
             echo 'S3_SECRET_ACCESS_KEY=yomi-ci-only'
+            echo "STORAGE_DIR=${RUNNER_TEMP}/yomi-e2e-storage"
             echo "SEED_ADMIN_PASSWORD=$(openssl rand -hex 16)"
             echo "SEED_READER_PASSWORD=$(openssl rand -hex 16)"
+            echo 'SEED_EMAIL_PREFIX=tlocal-'
           } >> "$GITHUB_ENV"
 
       # E2E seeds through the dev seed harness and nothing else

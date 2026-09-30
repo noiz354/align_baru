@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { memoryStore } from "@/server/db/memory-store";
-import { getHqDashboard, getHqOutletDetail, HqDashboardNotFoundError } from "@/features/hq/dashboard";
+import { authorizeHqScope, getHqDashboard, getHqOutletDetail, HqDashboardNotFoundError, type AuthorizedHqScope } from "@/features/hq/dashboard";
+import type { SessionContext } from "@/server/auth/port";
 import type { Scope } from "@/shared/types/scope";
 
 const org = "org-dashboard-test";
@@ -11,6 +12,12 @@ const shiftId = "shift-dashboard-test";
 const day = "2026-09-29";
 const at = new Date("2026-09-29T00:30:00.000Z");
 const orgScope: Scope = { kind: "org", organizationId: org };
+
+/** The dashboard scope can only come from a session (never from a request body). */
+function scopeFor(scope: Scope, roles: SessionContext["roles"]): AuthorizedHqScope {
+  const session: SessionContext = { organizationId: scope.organizationId, userId: "user-dashboard-test", roles, scope, sessionIssuedAt: at };
+  return authorizeHqScope(session);
+}
 
 function seed() {
   memoryStore.sellingLocations.set(locationId, { id: locationId, organizationId: org, areaId: area, name: "Manggarai", status: "ACTIVE", createdAt: at, updatedAt: at });
@@ -33,7 +40,7 @@ afterEach(() => { memoryStore.clear(); });
 
 describe("HQ dashboard read model", () => {
   it("derives day totals, completed counts, payment split, expenses and trend from persisted records", () => {
-    const model = getHqDashboard({ scope: orgScope, businessDay: day, limit: 10 });
+    const model = getHqDashboard({ scope: scopeFor(orgScope, ["OWNER"]), businessDay: day, limit: 10 });
     expect(model.kpis.salesMinor).toBe(20000);
     expect(model.kpis.transactionCount).toBe(1);
     expect(model.kpis.averageTransactionMinor).toBe(20000);
@@ -51,7 +58,7 @@ describe("HQ dashboard read model", () => {
   });
 
   it("enforces area scope and hides another area's outlet even when its id is requested", () => {
-    const areaScope: Scope = { kind: "area", organizationId: org, areaId: area };
+    const areaScope = scopeFor({ kind: "area", organizationId: org, areaId: area }, ["AREA_SUPERVISOR"]);
     const model = getHqDashboard({ scope: areaScope, businessDay: day, limit: 10 });
     expect(model.outletOptions.map((outlet) => outlet.id)).toEqual([locationId]);
     expect(() => getHqDashboard({ scope: areaScope, businessDay: day, outletId: foreignLocationId })).toThrow(HqDashboardNotFoundError);
@@ -61,23 +68,23 @@ describe("HQ dashboard read model", () => {
   it("does not return a cross-tenant outlet by identifier", () => {
     const otherOrgLocation = "location-other-tenant-test";
     memoryStore.sellingLocations.set(otherOrgLocation, { id: otherOrgLocation, organizationId: "other-tenant", areaId: "area-z", name: "Private Outlet", status: "ACTIVE", createdAt: at, updatedAt: at });
-    expect(() => getHqDashboard({ scope: orgScope, businessDay: day, outletId: otherOrgLocation })).toThrow(HqDashboardNotFoundError);
+    expect(() => getHqDashboard({ scope: scopeFor(orgScope, ["OWNER"]), businessDay: day, outletId: otherOrgLocation })).toThrow(HqDashboardNotFoundError);
   });
 
   it("rechecks outlet scope on drill-down and only exposes source records for the selected outlet", () => {
-    const detail = getHqOutletDetail({ scope: orgScope, businessDay: day, outletId: locationId, limit: 10 });
+    const detail = getHqOutletDetail({ scope: scopeFor(orgScope, ["OWNER"]), businessDay: day, outletId: locationId, limit: 10 });
     expect(detail.outlet.name).toBe("Manggarai");
     expect(detail.transactions.map((transaction) => transaction.id)).toEqual(["sale-completed-test"]);
     expect(detail.expenses.map((expense) => expense.id)).toEqual(["expense-dashboard-test"]);
-    const areaScope: Scope = { kind: "area", organizationId: org, areaId: "area-other" };
+    const areaScope = scopeFor({ kind: "area", organizationId: org, areaId: "area-other" }, ["AREA_SUPERVISOR"]);
     expect(() => getHqOutletDetail({ scope: areaScope, businessDay: day, outletId: locationId })).toThrow(HqDashboardNotFoundError);
   });
 
   it("applies search and cursor pagination after server-side scoping", () => {
-    const first = getHqDashboard({ scope: orgScope, businessDay: day, search: "Manggarai", limit: 1 });
+    const first = getHqDashboard({ scope: scopeFor(orgScope, ["OWNER"]), businessDay: day, search: "Manggarai", limit: 1 });
     expect(first.outlets).toHaveLength(1);
     expect(first.outlets[0]?.name).toBe("Manggarai");
     expect(first.pagination.total).toBe(1);
-    expect(getHqDashboard({ scope: orgScope, businessDay: day, status: "OPERATING", limit: 10 }).outlets.map((row) => row.name)).toContain("Manggarai");
+    expect(getHqDashboard({ scope: scopeFor(orgScope, ["OWNER"]), businessDay: day, status: "OPERATING", limit: 10 }).outlets.map((row) => row.name)).toContain("Manggarai");
   });
 });

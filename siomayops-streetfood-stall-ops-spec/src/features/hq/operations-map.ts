@@ -1,4 +1,4 @@
-import { getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError, type OutletStatus } from "@/features/hq/dashboard";
+import { getDefaultDashboardDay, getHqDashboard, HqDashboardNotFoundError, type AuthorizedHqScope, type OutletStatus } from "@/features/hq/dashboard";
 import { memoryStore } from "@/server/db/memory-store";
 import type { Scope } from "@/shared/types/scope";
 import type { BusinessDay } from "@/shared/time/business-day";
@@ -67,6 +67,7 @@ function mapPositionReport(shiftId: string, organizationId: string) {
  * contract. Markers represent configured places and explicit shift reports, never a person/device.
  */
 export function getOperationsMap(input: OperationsMapInput) {
+  const authorizedScope = input.scope as AuthorizedHqScope; // Callers authorize the session before invoking this projection.
   const now = input.now ?? new Date();
   const businessDay = input.businessDay ?? getDefaultDashboardDay(now);
   const limit = input.limit ?? 50;
@@ -74,7 +75,7 @@ export function getOperationsMap(input: OperationsMapInput) {
   if (input.cursor && input.cursor.length > 160) throw new OperationsMapQueryError("Map cursor is invalid");
 
   const dashboard = getHqDashboard({
-    scope: input.scope,
+    scope: authorizedScope,
     businessDay,
     areaId: input.areaId,
     cursor: input.cursor,
@@ -87,16 +88,16 @@ export function getOperationsMap(input: OperationsMapInput) {
   }
 
   const scopeDashboard = input.areaId
-    ? getHqDashboard({ scope: input.scope, businessDay, limit: 1 })
+    ? getHqDashboard({ scope: authorizedScope, businessDay, limit: 1 })
     : dashboard;
   const activeShiftById = new Map<string, string>();
   const markerParts = dashboard.outlets.map((row) => {
     const location = memoryStore.sellingLocations.get(row.id);
     const shift = row.activeShiftId ? memoryStore.shifts.get(row.activeShiftId) : undefined;
-    const report = shift && shift.organizationId === input.scope.organizationId ? mapPositionReport(shift.id, input.scope.organizationId) : undefined;
+    const report = shift && shift.organizationId === authorizedScope.organizationId ? mapPositionReport(shift.id, authorizedScope.organizationId) : undefined;
     const positionAt = report?.arrivedAt ?? (shift ? shift.startedAt : undefined);
     const positionSource: MapPositionSource = report ? "LOCATION_REPORT" : shift ? "SHIFT_START" : "CONFIGURED_SITE";
-    if (row.activeShiftId && shift?.organizationId === input.scope.organizationId) activeShiftById.set(row.activeShiftId, row.id);
+    if (row.activeShiftId && shift?.organizationId === authorizedScope.organizationId) activeShiftById.set(row.activeShiftId, row.id);
     let sourceWatermark: Date | null = latestDate(null, dashboard.sourceWatermark ? new Date(dashboard.sourceWatermark) : undefined);
     sourceWatermark = latestDate(sourceWatermark, location?.updatedAt);
     sourceWatermark = latestDate(sourceWatermark, shift?.updatedAt);
@@ -116,7 +117,7 @@ export function getOperationsMap(input: OperationsMapInput) {
   let sourceWatermark: Date | null = null;
   for (const part of markerParts) sourceWatermark = latestDate(sourceWatermark, part.sourceWatermark ?? undefined);
   for (const incident of memoryStore.incidents.values()) {
-    if (incident.organizationId !== input.scope.organizationId || !incident.shiftId || !activeShiftById.has(incident.shiftId)) continue;
+    if (incident.organizationId !== authorizedScope.organizationId || !incident.shiftId || !activeShiftById.has(incident.shiftId)) continue;
     if (incident.status === "CLOSED" || incident.status === "RESOLVED") continue;
     const outletId = activeShiftById.get(incident.shiftId)!;
     incidentCounts.set(outletId, (incidentCounts.get(outletId) ?? 0) + 1);

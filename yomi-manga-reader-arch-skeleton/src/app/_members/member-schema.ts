@@ -25,9 +25,10 @@
  * definition. Same reason, same split, as the catalog lane.
  *
  * ── The rules that are ENFORCED here, and why each one is not optional ─────
- *   - `coverUrl` must be app-relative `/media/{assetKey}`. Anything else becomes
- *     `null` so a tile draws its placeholder instead of fetching an origin the
- *     API chose (THREAT T-11: the key is a capability).
+ *   - `coverUrl` must be app-relative `/media/{assetKey}.{variant}` (shape:
+ *     `MEDIA_URL_PATTERN`, shared). Anything else becomes `null` so a tile
+ *     draws its placeholder instead of fetching an origin the API chose
+ *     (THREAT T-11: the key is a capability).
  *   - `chapter: null` is a REAL state, not a missing field: the FK is
  *     `ON DELETE SET NULL`, so the row is retained with the jump disabled
  *     (DATA_MODEL §13/§14, NFR-DATA-005). Every chapter field is therefore
@@ -39,18 +40,18 @@
  *     complete, so a tile can show the cover and the title; it just cannot be
  *     opened.
  *
- * ── The one rule this file copies rather than imports ──────────────────────
- * The `/media/{key}` cover rule also lives in `discover/catalog-schema.ts`. The
- * two copies are deliberate rather than accidental: that module is the catalog
- * lane's private parser and importing it would make the members' shelf depend
- * on the catalog page's folder. The one home for this rule is a shared app-lane
- * module; until that exists the duplication is bounded to one regex and is
- * called out here so a third copy is a decision, not an accident.
+ * ── The rule this file used to copy — now imported ─────────────────────────
+ * The `/media/{key}.{variant}` cover rule lived here AND in
+ * `discover/catalog-schema.ts` as two copies of one regex. The one home
+ * exists now: `MEDIA_URL_PATTERN` in `shared/storage-keys.ts` (T-CATALOG-010,
+ * SQ-LIB-5), imported by both lanes. A third copy is a decision, not an
+ * accident.
  *
  * Nothing here imports server or feature code: it is shapes only.
  */
 import { z } from 'zod';
 import type { ChapterId, MangaId, MangaSlug } from '../../shared/types';
+import { MEDIA_URL_PATTERN } from '../../shared/storage-keys';
 
 /**
  * The wire carries a string; the domain type is branded (shared/types/ids.ts).
@@ -80,7 +81,7 @@ const wholeNumber = z.coerce.number().int();
 /** See the header: an off-shape URL degrades to the placeholder, never to a fetch. */
 const coverUrlSchema = z
   .string()
-  .transform((value) => (/^\/media\/[A-Za-z0-9_-]{6,64}$/.test(value) ? value : null))
+  .transform((value) => (MEDIA_URL_PATTERN.test(value) ? value : null))
   .nullable();
 
 /**

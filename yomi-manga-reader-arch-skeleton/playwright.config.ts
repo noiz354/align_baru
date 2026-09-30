@@ -13,14 +13,15 @@ const BASE_URL = process.env['E2E_BASE_URL'] ?? `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
-  // Convention, and the reason this is pinned rather than left to Playwright's
-  // default (`*.@(spec|test).ts`): `tests/e2e/` holds two kinds of file today.
-  // The seven `*.e2e.test.ts` files are Vitest `describe.todo` placeholders
-  // belonging to the tasks that own E2E-CATALOG/READER/AUTH/… — under the
-  // default matcher Playwright tried to load them and `npm run test:e2e` failed
-  // to start. Real E2E specs use `*.e2e.spec.ts`, so a placeholder is never
-  // mistaken for a runnable spec. When its task lands, that file is rewritten
-  // as a `*.e2e.spec.ts`.
+  // Convention, pinned rather than left to Playwright's default
+  // (`*.@(spec|test).ts`): every runnable E2E spec is `*.e2e.spec.ts`, full
+  // stop. Until F-021-S1 this directory also held seven `*.e2e.test.ts` files
+  // of Vitest `describe.todo` placeholders, which neither runner executed —
+  // vitest's `include` covers only tests/unit and tests/integration, and this
+  // matcher excluded them — so they were planning debt wearing a test file's
+  // name. Their IDs live in TEST_STRATEGY.md and TASKS.md, which is where
+  // planned work belongs; the files are deleted, and this comment is the
+  // receipt. When a planned E2E lands, it lands directly as a `*.e2e.spec.ts`.
   testMatch: '**/*.e2e.spec.ts',
   // A flake blocks the milestone; zero tolerance (AGENTS.md §3). One retry in CI
   // to absorb genuine infrastructure races, none locally so a local flake is loud.
@@ -31,7 +32,11 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env['CI'],
   reporter: process.env['CI']
-    ? [['github'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/e2e-junit.xml' }]]
+    ? [
+        ['github'],
+        ['html', { open: 'never' }],
+        ['junit', { outputFile: 'test-results/e2e-junit.xml' }],
+      ]
     : [['list']],
   outputDir: 'test-results/e2e-artifacts',
   use: {

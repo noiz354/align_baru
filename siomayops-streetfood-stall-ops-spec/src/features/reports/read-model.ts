@@ -151,7 +151,7 @@ export function getOperationalReport(input: OperationalReportInput) {
   // Reuse the established dashboard scope resolver. It validates requested area/outlet IDs against
   // the authenticated scope and supplies only visible location options.
   const scopeAnchor = getHqDashboard({
-    scope: input.scope,
+    scope: input.scope as import("@/features/hq/dashboard").AuthorizedHqScope,
     businessDay: dateFrom,
     areaId: input.areaId,
     outletId: input.outletId,

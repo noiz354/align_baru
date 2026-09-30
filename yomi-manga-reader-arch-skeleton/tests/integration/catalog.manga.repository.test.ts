@@ -186,9 +186,11 @@ describeDb('INT-CAT-001 / T-CATALOG-001 — MangaRepository on a real PostgreSQL
 
     it('builds an app-relative cover URL, never a storage URL (FR-MEDIA-003)', async () => {
       const id = await createManga(harness, slugs, { published: true });
-      await manga.setCover(id, 'seed/v1/cover/abcdef0123456789');
+      await manga.setCover(id, 'abcdef0123456789abcdef0123456789');
       const item = (await manga.list({})).items.find((entry) => entry.id === id);
-      expect(item?.coverUrl).toBe('/media/seed/v1/cover/abcdef0123456789');
+      // The JPEG delivery URL for the stored base key (T-CATALOG-010): the
+      // extension selects the variant the delivery grammar requires.
+      expect(item?.coverUrl).toBe('/media/abcdef0123456789abcdef0123456789.jpeg');
     });
 
     it('honours the status filter (FR-CATALOG-003)', async () => {
@@ -648,8 +650,10 @@ describeDb('INT-CAT-001 / T-CATALOG-001 — MangaRepository on a real PostgreSQL
     it('setCover() writes and clears the cover key', async () => {
       const id = await createManga(harness, slugs, { published: true });
       const slug = slugs.get(id) as MangaSlug;
-      await manga.setCover(id, 'seed/v1/cover/aaa');
-      expect((await manga.bySlug(slug, null))?.coverUrl).toBe('/media/seed/v1/cover/aaa');
+      await manga.setCover(id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      expect((await manga.bySlug(slug, null))?.coverUrl).toBe(
+        '/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg',
+      );
       await manga.setCover(id, null);
       expect((await manga.bySlug(slug, null))?.coverUrl).toBeNull();
     });
